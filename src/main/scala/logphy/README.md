@@ -1,0 +1,1 @@
+Logical PHY lies below the MMPL block and needs to implement link training, lane repair, lane reversal, (de)scrambling, sideband initialization and transfers, byte mapping to lanes, interface to AFE and clock gating.
