@@ -7,6 +7,7 @@ ThisBuild / scalacOptions := Seq(
   "-feature",
   "-language:reflectiveCalls",
   "-Xcheckinit",
+  "-Xlint",
 )
 
 val chiselVersion = "3.6.0"
