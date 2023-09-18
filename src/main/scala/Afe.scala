@@ -3,7 +3,6 @@ package ucie
 import chisel3._
 import chisel3.util._
 
-
 class StandardPackageIo(lanes: Int = 16) extends Bundle {
   // TX
   val txData = Output(Bits(lanes.W))
@@ -27,9 +26,13 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
 }
 
 // The analog front-end (AFE) interface, from the perspective of the logical PHY layer.
-class AfeIo(lanes: Int = 16, mbSerializerRatio: Int = 16, sbSerializerRatio: Int = 1) extends Bundle {
+class AfeIo(
+    lanes: Int = 16,
+    mbSerializerRatio: Int = 16,
+    sbSerializerRatio: Int = 1,
+) extends Bundle {
   // Top-level pins.
-  val pins = StandardPackageIo(lanes)
+  val pins = new StandardPackageIo(lanes)
 
   // Data to transmit on the mainband.
   // Output from the async FIFO.
@@ -89,4 +92,3 @@ class AfeIo(lanes: Int = 16, mbSerializerRatio: Int = 16, sbSerializerRatio: Int
   val txClockEn = Input(Bool())
   val txClockPark = Input(Bool())
 }
-
