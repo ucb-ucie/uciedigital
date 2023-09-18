@@ -1,13 +1,11 @@
-package ucie
+package edu.berkeley.cs.ucie.digital
 
 import chisel3._
-import chisel3.experimental.{requireIsChiselType, Direction}
-import chisel3.reflect.DataMirror
-
-import scala.annotation.nowarn
 
 abstract class ReadyValid3IO[+T <: Data](gen: T) extends Bundle {
-  /** Indicates that the consumer is ready to accept the data this cycle ("target ready")
+
+  /** Indicates that the consumer is ready to accept the data this cycle
+    * ("target ready")
     * @group Signals
     */
   val ready = Input(Bool())
@@ -17,12 +15,14 @@ abstract class ReadyValid3IO[+T <: Data](gen: T) extends Bundle {
     */
   val valid = Output(Bool())
 
-  /** Indicates that the producer wants the consumer to sample the data ("initiator ready")
+  /** Indicates that the producer wants the consumer to sample the data
+    * ("initiator ready")
     * @group Signals
     */
   val irdy = Output(Bool())
 
-  /** The data to be transferred when ready, irdy, and valid are asserted at the same cycle
+  /** The data to be transferred when ready, irdy, and valid are asserted at the
+    * same cycle
     * @group Signals
     */
   val bits = Output(gen)
@@ -38,13 +38,16 @@ object ReadyValid3IO {
 
     @deprecated(
       "Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead",
-      "Chisel 3.5"
+      "Chisel 3.5",
     )
     def fire(dummy: Int = 0): Bool = fire
 
-    /** Push dat onto the output bits of this interface to let the consumer know it has happened.
-      * @param dat the values to assign to bits.
-      * @return    dat.
+    /** Push dat onto the output bits of this interface to let the consumer know
+      * it has happened.
+      * @param dat
+      *   the values to assign to bits.
+      * @return
+      *   dat.
       */
     def enq(dat: T): T = {
       target.valid := true.B
@@ -60,9 +63,10 @@ object ReadyValid3IO {
       target.bits := DontCare
     }
 
-    /** Assert ready on this port and return the associated data bits.
-      * This is typically used when valid has been asserted by the producer side.
-      * @return The data bits.
+    /** Assert ready on this port and return the associated data bits. This is
+      * typically used when valid has been asserted by the producer side.
+      * @return
+      *   The data bits.
       */
     def deq(): T = {
       target.ready := true.B
@@ -78,18 +82,21 @@ object ReadyValid3IO {
 }
 
 /** A concrete subclass of ReadyValid3IO signaling that the user expects a
-  * "decoupled" interface: 'valid' indicates that the producer has
-  * put valid data in 'bits', and 'ready' indicates that the consumer is ready
-  * to accept the data this cycle. No requirements are placed on the signaling
-  * of ready or valid.
-  * @param gen the type of data to be wrapped in Decoupled3IO
+  * "decoupled" interface: 'valid' indicates that the producer has put valid
+  * data in 'bits', and 'ready' indicates that the consumer is ready to accept
+  * the data this cycle. No requirements are placed on the signaling of ready or
+  * valid.
+  * @param gen
+  *   the type of data to be wrapped in Decoupled3IO
   */
 class Decoupled3IO[+T <: Data](gen: T) extends ReadyValid3IO[T](gen) {
 
-  /** Applies the supplied functor to the bits of this interface, returning a new
-    * typed Decoupled3IO interface.
-    * @param f The function to apply to this Decoupled3IO's 'bits' with return type B
-    * @return a new Decoupled3IO of type B
+  /** Applies the supplied functor to the bits of this interface, returning a
+    * new typed Decoupled3IO interface.
+    * @param f
+    *   The function to apply to this Decoupled3IO's 'bits' with return type B
+    * @return
+    *   a new Decoupled3IO of type B
     */
   def map[B <: Data](f: T => B): Decoupled3IO[B] = {
     val _map_bits = f(bits)

@@ -13,7 +13,6 @@ project/plugins/project/
 .history
 .cache
 .lib/
-.vscode
 
 ### SBT Patch ###
 .bsp/
@@ -27,3 +26,7 @@ project/**/metals.sbt
 
 ### Chiseltest ###
 test_run_dir/
+
+### IDEs ###
+.vscode/
+.idea/
