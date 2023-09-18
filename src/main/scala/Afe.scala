@@ -1,4 +1,4 @@
-package ucie
+package edu.berkeley.cs.ucie.digital
 
 import chisel3._
 import chisel3.util._
