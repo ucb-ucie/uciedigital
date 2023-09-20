@@ -2,6 +2,18 @@ package edu.berkeley.cs.ucie.digital
 
 import chisel3._
 
+/** An I/O Bundle containing `valid`, `ready`, and `irdy` signals that handshake
+  * the transfer of data stored in the 'bits' subfield.
+  *
+  * The base protocol implied by the directionality is that the producer uses
+  * the interface as-is (outputs bits) while the consumer uses the flipped
+  * interface (inputs bits). The actual semantics of ready/valid are enforced
+  * via the use of concrete subclasses.
+  * @param gen
+  *   the type of data to be wrapped in Ready/Valid
+  * @groupdesc Signals
+  *   The actual hardware fields of the Bundle
+  */
 abstract class ReadyValid3IO[+T <: Data](gen: T) extends Bundle {
 
   /** Indicates that the consumer is ready to accept the data this cycle
