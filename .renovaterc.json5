@@ -19,5 +19,15 @@
       "allowedVersions": "~0.6", // Chisel 3.6 (chipyard chisel)
     },
   ],
+  "regexManagers": [
+    {
+      "fileMatch": ["^.scalafmt.conf$"],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>.*?)\"\\n",
+      ],
+      "depNameTemplate": "scalameta/scalafmt",
+      "datasourceTemplate": "github-releases",
+    },
+  ],
 }
 // vim: et ts=2
