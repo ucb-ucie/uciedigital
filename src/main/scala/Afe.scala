@@ -33,39 +33,40 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
 // The sideband analog front-end (AFE) interface, from the perspective of the logical PHY layer.
 //
 // All signals in this interface are synchronous to the sideband clock (fixed at 800 MHz).
+// As a result, the sideband's `serializerRatio` likely will be different from the mainband's `serializerRatio`.
 class SidebandAfeIo(
-    sbSerializerRatio: Int = 1,
+    serializerRatio: Int = 1,
 ) extends Bundle {
   // Data to transmit on the sideband.
   // Output from the async FIFO.
-  val txData = Decoupled(Bits(sbSerializerRatio.W))
+  val txData = Decoupled(Bits(serializerRatio.W))
   // Data received on the sideband.
   // Input to the async FIFO.
-  val rxData = Decoupled(Bits(sbSerializerRatio.W))
+  val rxData = Flipped(Decoupled(Bits(serializerRatio.W)))
   // Enable sideband receivers.
-  val rxEn = Input(Bool())
+  val rxEn = Output(Bool())
 }
 
 // The mainband analog front-end (AFE) interface, from the perspective of the logical PHY layer.
 //
 // All signals in this interface are synchronous to the mainband AFE's digital clock,
 // which is produced by taking a high speed clock from a PLL
-// and dividing its frequency by `mbSerializerRatio`.
+// and dividing its frequency by `serializerRatio`.
 //
 // With half-rate clocking (1 data bit transmitted per UI; 1 UI = 0.5 clock cycles), the PLL clock
 // may be 2, 4, 6, 8, 12, or 16 GHz. With a serializer ratio of 16, this results in a 0.125-1 GHz
 // AFE digital clock.
 class MainbandAfeIo(
     lanes: Int = 16,
-    mbSerializerRatio: Int = 16,
+    serializerRatio: Int = 16,
 ) extends Bundle {
   // Data to transmit on the mainband.
   // Output from the async FIFO.
-  val txMbData = Decoupled(Vec(lanes, Bits(mbSerializerRatio.W)))
+  val txData = Decoupled(Vec(lanes, Bits(serializerRatio.W)))
 
   // Data received on the mainband.
   // Input to the async FIFO.
-  val rxMbData = Flipped(Decoupled(Vec(lanes, Bits(mbSerializerRatio.W))))
+  val rxData = Flipped(Decoupled(Vec(lanes, Bits(serializerRatio.W))))
 
   /////////////////////
   // impedance control
@@ -74,45 +75,45 @@ class MainbandAfeIo(
   /////////////////////
 
   // TX pull up impedance control.
-  val txZpu = Input(Vec(lanes, UInt(4.W)))
+  val txZpu = Output(Vec(lanes, UInt(4.W)))
   // TX pull down impedance control.
-  val txZpd = Input(Vec(lanes, UInt(4.W)))
+  val txZpd = Output(Vec(lanes, UInt(4.W)))
   // RX impedance control.
-  val rxZ = Input(Vec(lanes, UInt(4.W)))
+  val rxZ = Output(Vec(lanes, UInt(4.W)))
 
   /////////////////////
   // phase control
   /////////////////////
 
   // Global (per-module) phase control.
-  val txGlobalPhaseSel = Input(UInt(4.W))
+  val txGlobalPhaseSel = Output(UInt(4.W))
   // Per-lane phase control.
-  val txLaneDeskew = Input(Vec(lanes, UInt(4.W)))
+  val txLaneDeskew = Output(Vec(lanes, UInt(4.W)))
   // Per-lane phase control.
-  val rxLaneDeskew = Input(Vec(lanes, UInt(4.W)))
+  val rxLaneDeskew = Output(Vec(lanes, UInt(4.W)))
 
   /////////////////////
   // frequency control
   /////////////////////
-  val txFreqSel = Input(UInt(4.W))
+  val txFreqSel = Output(UInt(4.W))
 
   /////////////////////
   // receiver control
   /////////////////////
   // Mainband receiver enable.
-  val rxEn = Input(Bool())
+  val rxEn = Output(Bool())
   // Per-lane vref/offset cancellation control.
-  val rxVref = Input(Vec(lanes, UInt(4.W)))
+  val rxVref = Output(Vec(lanes, UInt(4.W)))
 
   /////////////////////
   // clock control
   /////////////////////
   // Clock gating control.
-  val txClockEn = Input(Bool())
+  val txClockEn = Output(Bool())
   // Clock parking level.
   //
   // Per the UCIe spec, must alternate between high and low
   // on subsequent clock gating events. If the link is using
   // free running clock mode, this signal has no effect.
-  val txClockPark = Input(Bool())
+  val txClockPark = Output(Bool())
 }
