@@ -27,6 +27,7 @@
       ],
       "depNameTemplate": "scalameta/scalafmt",
       "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.*)$",
     },
   ],
 }
