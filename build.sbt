@@ -10,6 +10,8 @@ ThisBuild / scalacOptions := Seq(
   "-Xlint",
 )
 
+Compile / doc / scalacOptions += "-groups"
+
 val chiselVersion = "3.6.0"
 
 lazy val root = (project in file("."))
