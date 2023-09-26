@@ -4,12 +4,13 @@ import chisel3._
 import chisel3.util._
 import edu.berkeley.cs.ucie.digital.Decoupled3 // remove this when Decoupled3 is moved to interfaces
 
-/** The Flit-aware D2D interface (FDI), from the perspective of the Protocol layer. */
+/** The Flit-aware D2D interface (FDI), from the perspective of the Protocol
+  * layer.
+  */
 class Fdi(width: Int, sbWidth: Int) extends Bundle {
 
-  /* lp_*: protocol to d2d adapter
-     pl_*: d2d adapter to protocol
-  */
+  /** lp_*: protocol to d2d adapter pl_*: d2d adapter to protocol
+    */
 
   /** Protocol Layer to Adapter data.
     *
@@ -25,13 +26,13 @@ class Fdi(width: Int, sbWidth: Int) extends Bundle {
     */
   val plData = Flipped(Valid(Vec(width, UInt(8.W))))
 
-  /** Protocol Layer to Adapter signal that indicates the stream ID to use with data. Each
-    * stream ID maps to a unique protocol and stack
+  /** Protocol Layer to Adapter signal that indicates the stream ID to use with
+    * data. Each stream ID maps to a unique protocol and stack
     */
   val lpStream = Output(ProtoStream())
 
-  /** Adapter to Protocol Layer signal that indicates the stream ID to use with data. Each
-    * stream ID maps to a unique protocol and stack
+  /** Adapter to Protocol Layer signal that indicates the stream ID to use with
+    * data. Each stream ID maps to a unique protocol and stack
     */
   val plStream = Input(ProtoStream())
 
@@ -52,30 +53,33 @@ class Fdi(width: Int, sbWidth: Int) extends Bundle {
   /** Protocol layer request to Adapter to request state change. */
   val lpStateReq = Output(ProtoStateReq())
 
-  /** Protocol Layer to Adapter indication that an error has occurred which requires the Link
-    * to go down. Adapter must propagate this request to RDI, and move the Adapter LSMs
-    * (and CXL vLSMs if applicable) to LinkError state once RDI is in LinkError state. It must
-    * stay there as long as lp_linkerror=1. The reason for having this be an indication
-    * decoupled from regular state transitions is to allow immediate action on part of the
-    * Protocol Layer and Adapter in order to provide the quickest path for error containment
-    * when applicable (for example, a viral error escalation could map to the LinkError state)
+  /** Protocol Layer to Adapter indication that an error has occurred which
+    * requires the Link to go down. Adapter must propagate this request to RDI,
+    * and move the Adapter LSMs (and CXL vLSMs if applicable) to LinkError state
+    * once RDI is in LinkError state. It must stay there as long as
+    * lp_linkerror=1. The reason for having this be an indication decoupled from
+    * regular state transitions is to allow immediate action on part of the
+    * Protocol Layer and Adapter in order to provide the quickest path for error
+    * containment when applicable (for example, a viral error escalation could
+    * map to the LinkError state)
     */
   val lpLinkError = Output(Bool())
 
   /** Adapter to Protocol Layer Status indication of the Interface.
     *
-    * The status signal is permitted to transition from Adapter autonomously when
-    * applicable. For example the Adapter asserts the Retrain status when it decides to enter
-    * retraining either autonomously or when requested by remote agent.
+    * The status signal is permitted to transition from Adapter autonomously
+    * when applicable. For example the Adapter asserts the Retrain status when
+    * it decides to enter retraining either autonomously or when requested by
+    * remote agent.
     */
   val plStateStatus = Input(ProtoState())
-  
+
   val plInbandPres = Input(Bool())
   val plError = Input(Bool())
   val plCorrectableError = Input(Bool())
   val plNonFatalError = Input(Bool())
   val plTrainError = Input(Bool())
-  
+
   val plRxActiveReq = Input(Bool())
   val lpRxActiveStatus = Output(Bool())
 
