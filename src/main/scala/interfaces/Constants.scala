@@ -1,7 +1,6 @@
 package edu.berkeley.cs.ucie.digital.interfaces
 
 import chisel3._
-import chisel3.util._
 
 object PhyState extends ChiselEnum {
   val reset = Value(0x0.U(4.W))
