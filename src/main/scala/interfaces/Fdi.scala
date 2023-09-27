@@ -262,12 +262,12 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * subsequent transitions to LinkError or Reset state depending on the Link
     * state machine transitions. Protocol Layer must sample and store
     * pl_protocol and pl_protocol_flitfmt when pl_protocol_vld = 1 and
-    * pl_state_sts = Reset and pl_inband_pres =
-    * \1. It must treat this saved value as the negotiated protocol until
-    * pl_state_sts = Reset and pl_inband_pres = 0. The Adapter must ensure that
-    * if pl_inband_pres = 1, pl_protocol_vld = 1 and pl_state_sts = Reset, then
-    * pl_protocol and pl_protocol_flitfmt are the correct values that can be
-    * sampled by the Protocol Layer.
+    * pl_state_sts = Reset and pl_inband_pres = 1. It must treat this saved
+    * value as the negotiated protocol until pl_state_sts = Reset and
+    * pl_inband_pres = 0. The Adapter must ensure that if pl_inband_pres = 1,
+    * pl_protocol_vld = 1 and pl_state_sts = Reset, then pl_protocol and
+    * pl_protocol_flitfmt are the correct values that can be sampled by the
+    * Protocol Layer.
     */
   val plProtocolValid = Input(Bool())
 
