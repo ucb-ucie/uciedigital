@@ -7,9 +7,9 @@ import scala.math._
 
 // Protocol layer and TileLink parameters
 
-case class ProtocolLayerParams (
+case class ProtocolLayerParams(
     val tlBaseAddress: BigInt,
-    val configBaseAddress: BigInt
+    val configBaseAddress: BigInt,
 ) {
-    val beatByte: Int = 32
+  val beatByte: Int = 32
 }
