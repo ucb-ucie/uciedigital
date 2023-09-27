@@ -89,7 +89,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
   /** Protocol Layer to Adapter signal that indicates the stream ID to use with
     * data. Each stream ID maps to a unique protocol and stack.
     */
-  val lpStream = Output(StreamId())
+  val lpStream = Output(new ProtoStream())
 
   /** When asserted at a rising clock edge, it indicates a single credit return
     * from the Retimer. Each credit corresponds to 256B of mainband data
@@ -131,7 +131,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * data. Each stream ID maps to a unique protocol.
     */
 
-  val plStream = Input(StreamId())
+  val plStream = Input(new ProtoStream())
 
   /** Adapter to Protocol Layer indication to dump a Flit. This enables latency
     * optimizations on the Receiver data path when CRC checking is enabled in
@@ -405,15 +405,21 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
   val lpConfigCredit = Output(Bool())
 }
 
-object StreamId extends ChiselEnum {
-  val pcie0 = Value(0x1.U(8.W))
-  val cxlIo0 = Value(0x2.U(8.W))
-  val cxlCachemem0 = Value(0x3.U(8.W))
-  val streaming0 = Value(0x4.U(8.W))
-  val pcie1 = Value(0x11.U(8.W))
-  val cxlIo1 = Value(0x12.U(8.W))
-  val cxlCachemem1 = Value(0x13.U(8.W))
-  val streaming1 = Value(0x14.U(8.W))
+object ProtoStack extends ChiselEnum {
+  val stack0 = Value(0x0.U(4.W))
+  val stack1 = Value(0x1.U(4.W))
+}
+
+object ProtoStreamType extends ChiselEnum {
+  val PCIe = Value(0x1.U(4.W))
+  val CXLI = Value(0x2.U(4.W))
+  val CXLC = Value(0x3.U(4.W))
+  val Stream = Value(0x4.U(4.W))
+}
+
+class ProtoStream extends Bundle {
+  val protoStack = Output(ProtoStack())
+  val protoType = Output(ProtoStreamType())
 }
 
 object Protocol extends ChiselEnum {
