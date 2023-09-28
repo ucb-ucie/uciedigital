@@ -1,4 +1,4 @@
-package edu.berkeley.cs.ucie.digital
+package edu.berkeley.cs.ucie.digital.interfaces
 
 import chisel3._
 import chisel3.util._
@@ -10,7 +10,7 @@ class Rdi(width: Int, sbWidth: Int) extends Bundle {
     *
     * Encompasses lp_irdy, lp_valid, and pl_trdy from the UCIe specification.
     */
-  val lpData = Decoupled3(Vec(width, UInt(8.W)))
+  val lpData = Decoupled3(Bits((8 * width).W))
 
   /** Physical Layer to Adapter data.
     *
@@ -18,7 +18,7 @@ class Rdi(width: Int, sbWidth: Int) extends Bundle {
     * that backpressure is not possible. Data should be sampled whenever valid
     * is asserted at a clock edge.
     */
-  val plData = Flipped(Valid(Vec(width, UInt(8.W))))
+  val plData = Flipped(Valid(Bits((8 * width).W)))
 
   /** When asserted at a rising clock edge, it indicates a single credit return
     * from the Adapter to the Physical Layer for the Retimer Receiver buffers.
@@ -81,45 +81,4 @@ class Rdi(width: Int, sbWidth: Int) extends Bundle {
   val plConfigCredit = Input(Bool())
   val lpConfig = Valid(UInt(sbWidth.W))
   val lpConfigCredit = Output(Bool())
-}
-
-object PhyState extends ChiselEnum {
-  val reset = Value(0x0.U(4.W))
-  val active = Value(0x1.U(4.W))
-  val activePmNak = Value(0x3.U(4.W))
-  val l1 = Value(0x4.U(4.W))
-  val l2 = Value(0x8.U(4.W))
-  val linkReset = Value(0x9.U(4.W))
-  val linkError = Value(0xa.U(4.W))
-  val retrain = Value(0xb.U(4.W))
-  val disabled = Value(0xc.U(4.W))
-}
-
-object PhyStateReq extends ChiselEnum {
-  val reset = Value(0x0.U(4.W))
-  val active = Value(0x1.U(4.W))
-  val l1 = Value(0x4.U(4.W))
-  val l2 = Value(0x8.U(4.W))
-  val linkReset = Value(0x9.U(4.W))
-  val linkError = Value(0xa.U(4.W))
-  val retrain = Value(0xb.U(4.W))
-  val disabled = Value(0xc.U(4.W))
-}
-
-object SpeedMode extends ChiselEnum {
-  val speed4 = Value(0x0.U(3.W))
-  val speed8 = Value(0x1.U(3.W))
-  val speed12 = Value(0x2.U(3.W))
-  val speed16 = Value(0x3.U(3.W))
-  val speed24 = Value(0x4.U(3.W))
-  val speed32 = Value(0x5.U(3.W))
-}
-
-object PhyWidth extends ChiselEnum {
-  val width8 = Value(0x1.U(3.W))
-  val width16 = Value(0x2.U(3.W))
-  val width32 = Value(0x3.U(3.W))
-  val width64 = Value(0x4.U(3.W))
-  val width128 = Value(0x5.U(3.W))
-  val width256 = Value(0x6.U(3.W))
 }
