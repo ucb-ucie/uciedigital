@@ -56,8 +56,8 @@ object ProtoStreamType extends ChiselEnum {
 }
 
 class ProtoStream extends Bundle {
-  val protoStack = Output(ProtoStack())
-  val protoType = Output(ProtoStreamType())
+  val protoStack = ProtoStack()
+  val protoType = ProtoStreamType()
 }
 
 object Protocol extends ChiselEnum {

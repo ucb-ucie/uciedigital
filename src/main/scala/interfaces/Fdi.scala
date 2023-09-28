@@ -13,7 +13,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * Encompasses `lp_irdy`, `lp_valid`, and `pl_trdy` from the UCIe
     * specification.
     */
-  val lpData = Decoupled3(Vec(width, UInt(8.W)))
+  val lpData = Decoupled3(Bits((8 * width).W))
 
   /** Adapter to protocol layer data.
     *
@@ -21,7 +21,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * that backpressure is not possible. Data should be sampled whenever valid
     * is asserted at a clock edge.
     */
-  val plData = Flipped(Valid(Vec(width, UInt(8.W))))
+  val plData = Flipped(Valid(Bits((8 * width).W)))
 
   /** When asserted at a rising clock edge, it indicates a single credit return
     * for the Retimer Receiver buffer. Each credit corresponds to 256B of
