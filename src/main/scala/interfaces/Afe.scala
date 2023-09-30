@@ -63,6 +63,12 @@ class SidebandAfeIo(
 
   /** Enable sideband receivers. */
   val rxEn = Output(Bool())
+
+  /** Sideband PLL Lock.
+    *
+    * Indicates whether the sideband clock is stable.
+    */
+  val pllLock = Output(Bool())
 }
 
 /** The mainband analog front-end (AFE) interface, from the perspective of the
@@ -195,4 +201,12 @@ class MainbandAfeIo(
     * @group clock
     */
   val txClockPark = Output(Bool())
+
+  /** Mainband PLL Lock.
+    *
+    * Indicates whether the mainband clock is stable.
+    *
+    * @group clock
+    */
+  val pllLock = Output(Bool())
 }
