@@ -26,3 +26,6 @@ lazy val root = (project in file("."))
       "edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full,
     ),
   )
+
+// Plugins
+root / idePackagePrefix := Some("edu.berkeley.cs.ucie.digital")
