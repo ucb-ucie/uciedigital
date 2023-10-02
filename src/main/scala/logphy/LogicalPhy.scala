@@ -1,8 +1,9 @@
 package edu.berkeley.cs.ucie.digital
 package logphy
 
+import interfaces._
+
 import chisel3._
-import edu.berkeley.cs.ucie.digital.interfaces._
 
 class LogicalPhy(
     afeParams: AfeParams,
