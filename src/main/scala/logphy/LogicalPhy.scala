@@ -1,17 +1,17 @@
-package edu.berkeley.cs.ucie.digital.logphy
+package edu.berkeley.cs.ucie.digital
+package logphy
+
+import interfaces._
 
 import chisel3._
-import edu.berkeley.cs.ucie.digital.interfaces._
 
 class LogicalPhy(
-    lanes: Int = 16,
-    serializerRatio: Int = 16,
-    width: Int,
-    sbWidth: Int,
+    afeParams: AfeParams,
+    rdiParams: RdiParams,
 ) extends Module {
   val io = IO(new Bundle {
-    val rdi = Flipped(new Rdi(width, sbWidth))
-    val mbAfe = new MainbandAfeIo(lanes, serializerRatio)
-    val sbAfe = new SidebandAfeIo(serializerRatio)
+    val rdi = Flipped(new Rdi(rdiParams))
+    val mbAfe = new MainbandAfeIo(afeParams)
+    val sbAfe = new SidebandAfeIo(afeParams)
   })
 }
