@@ -39,6 +39,12 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
   val rx = Input(new UnidirectionalIo(lanes))
 }
 
+case class AfeParams(
+    sbSerializerRatio: Int = 1,
+    mbSerializerRatio: Int = 16,
+    mbLanes: Int = 16,
+)
+
 /** The sideband analog front-end (AFE) interface, from the perspective of the
   * logical PHY layer.
   *
@@ -47,20 +53,20 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
   * different from the mainband's `serializerRatio`.
   */
 class SidebandAfeIo(
-    serializerRatio: Int = 1,
+    afeParams: AfeParams,
 ) extends Bundle {
 
   /** Data to transmit on the sideband.
     *
     * Output from the async FIFO.
     */
-  val txData = Decoupled(Bits(serializerRatio.W))
+  val txData = Decoupled(Bits(afeParams.sbSerializerRatio.W))
 
   /** Data received on the sideband.
     *
     * Input to the async FIFO.
     */
-  val rxData = Flipped(Decoupled(Bits(serializerRatio.W)))
+  val rxData = Flipped(Decoupled(Bits(afeParams.sbSerializerRatio.W)))
 
   /** Enable sideband receivers. */
   val rxEn = Output(Bool())
@@ -97,8 +103,7 @@ class SidebandAfeIo(
   * @groupprio clock 104
   */
 class MainbandAfeIo(
-    lanes: Int = 16,
-    serializerRatio: Int = 16,
+    afeParams: AfeParams,
 ) extends Bundle {
 
   /** Data to transmit on the mainband.
@@ -107,7 +112,9 @@ class MainbandAfeIo(
     *
     * @group data
     */
-  val txData = Decoupled(Vec(lanes, Bits(serializerRatio.W)))
+  val txData = Decoupled(
+    Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W)),
+  )
 
   /** Data received on the mainband.
     *
@@ -115,7 +122,9 @@ class MainbandAfeIo(
     *
     * @group data
     */
-  val rxData = Flipped(Decoupled(Vec(lanes, Bits(serializerRatio.W))))
+  val rxData = Flipped(
+    Decoupled(Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W))),
+  )
 
   /////////////////////
   // impedance control
@@ -127,19 +136,19 @@ class MainbandAfeIo(
     *
     * @group impedance
     */
-  val txZpu = Output(Vec(lanes, UInt(4.W)))
+  val txZpu = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /** TX pull down impedance control.
     *
     * @group impedance
     */
-  val txZpd = Output(Vec(lanes, UInt(4.W)))
+  val txZpd = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /** RX impedance control.
     *
     * @group impedance
     */
-  val rxZ = Output(Vec(lanes, UInt(4.W)))
+  val rxZ = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /////////////////////
   // phase control
@@ -155,13 +164,13 @@ class MainbandAfeIo(
     *
     * @group phase
     */
-  val txLaneDeskew = Output(Vec(lanes, UInt(4.W)))
+  val txLaneDeskew = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /** Per-lane phase control.
     *
     * @group phase
     */
-  val rxLaneDeskew = Output(Vec(lanes, UInt(4.W)))
+  val rxLaneDeskew = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /////////////////////
   // frequency control
@@ -182,7 +191,7 @@ class MainbandAfeIo(
     *
     * @group receiver
     */
-  val rxVref = Output(Vec(lanes, UInt(4.W)))
+  val rxVref = Output(Vec(afeParams.mbLanes, UInt(4.W)))
 
   /////////////////////
   // clock control
