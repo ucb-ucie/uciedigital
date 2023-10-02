@@ -176,7 +176,7 @@ class MainbandAfeIo(
   // frequency control
   /////////////////////
   /** @group freq */
-  val txFreqSel = Output(UInt(4.W))
+  val txFreqSel = Output(SpeedMode())
 
   /////////////////////
   // receiver control
