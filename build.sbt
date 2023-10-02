@@ -28,4 +28,5 @@ lazy val root = (project in file("."))
   )
 
 // Plugins
+Global / excludeLintKeys += idePackagePrefix
 root / idePackagePrefix := Some("edu.berkeley.cs.ucie.digital")
