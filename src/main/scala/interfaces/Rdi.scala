@@ -1,16 +1,19 @@
-package edu.berkeley.cs.ucie.digital.interfaces
+package edu.berkeley.cs.ucie.digital
+package interfaces
 
 import chisel3._
 import chisel3.util._
 
+case class RdiParams(width: Int, sbWidth: Int)
+
 /** The raw D2D interface (RDI), from the perspective of the D2D Adapter. */
-class Rdi(width: Int, sbWidth: Int) extends Bundle {
+class Rdi(rdiParams: RdiParams) extends Bundle {
 
   /** Adapter to Physical Layer data.
     *
     * Encompasses lp_irdy, lp_valid, and pl_trdy from the UCIe specification.
     */
-  val lpData = Decoupled3(Bits((8 * width).W))
+  val lpData = Decoupled3(Bits((8 * rdiParams.width).W))
 
   /** Physical Layer to Adapter data.
     *
@@ -18,7 +21,7 @@ class Rdi(width: Int, sbWidth: Int) extends Bundle {
     * that backpressure is not possible. Data should be sampled whenever valid
     * is asserted at a clock edge.
     */
-  val plData = Flipped(Valid(Bits((8 * width).W)))
+  val plData = Flipped(Valid(Bits((8 * rdiParams.width).W)))
 
   /** When asserted at a rising clock edge, it indicates a single credit return
     * from the Adapter to the Physical Layer for the Retimer Receiver buffers.
@@ -77,8 +80,8 @@ class Rdi(width: Int, sbWidth: Int) extends Bundle {
   val lpWakeReq = Output(Bool())
   val plWakeAck = Input(Bool())
 
-  val plConfig = Flipped(Valid(UInt(sbWidth.W)))
+  val plConfig = Flipped(Valid(UInt(rdiParams.sbWidth.W)))
   val plConfigCredit = Input(Bool())
-  val lpConfig = Valid(UInt(sbWidth.W))
+  val lpConfig = Valid(UInt(rdiParams.sbWidth.W))
   val lpConfigCredit = Output(Bool())
 }

@@ -1,19 +1,22 @@
-package edu.berkeley.cs.ucie.digital.interfaces
+package edu.berkeley.cs.ucie.digital
+package interfaces
 
 import chisel3._
 import chisel3.util._
 
+case class FdiParams(width: Int, dllpWidth: Int, sbWidth: Int)
+
 /** The flit-aware die-to-die interface (FDI), from the perspective of the
   * protocol layer.
   */
-class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
+class Fdi(params: FdiParams) extends Bundle {
 
   /** Protocol layer to Adapter data.
     *
     * Encompasses `lp_irdy`, `lp_valid`, and `pl_trdy` from the UCIe
     * specification.
     */
-  val lpData = Decoupled3(Bits((8 * width).W))
+  val lpData = Decoupled3(Bits((8 * params.width).W))
 
   /** Adapter to protocol layer data.
     *
@@ -21,7 +24,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * that backpressure is not possible. Data should be sampled whenever valid
     * is asserted at a clock edge.
     */
-  val plData = Flipped(Valid(Bits((8 * width).W)))
+  val plData = Flipped(Valid(Bits((8 * params.width).W)))
 
   /** When asserted at a rising clock edge, it indicates a single credit return
     * for the Retimer Receiver buffer. Each credit corresponds to 256B of
@@ -78,7 +81,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     *
     * Encompasses `lp_dllp` and `lp_dllp_valid` from the UCIe specification.
     */
-  val lpDllp = Valid(Bits(dllpWidth.W))
+  val lpDllp = Valid(Bits(params.dllpWidth.W))
 
   /** Indicates that the corresponding DLLP bytes on lp_dllp follow the
     * Optimized_Update_FC format. It must stay asserted for the entire duration
@@ -119,7 +122,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * on pl_data. There is no backpressure and the Protocol Layer must always
     * sink DLLPs.
     */
-  val plDllp = Flipped(Valid(Bits(dllpWidth.W)))
+  val plDllp = Flipped(Valid(Bits(params.dllpWidth.W)))
 
   /** Indicates that the corresponding DLLP bytes on pl_dllp follow the
     * Optimized_Update_FC format. It must stay asserted for the entire duration
@@ -366,7 +369,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * When valid is asserted, it indicates that pl_cfg has valid information
     * that should be consumed by the Protocol Layer.
     */
-  val plConfig = Flipped(Valid(Bits(sbWidth.W)))
+  val plConfig = Flipped(Valid(Bits(params.sbWidth.W)))
 
   /** Credit return for sideband packets from the Adapter to the Protocol Layer
     * for sideband packets. Each credit corresponds to 64 bits of header and 64
@@ -387,7 +390,7 @@ class Fdi(width: Int, dllpWidth: Int, sbWidth: Int) extends Bundle {
     * Chapter 6.0 for details. NC is the width of the interface. Supported
     * values are 8, 16, and 32.
     */
-  val lpConfig = Valid(Bits(sbWidth.W))
+  val lpConfig = Valid(Bits(params.sbWidth.W))
 
   /** Credit return for sideband packets from the Protocol Layer to the Adapter
     * for sideband packets. Each credit corresponds to 64 bits of header and 64

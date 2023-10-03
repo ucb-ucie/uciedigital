@@ -1,4 +1,5 @@
-package edu.berkeley.cs.ucie.digital.interfaces
+package edu.berkeley.cs.ucie.digital
+package interfaces
 
 import chisel3._
 
