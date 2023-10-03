@@ -50,7 +50,7 @@ class Rdi(rdiParams: RdiParams) extends Bundle {
     * internal error conditions with lp_linkerror received from Protocol Layer
     * on FDI.
     */
-  val lpLinkError = Output(PhyStateReq())
+  val lpLinkError = Output(Bool())
 
   /** Physical Layer to Adapter Status indication of the Interface.
     *
