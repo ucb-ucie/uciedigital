@@ -48,10 +48,11 @@ object PhyWidth extends ChiselEnum {
 }
 
 /** The protocol stack. Defaults to stack 0.
- *
- * Some UCIe links can support running multiple protocols
- * over the same physical link. In this case, `ProtoStack`
- * indicates which protocol stack a message is associated with. */
+  *
+  * Some UCIe links can support running multiple protocols over the same
+  * physical link. In this case, `ProtoStack` indicates which protocol stack a
+  * message is associated with.
+  */
 object ProtoStack extends ChiselEnum {
   val stack0 = Value(0x0.U(4.W))
   val stack1 = Value(0x1.U(4.W))
@@ -59,16 +60,19 @@ object ProtoStack extends ChiselEnum {
 
 /** The protocol type running on the UCIe link. */
 object ProtoStreamType extends ChiselEnum {
+
   /** PCIe */
   val PCIe = Value(0x1.U(4.W))
+
   /** CXL.io */
   val CXLI = Value(0x2.U(4.W))
+
   /** CXL.cache */
   val CXLC = Value(0x3.U(4.W))
+
   /** Streaming */
   val Stream = Value(0x4.U(4.W))
 }
-
 
 class ProtoStream extends Bundle {
   val protoStack = ProtoStack()
