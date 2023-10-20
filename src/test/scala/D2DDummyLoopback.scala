@@ -88,6 +88,7 @@ class D2DDummyLoopback(latency: Int = 8) extends Module {
   io.plStateStatus := PhyState.active // TODO: this is part of the FDI state machine
 }
 
+@annotation.nowarn("cat=deprecation&origin=chisel3.stage.ChiselStage")
 object D2DDummyLoopbackMain extends App {
   new ChiselStage()
     .emitVerilog(new D2DDummyLoopback(), args = Array("--target-dir", "vlog"))
