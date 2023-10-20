@@ -31,13 +31,17 @@ object LatencyPipe {
 
 class D2DDummyLoopback(latency: Int = 8) extends Module {
   // 64 bit wide data bus, 8 bit wide side channel bus
-  val fdiParams = FdiParams(width=8, dllpWidth=8, sbWidth=8)
+  val fdiParams = FdiParams(width = 8, dllpWidth = 8, sbWidth = 8)
 
   val io = FlatIO(Flipped(new Fdi(fdiParams))) // implicit module clock = lclk
 
-  when (io.lpData.valid) {
-    // For now, the protocol layer must assert lpData.valid and lpData.irdy together
-    chisel3.assert(io.lpData.irdy, "lpData.valid was asserted without lpData.irdy")
+  when(io.lpData.valid) {
+    /* For now, the protocol layer must assert lpData.valid and lpData.irdy
+     * together */
+    chisel3.assert(
+      io.lpData.irdy,
+      "lpData.valid was asserted without lpData.irdy",
+    )
   }
 
   // Restructure lpData as Decoupled[UInt]
@@ -85,5 +89,6 @@ class D2DDummyLoopback(latency: Int = 8) extends Module {
 }
 
 object D2DDummyLoopbackMain extends App {
-  new ChiselStage().emitVerilog(new D2DDummyLoopback(), args=Array("--target-dir", "vlog"))
+  new ChiselStage()
+    .emitVerilog(new D2DDummyLoopback(), args = Array("--target-dir", "vlog"))
 }
