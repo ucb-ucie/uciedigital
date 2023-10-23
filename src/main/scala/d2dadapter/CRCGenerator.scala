@@ -2,6 +2,7 @@ package edu.berkeley.cs.ucie.digital.d2dadapter
 
 import chisel3._
 import chisel3.util._
+import edu.berkeley.cs.ucie.digital.d2dadapter.CRC16Lookup
 
 class CRCGenerator(width: Int) extends Module {
     val io = IO(new Bundle {
@@ -22,20 +23,23 @@ class CRCGenerator(width: Int) extends Module {
     // Output data registers
     val CRC0 = RegInit(UInt(8.W), 0.U)
     val CRC1 = RegInit(UInt(8.W), 0.U)
-    val CRC_Val = RegInit(Bool(), 1.U)
-    val Data_Rdy = RegInit(Bool(), 1.U)
+    val CRC_Val = RegInit(Bool(), true.B)
+    val Data_Rdy = RegInit(Bool(), true.B)
 
     // CRC calculating registers
     val step = RegInit(UInt(log2Ceil(width).W), 0.U)
+    val temp = RegInit(UInt(log2Ceil(width).W), 0.U)
 
+    // CRC calculating table
+    val table = new CRC16Lookup
 
     // Reset logic
     when (io.rst) {
         // Reset output data registers
         CRC0 := 0.U
         CRC1 := 0.U
-        CRC_Val := 1.U
-        Data_Rdy := 0.U
+        CRC_Val := true.B
+        Data_Rdy := true.B
 
         // Propogate output data register
         io.crc0_out := CRC0
@@ -47,7 +51,7 @@ class CRCGenerator(width: Int) extends Module {
         step := 0.U
     }
 
-
+    // TODO: Sequential CRC Calculation
 
 
 }
