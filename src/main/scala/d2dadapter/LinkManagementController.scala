@@ -24,7 +24,10 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     val io = IO(new LinkManagementControllerIO(params))
 
     // Submodule instantiations
+    // Disabled submodule
     val disabled_submodule = Module(new LinkDisabledSubmodule(params))
+    // LinkReset submodule
+    val linkreset_submodule = Module(new LinkResetSubmodule(params))
 
     // Output registers
     // LinkError signal propagated to the PHY
@@ -54,12 +57,20 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     // Disabled submodule
     disabled_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
     disabled_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
-    disabled_submodule.io.rdi_pl_state_sts := io.rdi.plStateStatus
     disabled_submodule.io.link_state := link_state_reg
     val disabled_entry := disabled_submodule.io.disabled_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
     val disabled_sb_snd := disabled_submodule.io.disabled_sb_snd
     disabled_submodule.io.sb_rcv := io.sb_rcv
+
+    // LinkReset submodule
+    linkreset_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
+    linkreset_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
+    linkreset_submodule.io.link_state := link_state_reg
+    val linkreset_entry := linkreset_submodule.io.linkreset_entry
+    // Intermediate sideband messgaes which gets assigned to top IO when required
+    val linkreset_sb_snd := linkreset_submodule.io.linkreset_sb_snd
+    linkreset_submodule.io.sb_rcv := io.sb_rcv
 
     // FDI/RDI common state change triggers
     // LinkError logic
@@ -103,7 +114,11 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
             rdi_lp_state_req_reg := PhyStateReq.disabled
         }
     }.elsewhen(link_state_reg === PhyState.linkReset) {
-        
+        when(io.fdi.lpStateReq === PhyStateReq.active) {
+            rdi_lp_state_req_reg := PhyStateReq.active
+        }.otherwise{
+            rdi_lp_state_req_reg := PhyStateReq.linkReset
+        }
     }
 
     // FDI/RDI state machine. We use the same SM for optimized code as the spec
@@ -116,7 +131,7 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry && rx_deactive) {
                 link_state_reg := PhyState.disabled
-            }.elsewhen() {
+            }.elsewhen(linkreset_entry && rx_deactive) {
                 link_state_reg := PhyState.linkReset
             }.elsewhen() {
                 link_state_reg := PhyState.active
@@ -128,8 +143,10 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
         is(PhyState.active) {
             when(linkerror_phy_sts || linkerror_fdi_req) {
                 link_state_reg := PhyState.linkError
-            }.elsewhen(disabled_entry && rx_deactive) {
+            }.elsewhen(disabled_entry && rx_deactive) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.disabled
+            }.elsewhen(linkreset_entry && rx_deactive) { // TODO: handle the stallreq/ack mechanism
+                link_state_reg := PhyState.linkReset
             }.otherwise {
                 link_state_reg := link_state_reg
             }
@@ -140,6 +157,8 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry) {
                 link_state_reg := PhyState.disabled
+            }.elsewhen(linkreset_entry) {
+                link_state_reg := PhyState.linkReset
             }.otherwise {
                 link_state_reg := link_state_reg
             }
@@ -172,6 +191,9 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry && rx_deactive) {
                 link_state_reg := PhyState.disabled
+            }.elsewhen(io.fdi.lpStateReq === PhyStateReq.active || 
+                        io.rdi.plStateStatus === PhyState.reset) {
+                link_state_reg := PhyState.reset
             }.otherwise {
                 link_state_reg := link_state_reg
             }
