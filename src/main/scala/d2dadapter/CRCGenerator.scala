@@ -29,19 +29,16 @@ class CRCGenerator(width: Int) extends Module { // width is word size in bits (m
     val CRC0 = RegInit(UInt(8.W), 0.U)
     val CRC1 = RegInit(UInt(8.W), 0.U)
 
-    // CRC calculating registers
-    val step = RegInit(UInt(log2Ceil(width/8).W), 0.U)      // Big enough to store byte position over width bits
-    val temp = RegInit(UInt(8.W), 0.U)                      // Stores 1 byte of data for lookup calculations
-    // val Data_In = RegInit(Bits(width.W), 0.U)               // Latches full word of data when data_rdy and data_val
-    
+    // Ouput signal resgisters
     val Data_Rdy = RegInit(Bool(), false.B)
     val CRC_Val = RegInit(Bool(), false.B)
 
-    val shift_data = Wire(Bool())
-    shift_data := false.B
-    val data_byte = ShiftRegister(io.data_in, 8, shift_data)
+
+    // CRC calculating registers
+    val step = RegInit(UInt(log2Ceil(width/8+1).W), 0.U)      // Big enough to store byte position over width bits
+    val temp = RegInit(UInt(8.W), 0.U)                      // Stores 1 byte of data for lookup calculations
+    val Data_In = RegInit(Bits(width.W), 0.U)              // Latches full word of data when data_rdy and data_val
     
-    // val data_byte_slice = Reg(Vec(width/8, Bits(8.W)))      // Data work split into bytes
 
     // CRC calculating table
     val lookup = new CRC16Lookup
@@ -71,28 +68,23 @@ class CRCGenerator(width: Int) extends Module { // width is word size in bits (m
     // TODO: Sequential CRC Calculation
 
     // Latch data on data_rdy and data_val
-    
-
     when (io.data_val & io.data_rdy) {
-        step := (width/8).U - 1.U  // Number of bytes in word
-        data_byte := io.data_in
+        step := (width/8).U   // Number of bytes in word
+        Data_In := io.data_in
         Data_Rdy := false.B
         CRC_Val := false.B
     }
 
     // Computation not finished when step is not 0
     when (step > 0.U) {
-
-        temp := CRC1 ^ data_byte(7, 0)               // data_byte_slice(step)    // Data_In(step*8.U - 1.U, step * 8.U)
-        shift_data := true.B
-        shift_data := false.B
+        temp := CRC1 ^ Data_In(7, 0)
         CRC1 := CRC0 ^ lookup.table(temp)(15, 8)    
         CRC0 := lookup.table(temp)(7, 0)
+        Data_In := Data_In >> 8
         step := step - 1.U
-        if (step == 0.U) {
-            CRC_Val := true.B
-            Data_Rdy := true.B
-        }
+    } .otherwise {
+        CRC_Val := true.B
+        Data_Rdy := true.B
     }
 
 
