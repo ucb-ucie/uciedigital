@@ -36,7 +36,6 @@ class CRCGenerator(width: Int) extends Module { // width is word size in bits (m
 
     // CRC calculating registers
     val step = RegInit(UInt(log2Ceil(width/8+1).W), 0.U)      // Big enough to store byte position over width bits
-    val temp = RegInit(UInt(8.W), 0.U)                      // Stores 1 byte of data for lookup calculations
     val Data_In = RegInit(Bits(width.W), 0.U)              // Latches full word of data when data_rdy and data_val
     
 
@@ -71,17 +70,18 @@ class CRCGenerator(width: Int) extends Module { // width is word size in bits (m
     when (io.data_val & io.data_rdy) {
         step := (width/8).U   // Number of bytes in word
         Data_In := io.data_in
-        Data_Rdy := false.B
         CRC_Val := false.B
+        Data_Rdy := false.B
     }
 
     // Computation not finished when step is not 0
     when (step > 0.U) {
-        temp := CRC1 ^ Data_In(7, 0)
-        CRC1 := CRC0 ^ lookup.table(temp)(15, 8)    
-        CRC0 := lookup.table(temp)(7, 0)
-        Data_In := Data_In >> 8
+        CRC1 := CRC0 ^ lookup.table(CRC1 ^ Data_In(width-1, width-8))(15, 8)    
+        CRC0 := lookup.table(CRC1 ^ Data_In(width-1, width-8))(7, 0)
+        Data_In := Data_In << 8
         step := step - 1.U
+        CRC_Val := false.B
+        Data_Rdy := false.B
     } .otherwise {
         CRC_Val := true.B
         Data_Rdy := true.B

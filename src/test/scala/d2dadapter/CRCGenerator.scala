@@ -15,15 +15,17 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
         c.io.rst.poke(true.B)
         c.clock.step()
         c.io.rst.poke(false.B)
-        c.io.data_in.poke(0x7E348ADB)
+        c.io.data_in.poke("hF3D1AB23".U)
         c.clock.step()
         c.io.data_val.poke(true.B)
         c.clock.step()
-        while (c.io.crc_val != true.B) {
+        c.io.data_val.poke(false.B)
+        c.clock.step()
+        while (c.io.crc_val.peek().litValue != 1) {
             c.clock.step()
         }
-        c.io.crc1_out.expect(0xDD.U)
-        c.io.crc0_out.expect(0x53.U)
+        c.io.crc1_out.expect("hC4".U)
+        c.io.crc0_out.expect("h14".U)
       }
     }
   }
