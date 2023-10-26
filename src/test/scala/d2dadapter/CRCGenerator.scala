@@ -6,7 +6,7 @@ import org.scalatest.funspec.AnyFunSpec
 import chiseltest.simulator.WriteVcdAnnotation
 
 class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
-  describe("CRCGenerator") {
+  describe("CRCGenerator, 32-bit messages") {
     it("should produce h8BC as the 16-bit CRC of hF3D1AB23") {
         test(new CRCGenerator(32)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
         c.io.rst.poke(true.B)
@@ -80,7 +80,9 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
         c.io.crc0_out.expect("h4D".U)
       }
     }
+  }
 
+  describe("CRCGenerator, 1024-bit messages") {
     it("should produce h5557 as the 16-bit CRC of he3c3598edd...") {
         test(new CRCGenerator(1024)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
         c.io.rst.poke(true.B)
