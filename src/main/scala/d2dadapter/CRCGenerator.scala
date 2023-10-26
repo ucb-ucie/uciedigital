@@ -7,6 +7,9 @@ import edu.berkeley.cs.ucie.digital.d2dadapter.CRC16Lookup
 // TODO: change variable names to snake_case
 
 
+/** Generates the CRC of data using the polynomial x^16 + x^15 + x^2 + 1
+  * 
+  */
 
 class CRCGenerator(width: Int) extends Module { // width is word size in bits (must be whole number of bytes)
     val io = IO(new Bundle {
