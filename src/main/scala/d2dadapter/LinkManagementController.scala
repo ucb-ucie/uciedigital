@@ -28,7 +28,8 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     val disabled_submodule = Module(new LinkDisabledSubmodule(params))
     // LinkReset submodule
     val linkreset_submodule = Module(new LinkResetSubmodule(params))
-
+    // LinkInit submodule
+    val linkinit_submodule = Module(new LinkInitSubmodule(params))
     // Output registers
     // LinkError signal propagated to the PHY
     val rdi_lp_linkerror_reg = RegInit(PhyStateReq.nop)
@@ -61,7 +62,7 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     val disabled_entry := disabled_submodule.io.disabled_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
     val disabled_sb_snd := disabled_submodule.io.disabled_sb_snd
-    disabled_submodule.io.sb_rcv := io.sb_rcv
+    disabled_submodule.io.disabled_sb_rcv := io.sb_rcv
 
     // LinkReset submodule
     linkreset_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
@@ -70,7 +71,16 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     val linkreset_entry := linkreset_submodule.io.linkreset_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
     val linkreset_sb_snd := linkreset_submodule.io.linkreset_sb_snd
-    linkreset_submodule.io.sb_rcv := io.sb_rcv
+    linkreset_submodule.io.linkreset_sb_rcv := io.sb_rcv
+
+    // LinkInit submodule
+    linkinit_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
+    linkinit_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
+    linkinit_submodule.io.link_state := link_state_reg
+    val active_entry := linkinit_submodule.io.active_entry
+    // Intermediate sideband messgaes which gets assigned to top IO when required
+    val active_sb_snd := linkinit_submodule.io.active_sb_snd
+    linkinit_submodule.io.active_sb_rcv := io.sb_rcv
 
     // FDI/RDI common state change triggers
     // LinkError logic
@@ -83,6 +93,9 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     // rx_deactive and rx_active signals for checking if rx on mainband is disabled
     val rx_deactive := ~io.fdi.lpRxActiveStatus & ~io.fdi.plRxActiveReq
     val rx_active := io.fdi.lpRxActiveStatus & io.fdi.plRxActiveReq
+
+    // PHY informs the adapter over RDI that it should go into retrain
+    val retrain_phy_sts = io.rdi.plStateStatus === PhyState.retrain
 
     // Moved this condition to the disabled module
     // Reset to disabled requires atleast one clock cycle of lp_state_req = Reset(NOP)
@@ -133,7 +146,7 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
                 link_state_reg := PhyState.disabled
             }.elsewhen(linkreset_entry && rx_deactive) {
                 link_state_reg := PhyState.linkReset
-            }.elsewhen() {
+            }.elsewhen(active_entry) {
                 link_state_reg := PhyState.active
             }.otherwise {
                 link_state_reg := link_state_reg
@@ -147,11 +160,15 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
                 link_state_reg := PhyState.disabled
             }.elsewhen(linkreset_entry && rx_deactive) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.linkReset
+            }.elsewhen(retrain_phy_sts && rx_deactive) { // TODO: handle the stallreq/ack mechanism
+                link_state_reg := PhyState.retrain
             }.otherwise {
                 link_state_reg := link_state_reg
             }
         }
         // RETRAIN
+        // TODO: Retrain to active without L1 and L2 happens through lp_state_req
+        // should not require the linkinit to happen again? 
         is(PhyState.retrain) {
             when(linkerror_phy_sts || linkerror_fdi_req) {
                 link_state_reg := PhyState.linkError

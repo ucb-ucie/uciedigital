@@ -25,6 +25,8 @@ class LinkDisabledSubmodule (params: D2DAdapterParams) extends Module {
     val io = IO(new LinkDisabledSubmoduleIO(params))
 
     val disabled_fdi_req_reg = RegInit(false.B)
+    val disabled_sbmsg_req_rcv_flag = RegInit(false.B)
+    val disabled_sbmsg_rsp_rcv_flag = RegInit(false.B)
     val disabled_sbmsg_ext_rsp_reg = RegInit(false.B) // receive and respond to sb disabled request
     val disabled_sbmsg_ext_req_reg = RegInit(false.B) // send and wait for sb disabled response
     
@@ -68,6 +70,7 @@ class LinkDisabledSubmodule (params: D2DAdapterParams) extends Module {
 
         // TODO: Check if this logic works on all corner cases
         // lp_state_req triggers sideband message
+        // TODO: find a way to enable valid without probing ready
         when(disabled_fdi_req_reg && io.disabled_sb_snd.ready &&
             !disabled_sbmsg_req_rcv_flag && !disabled_sbmsg_rsp_rcv_flag) {
             io.disabled_sb_snd.valid := true.B

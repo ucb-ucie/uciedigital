@@ -26,6 +26,8 @@ class LinkResetSubmodule (params: D2DAdapterParams) extends Module {
     val io = IO(new LinkResetSubmoduleIO(params))
 
     val linkreset_fdi_req_reg = RegInit(false.B)
+    val linkreset_sbmsg_req_rcv_flag = RegInit(false.B)
+    val linkreset_sbmsg_rsp_rcv_flag = RegInit(false.B)
     val linkreset_sbmsg_ext_rsp_reg = RegInit(false.B) // receive and respond to sb linkreset request
     val linkreset_sbmsg_ext_req_reg = RegInit(false.B) // send and wait for sb linkreset response
     
