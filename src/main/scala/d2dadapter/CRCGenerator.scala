@@ -16,7 +16,7 @@ import edu.berkeley.cs.ucie.digital.d2dadapter.CRC16Lookup
   *   will use 1024-bit messages, with shorter messages padded with 0s in MSB
   *   side.
   * @groupdesc Signals
-  *   The input and out controls of the CRCGenerator module
+  *   The input and output controls of the CRCGenerator module
   */
 
 class CRCGenerator(width: Int) extends Module { //
