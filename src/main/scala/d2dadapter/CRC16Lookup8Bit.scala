@@ -4,11 +4,10 @@ import chisel3._
 
 class CRC16Lookup {
 
-  /**
-    * Lookup table for CRC-16 (0x8005) polynomial. 
-    * Consumes message from MSB Byte to LSB Byte and results in CRC[15:0] 
-    * in unreversed format as detailed in UCIe1.1 spec.
-    */ 
+  /** Lookup table for CRC-16 (0x8005) polynomial. Consumes message from MSB
+    * Byte to LSB Byte and results in CRC[15:0] in unreversed format as detailed
+    * in UCIe1.1 spec.
+    */
 
   val table = VecInit(
     0x0000.U,
@@ -268,5 +267,5 @@ class CRC16Lookup {
     0x8207.U,
     0x0202.U,
   )
-  
+
 }
