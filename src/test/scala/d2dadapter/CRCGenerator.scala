@@ -9,39 +9,21 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
   describe("CRCGenerator, 32-bit messages") {
     it("should produce h8BC as the 16-bit CRC of hF3D1AB23") {
       test(new CRCGenerator(32)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
-        c.io.reset.poke(true.B)
-        c.clock.step()
-        c.io.reset.poke(false.B)
-        c.io.message.bits.poke("hF3D1AB23".U)
-        c.clock.step()
-        c.io.message.valid.poke(true.B)
-        c.clock.step()
-        c.io.message.valid.poke(false.B)
-        c.io.crc.ready.poke(true.B)
-        c.clock.step()
-        while (c.io.crc.valid.peek().litValue != 1) {
-          c.clock.step()
-        }
-        c.io.crc.bits.expect("h08BC".U)
+        c.io.message.initSource().setSourceClock(c.clock)
+        c.io.crc.initSink().setSinkClock(c.clock)
+        c.io.message.enqueueNow("hF3D1AB23".U)
+        c.io.crc.waitForValid()
+        c.io.crc.expectDequeueNow("h08BC".U)
       }
     }
 
     it("should produce hD34D as the 16-bit CRC of hB481A391") {
       test(new CRCGenerator(32)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
-        c.io.reset.poke(true.B)
-        c.clock.step()
-        c.io.reset.poke(false.B)
-        c.io.message.bits.poke("hB481A391".U)
-        c.clock.step()
-        c.io.message.valid.poke(true.B)
-        c.clock.step()
-        c.io.message.valid.poke(false.B)
-        c.io.crc.ready.poke(true.B)
-        c.clock.step()
-        while (c.io.crc.valid.peek().litValue != 1) {
-          c.clock.step()
-        }
-        c.io.crc.bits.expect("hD34D".U)
+        c.io.message.initSource().setSourceClock(c.clock)
+        c.io.crc.initSink().setSinkClock(c.clock)
+        c.io.message.enqueueNow("hB481A391".U)
+        c.io.crc.waitForValid()
+        c.io.crc.expectDequeueNow("hD34D".U)
       }
     }
 
@@ -49,35 +31,16 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
       "should produce back to back valid 16-bit CRCs of hF3D1AB23 and hB481A391",
     ) {
       test(new CRCGenerator(32)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
-        c.io.reset.poke(true.B)
-        c.clock.step()
-        c.io.reset.poke(false.B)
-        c.io.message.bits.poke("hF3D1AB23".U)
-        c.clock.step()
-        c.io.message.valid.poke(true.B)
-        c.clock.step()
-        c.io.message.valid.poke(false.B)
-        c.io.crc.ready.poke(true.B)
-        c.clock.step()
-        while (c.io.crc.valid.peek().litValue != 1) {
-          c.clock.step()
-        }
-        c.io.crc.bits.expect("h08BC".U)
+        c.io.message.initSource().setSourceClock(c.clock)
+        c.io.crc.initSink().setSinkClock(c.clock)
 
-        c.io.reset.poke(true.B)
-        c.clock.step()
-        c.io.reset.poke(false.B)
-        c.io.message.bits.poke("hB481A391".U)
-        c.clock.step()
-        c.io.message.valid.poke(true.B)
-        c.clock.step()
-        c.io.message.valid.poke(false.B)
-        c.io.crc.ready.poke(true.B)
-        c.clock.step()
-        while (c.io.crc.valid.peek().litValue != 1) {
-          c.clock.step()
-        }
-        c.io.crc.bits.expect("hD34D".U)
+        c.io.message.enqueueNow("hF3D1AB23".U)
+        c.io.crc.waitForValid()
+        c.io.crc.expectDequeueNow("h08BC".U)
+
+        c.io.message.enqueue("hB481A391".U)
+        c.io.crc.waitForValid()
+        c.io.crc.expectDequeueNow("hD34D".U)
       }
     }
   }
@@ -86,9 +49,8 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
     it("should produce h5557 as the 16-bit CRC of he3c3598e...") {
       test(new CRCGenerator(1024)).withAnnotations(Seq(WriteVcdAnnotation)) {
         c =>
-          c.io.reset.poke(true.B)
-          c.clock.step()
-          c.io.reset.poke(false.B)
+          c.io.message.initSource().setSourceClock(c.clock)
+          c.io.crc.initSink().setSinkClock(c.clock)
           val num =
             ("he3c3598e_dd1a3be2_d429ad05_2b927c61_" +
               "c2ba41b6_fc7ac0df_093b5d8b_b754d97d_" +
@@ -98,26 +60,17 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
               "bba8b55f_0eadc080_b0955182_0d8200ce_" +
               "31a58b25_6c8086f6_d535913e_e7867535_" +
               "f5e15126_f682f852_0fb831c3_ba7e5b69")
-          c.io.message.bits.poke((num).U)
-          c.clock.step()
-          c.io.message.valid.poke(true.B)
-          c.clock.step()
-          c.io.message.valid.poke(false.B)
-          c.io.crc.ready.poke(true.B)
-          c.clock.step()
-          while (c.io.crc.valid.peek().litValue != 1) {
-            c.clock.step()
-          }
-          c.io.crc.bits.expect("h5557".U)
+          c.io.message.enqueueNow((num).U)
+          c.io.crc.waitForValid()
+          c.io.crc.expectDequeueNow("h5557".U)
       }
     }
 
     it("should produce h5b39 as the 16-bit CRC of h21940141...") {
       test(new CRCGenerator(1024)).withAnnotations(Seq(WriteVcdAnnotation)) {
         c =>
-          c.io.reset.poke(true.B)
-          c.clock.step()
-          c.io.reset.poke(false.B)
+          c.io.message.initSource().setSourceClock(c.clock)
+          c.io.crc.initSink().setSinkClock(c.clock)
           val num =
             "h21940141_94204c5b_66aadb33_39ff52dd_" +
               "59187e4d_8d7f45a0_92f32508_9fdc1174_" +
@@ -127,17 +80,9 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
               "1651c46c_3f9a38dd_50d0b5a9_4a8f23e3_" +
               "f1915b39_e0570141_22bdfa54_293ad6fe_" +
               "3ef3d240_ae894873_835dc657_881e5c7d"
-          c.io.message.bits.poke((num).U)
-          c.clock.step()
-          c.io.message.valid.poke(true.B)
-          c.clock.step()
-          c.io.message.valid.poke(false.B)
-          c.io.crc.ready.poke(true.B)
-          c.clock.step()
-          while (c.io.crc.valid.peek().litValue != 1) {
-            c.clock.step()
-          }
-          c.io.crc.bits.expect("h5B39".U)
+          c.io.message.enqueueNow((num).U)
+          c.io.crc.waitForValid()
+          c.io.crc.expectDequeueNow("h5B39".U)
       }
     }
 
@@ -146,9 +91,8 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
     ) {
       test(new CRCGenerator(1024)).withAnnotations(Seq(WriteVcdAnnotation)) {
         c =>
-          c.io.reset.poke(true.B)
-          c.clock.step()
-          c.io.reset.poke(false.B)
+          c.io.message.initSource().setSourceClock(c.clock)
+          c.io.crc.initSink().setSinkClock(c.clock)
           val num1 =
             ("he3c3598e_dd1a3be2_d429ad05_2b927c61_" +
               "c2ba41b6_fc7ac0df_093b5d8b_b754d97d_" +
@@ -158,21 +102,10 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
               "bba8b55f_0eadc080_b0955182_0d8200ce_" +
               "31a58b25_6c8086f6_d535913e_e7867535_" +
               "f5e15126_f682f852_0fb831c3_ba7e5b69")
-          c.io.message.bits.poke((num1).U)
-          c.clock.step()
-          c.io.message.valid.poke(true.B)
-          c.clock.step()
-          c.io.message.valid.poke(false.B)
-          c.io.crc.ready.poke(true.B)
-          c.clock.step()
-          while (c.io.crc.valid.peek().litValue != 1) {
-            c.clock.step()
-          }
-          c.io.crc.bits.expect("h5557".U)
+          c.io.message.enqueueNow((num1).U)
+          c.io.crc.waitForValid()
+          c.io.crc.expectDequeueNow("h5557".U)
 
-          c.io.reset.poke(true.B)
-          c.clock.step()
-          c.io.reset.poke(false.B)
           val num2 = "h21940141_94204c5b_66aadb33_39ff52dd_" +
             "59187e4d_8d7f45a0_92f32508_9fdc1174_" +
             "62f98566_b5767b24_38ffcf48_dcd48173_" +
@@ -181,18 +114,20 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
             "1651c46c_3f9a38dd_50d0b5a9_4a8f23e3_" +
             "f1915b39_e0570141_22bdfa54_293ad6fe_" +
             "3ef3d240_ae894873_835dc657_881e5c7d"
-          c.io.message.bits.poke((num2).U)
-          c.clock.step()
-          c.io.message.valid.poke(true.B)
-          c.clock.step()
-          c.io.message.valid.poke(false.B)
-          c.io.crc.ready.poke(true.B)
-          c.clock.step()
-          while (c.io.crc.valid.peek().litValue != 1) {
-            c.clock.step()
-          }
-          c.io.crc.bits.expect("h5B39".U)
+          c.io.message.enqueue((num2).U)
+          c.io.crc.waitForValid()
+          c.io.crc.expectDequeueNow("h5B39".U)
       }
     }
+  }
+
+  describe("CRCGenerator, 1023-bit width") {
+    it("should fail due to invalid width = 1023 % 8 != 0") {
+        assertThrows[AssertionError] {
+          test(new CRCGenerator(1023)) { c =>
+            throw new AssertionError
+          }
+        }
+      }
   }
 }

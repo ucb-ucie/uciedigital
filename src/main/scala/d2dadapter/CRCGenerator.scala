@@ -2,8 +2,6 @@ package edu.berkeley.cs.ucie.digital.d2dadapter
 
 import chisel3._
 import chisel3.util._
-import chisel3.util.Decoupled
-import edu.berkeley.cs.ucie.digital.d2dadapter.CRC16Lookup
 
 /** Generates the CRC of data using the polynomial x^16 + x^15 + x^2 + 1. The
   * message must be formatted according to the UCIe1.1 spec, and the message
@@ -19,16 +17,10 @@ import edu.berkeley.cs.ucie.digital.d2dadapter.CRC16Lookup
   *   The input and output controls of the CRCGenerator module
   */
 
-class CRCGenerator(width: Int) extends Module { //
+class CRCGenerator(width: Int) extends Module {
+  assert(width % 8 == 0)
   val io = IO(new Bundle {
-
-    /** Resets the CRCGenerator, and sets the default message ready state high
-      * and crc valid state low. CRC bits will be cleared to 0.
-      * @group Signals
-      */
-    val reset = Input(Bool())
-
-    /** ReadyValid3IO interface to allow consumer to transfer message bits to
+    /** ReadyValidIO interface to allow consumer to transfer message bits to
       * the CRCGenerator. Message bits are latched when message ready and
       * message valid are high for the same clock cycle, and then the
       * CRCGenerator is locked into the calculation loop.
@@ -43,7 +35,7 @@ class CRCGenerator(width: Int) extends Module { //
       */
     val message = Flipped(Decoupled(Bits(width.W)))
 
-    /** ReadyValid3IO interface to allow CRCGenerator to transfer crc bits to
+    /** ReadyValidIO interface to allow CRCGenerator to transfer crc bits to
       * the consumer. CRC will be cleared to 0 and invalid on reset.
       *
       * Once message bits have been transfered, the CRCGenerator will enter the
@@ -70,14 +62,10 @@ class CRCGenerator(width: Int) extends Module { //
   val crc_valid = RegInit(Bool(), false.B)
 
   // CRC calculating registers
-  val step = RegInit(
-    UInt(log2Ceil(width / 8 + 1).W),
-    0.U,
-  ) // Store number of bytes in width bits
-  val message_bits = RegInit(
-    Bits(width.W),
-    0.U,
-  ) // Latches full word of data when message_ready and data_val
+  // Store number of bytes in width bits
+  val step = RegInit(0.U(log2Ceil(width / 8 + 1).W)) 
+  // Latches full message when message_ready and data_val
+  val message_bits = RegInit(Bits(width.W), 0.U) 
 
   // CRC calculating table
   val lookup = new CRC16Lookup
@@ -89,32 +77,22 @@ class CRCGenerator(width: Int) extends Module { //
   io.crc.valid := crc_valid
   io.message.ready := message_ready
 
-  // Reset logic
-  when(io.reset) {
-    // Reset output data registers
-    crc0 := 0.U
-    crc1 := 0.U
-
-    // Signal Valid and Ready
-    crc_valid := false.B
-    message_ready := true.B
-
-    // Reset CRC calculating registers
-    step := 0.U
-  }
 
   // Latch data on message_ready and data_val
-  when(io.message.valid & io.message.ready) {
-    step := (width / 8).U // Reset step to number of bytes in word
-    message_bits := io.message.bits
+  when(io.message.fire) {
+    // Reset logic
+    crc0 := 0.U
+    crc1 := 0.U
     crc_valid := false.B
+
+    step := (width / 8).U // Set step to number of bytes in word
+    message_bits := io.message.bits
     message_ready := false.B
   }
 
   // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc1 := crc0 ^ lookup
-      .table(crc1 ^ message_bits(width - 1, width - 8))(15, 8)
+    crc1 := crc0 ^ lookup.table(crc1 ^ message_bits(width - 1, width - 8))(15, 8)
     crc0 := lookup.table(crc1 ^ message_bits(width - 1, width - 8))(7, 0)
     message_bits := message_bits << 8
     step := step - 1.U
@@ -123,10 +101,8 @@ class CRCGenerator(width: Int) extends Module { //
 
   /* Idle with crc output valid until consumer initiates transfer of CRC with
    * io.crc.ready */
-  when(crc_valid) {
-    if (io.crc.ready == true.B) {
-      crc_valid := false.B
-      message_ready := true.B
-    }
+  when(io.crc.fire) {
+    crc_valid := false.B
+    message_ready := true.B
   }
 }
