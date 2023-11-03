@@ -54,19 +54,22 @@ class CRCGenerator(width: Int) extends Module {
     val crc = Decoupled(Bits(16.W))
   })
 
-  // Output data registers
+  // CRC data
   val crc0 = RegInit(Bits(8.W), 0.U)
   val crc1 = RegInit(Bits(8.W), 0.U)
 
-  // Output signal registers
+  // Output control signals
   val message_ready = RegInit(Bool(), true.B)
   val crc_valid = RegInit(Bool(), false.B)
 
-  // CRC calculating registers
+  // CRC calculating variables
   // Store number of bytes in width bits
   val step = RegInit(0.U(log2Ceil(width / 8 + 1).W))
   // Latches full message when message_ready and data_val
   val message_bits = RegInit(Bits(width.W), 0.U)
+  // Calculate lookup table index from current crc MSB byte and message byte
+  val lookup_index = Wire(UInt(8.W))
+  lookup_index := crc1 ^ message_bits(width - 1, width - 8)
 
   // Propogate output data register
   io.crc.bits := Cat(crc1, crc0)
@@ -89,9 +92,8 @@ class CRCGenerator(width: Int) extends Module {
 
   // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc1 := crc0 ^ CRC16Lookup
-      .table(crc1 ^ message_bits(width - 1, width - 8))(15, 8)
-    crc0 := CRC16Lookup.table(crc1 ^ message_bits(width - 1, width - 8))(7, 0)
+    crc1 := crc0 ^ CRC16Lookup.table(lookup_index)(15, 8)
+    crc0 := CRC16Lookup.table(lookup_index)(7, 0)
     message_bits := message_bits << 8
     step := step - 1.U
     crc_valid := step === 1.U // If next step will be 0, CRC is now valid

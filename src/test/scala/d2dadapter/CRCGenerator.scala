@@ -124,9 +124,7 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
   describe("CRCGenerator, 1023-bit width") {
     it("should fail due to invalid width = 1023 % 8 != 0") {
       assertThrows[AssertionError] {
-        test(new CRCGenerator(1023)) { c =>
-          throw new AssertionError
-        }
+        test(new CRCGenerator(1023)) { c => }
       }
     }
   }
