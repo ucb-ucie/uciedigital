@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package interfaces
 
 import chisel3._
 import chisel3.util._
@@ -6,20 +7,43 @@ import chisel3.util.random._
 
 // 
 
-class Scrambler extends Module {
+class Scrambler (
+  afeParams: AfeParams,
+  width: Int,
+  seed: BigInt
+) extends Module {
   val io = IO(new Bundle {
-    val L0_in = Input(UInt(16.W))
+    val data_in = Input(UInt(afeParams.mbSerializerRatio.W))
     val valid = Input(Bool())
-    val rst = Input(Bool())
-    val L0_out = Output(UInt(16.W))
+    val seed = Input(UInt(23.W))
+    val data_out = Output(UInt(afeParams.mbSerializerRatio.W))
   })
-  val L0_LFSR = Module(new FibonacciLFSR(23, Set(23,21,18,15,7,2,1), Some(BigInt(1949628)), XOR, 16, false))
-  L0_LFSR.io.increment := io.valid
-  L0_LFSR.io.seed.bits := VecInit(1949628.U(23.W).asBools)
-  L0_LFSR.io.seed.valid := (reset.asBool || io.rst)
+  val LFSR = Module(new FibonacciLFSR(23, Set(23,21,18,15,7,2,1), Some(seed), XOR, width, false))
+  LFSR.io.increment := io.valid
+  LFSR.io.seed.bits := VecInit(io.seed.asBools)
+  LFSR.io.seed.valid := (reset.asBool)
+  val LFSR_result = LFSR.io.out
+  //printf(cf"$LFSR_result.asUInt")
+  io.data_out := LFSR_result.asUInt ^ io.data_in
+}
+
+class UCIeScrambler (
+  afeParams: AfeParams,
+  width: Int
+) extends Module {
+  val io = IO(new Bundle {
+    val data_in = Input(Vec(12, UInt(afeParams.mbSerializerRatio.W)))
+    val valid = Input(Bool())
+    val data_out = Output(Vec(12, UInt(afeParams.mbSerializerRatio.W)))
+  })
+  val seeds = List("1DBFBC", "0607BB", "1EC760", "18C0DB", "010F12", "19CFC9", "0277CE", "1BB807", "18C0DB", "010F12", "18C0DB", "010F12")
+  val scramblers = seeds.map(seed => Module(new Scrambler(afeParams, width, BigInt(seed, 16))));
   
-  val L0_LFSR_result = L0_LFSR.io.out
-  printf(cf"$L0_LFSR_result.asUInt")
-  io.L0_out :=  L0_LFSR_result.asUInt ^ io.L0_in
+  for (i <- 0 until scramblers.length) {
+    scramblers.apply(i).io.data_in := io.data_in(0);
+    scramblers.apply(i).io.valid := io.valid;
+    scramblers.apply(i).io.seed := seeds.apply(i).U(23.W);
+    io.data_out(i) := scramblers.apply(i).io.data_out
+  }
 }
 
