@@ -1,3 +1,9 @@
+/**  Truth table for deciding the Flit Format in which to operate if PCIe
+or CXL protocols are negotiated, and none of the following are negotiated:
+• Enhanced Multi_Protocol_Enable
+• Standard 256B Start Header for PCIe protocol capability
+• Latency-Optimized Flit with Optional Bytes for PCIe protocol capability **/
+
 import chisel3._
 import chisel3.util._
 import chisel3.tester._
@@ -31,74 +37,55 @@ class DecisionTable() extends Module {
   val IO = IO(Bundle{
   val fCMPFCInp = Input(new finCapMultiProtFinCapInput)
   val fCCXLInp = Input(new finCapCXLInput)
-  PCIe1_bool = Output(Bool)
-  PCIe2_bool = Output(Bool)
-  CXLI_bool = Output(Bool)
-  CXLC_bool = Output(Bool)
-  STREAM_bool = Output(Bool)
+  val PCIe1_bool = Output(Bool)
+  val PCIe2_bool = Output(Bool)
+  val CXLI_bool = Output(Bool)
+  val  CXLC_bool = Output(Bool)
+
   })
 
 
-
-  /** Non-flit Mode **/
-  val PCIe1 = Value(Bits("10010"))
-
+  //** Concatenated input **/
+  val concat = Cat(fCMPFCInp.sixtyEightFlitMode
+  , fCMPFCInp.cxlTwoFiftySixBFlitMode, fCMPFCInp.PCIeFlitMode
+  , fCMPFCInp.streamingMode, fCCXLInp.PCIeBit, fCCXLInp.CXLioBit)
   
-  /** PCIe flit Mode **/
-  val PCIe2 = Value(Bits("10110"))
+ 
 
-  /** CXL Non - 256 Flit Mode */
-  val CXLI = Value(Bits("10001"))
-
-  /** CXL 256 Flit Mode */
-  val CXLC = Value(Bits("11101"))
-
-  when(fCMPFCInp.sixtyEightFlitMode == 1 
-  && fCMPFCInp.cxlTwoFiftySixBFlitMode == 0
-  && fCMPFCInp.PCIeFlitMode == 0
-  && fCCXLInp.PCIeBit == 1
-  && fCCXLInp.CXLioBit == 0) {
+/** Non-flit Mode **/
+  when(concat === BitPat("b100?10")) {
     PCIe1_bool := true
     PCIe2_bool := false
     CXLI_bool := false
     CXLC_bool := false
-    STREAM_bool := false
-  } .elsewhen(fCMPFCInp.sixtyEightFlitMode == 1 
-  && fCMPFCInp.cxlTwoFiftySixBFlitMode == 0
-  && fCMPFCInp.PCIeFlitMode == 1
-  && fCCXLInp.PCIeBit == 1
-  && fCCXLInp.CXLioBit == 0) {
+
+  } /** PCIe flit Mode **/
+  .elsewhen(concat === BitPat("b101?10")) {
     PCIe1_bool := false
     PCIe2_bool := true
     CXLI_bool := false
     CXLC_bool := false
-    STREAM_bool := false
-  } .elsewhen(fCMPFCInp.sixtyEightFlitMode == 1 
-  && fCMPFCInp.cxlTwoFiftySixBFlitMode == 0
-  && fCMPFCInp.PCIeFlitMode == 0
-  && fCCXLInp.PCIeBit == 0
-  && fCCXLInp.CXLioBit == 1) {
+ 
+  } /** CXL Non - 256 Flit Mode */
+  .elsewhen(concat === BitPat("b100?01")) {
     PCIe1_bool := false
     PCIe2_bool := false
     CXLI_bool := true
     CXLC_bool := false
-    STREAM_bool := false
-  } .elsewhen(fCMPFCInp.sixtyEightFlitMode == 1 
-  && fCMPFCInp.cxlTwoFiftySixBFlitMode == 1
-  && fCMPFCInp.PCIeFlitMode == 1
-  && fCCXLInp.PCIeBit == 0
-  && fCCXLInp.CXLioBit == 1) {
+
+  }  /** CXL 256 Flit Mode */
+  .elsewhen(concat === BitPat("b111?01")) {
     PCIe1_bool := false
     PCIe2_bool := false
     CXLI_bool := false
     CXLC_bool := true
-    STREAM_bool := false
-  } .otherwise {
+
+  } 
+  .otherwise {
     PCIe1_bool := false
     PCIe2_bool := false
     CXLI_bool := false
     CXLC_bool := false
-    STREAM_bool := true
   }
 
 }
