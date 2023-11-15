@@ -38,13 +38,12 @@ class UCIeScrambler (
     val data_out = Output(Vec(numLanes, UInt(afeParams.mbSerializerRatio.W)))
   })
   val UCIe_seeds = List("1dbfbc", "0607bb", "1ec760", "18c0db", "010f12", "19cfc9", "0277ce", "1bb807")
-  val seeds = (for (i <- 0 to numLanes) yield UCIe_seeds.apply(i % 8)).toList
+  val seeds = (for (i <- 0 until numLanes) yield UCIe_seeds.apply(i % 8)).toList
   val scramblers = seeds.map(seed => Module(new Scrambler(afeParams, width, BigInt(seed, 16))))
-  
-  for (i <- 0 to scramblers.length) {
-    scramblers.apply(i).io.data_in := io.data_in(0)
+
+  for (i <- 0 until scramblers.length) {
+    scramblers.apply(i).io.data_in := io.data_in(i)
     scramblers.apply(i).io.valid := io.valid
-    //seeds.apply returns a string. currently cannot cast to Chisel Uint
     scramblers.apply(i).io.seed := ("h" + seeds.apply(i)).U(23.W)
     io.data_out(i) := scramblers.apply(i).io.data_out
   }
