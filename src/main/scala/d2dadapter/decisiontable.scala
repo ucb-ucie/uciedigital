@@ -8,8 +8,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.tester._
 import chisel3.tester.RawTester.test
-import github.com/ucb-ucie/uciedigital/blob/main/src/main/scala/interfaces/Types.scala
-
+import edu.berkeley.cs.ucie.digital.interfaces._
 // Bundle for FinCap.Adapter or MultiProtFinCap.Adapter bits: 
 class finCapMultiProtFinCap extends Bundle {
     // 68 Flit Mode Bit:
