@@ -17,8 +17,17 @@ import chisel3.util._
   *   The input and output controls of the CRCGenerator module
   */
 
-class CRCGenerator(width: Int) extends Module {
-  assert(width % 8 == 0)
+class CRCGenerator(width:Int, bytes_per_cycle: Int) extends Module {
+  // TODO: Assert valid bytes_per_cycle
+  assert(bytes_per_cycle == 1   ||
+         bytes_per_cycle == 2   ||
+         bytes_per_cycle == 4   ||
+         bytes_per_cycle == 8   ||
+         bytes_per_cycle == 16  ||
+         bytes_per_cycle == 32  ||
+         bytes_per_cycle == 64  ||
+         bytes_per_cycle == 128  )
+  assert((width/8) % bytes_per_cycle == 0)
   val io = IO(new Bundle {
 
     /** ReadyValidIO interface to allow consumer to transfer message bits to the
@@ -55,8 +64,7 @@ class CRCGenerator(width: Int) extends Module {
   })
 
   // CRC data
-  val crc0 = RegInit(Bits(8.W), 0.U)
-  val crc1 = RegInit(Bits(8.W), 0.U)
+  val crc_calc = RegInit(Bits(16.W), 0.U)
 
   // Output control signals
   val message_ready = RegInit(Bool(), true.B)
@@ -65,14 +73,13 @@ class CRCGenerator(width: Int) extends Module {
   // CRC calculating variables
   // Store number of bytes in width bits
   val step = RegInit(0.U(log2Ceil(width / 8 + 1).W))
+  val consume_step = RegInit(0.U(log2Ceil(bytes_per_cycle + 1).W))
   // Latches full message when message_ready and data_val
   val message_bits = RegInit(Bits(width.W), 0.U)
   // Calculate lookup table index from current crc MSB byte and message byte
-  val lookup_index = Wire(UInt(8.W))
-  lookup_index := crc1 ^ message_bits(width - 1, width - 8)
 
   // Propogate output data register
-  io.crc.bits := Cat(crc1, crc0)
+  io.crc.bits := crc_calc
 
   // Propogate crc valid and message ready signal
   io.crc.valid := crc_valid
@@ -81,20 +88,21 @@ class CRCGenerator(width: Int) extends Module {
   // Latch data on message_ready and data_val
   when(io.message.fire) {
     // Reset logic
-    crc0 := 0.U
-    crc1 := 0.U
+    crc_calc := 0.U
     crc_valid := false.B
 
     step := (width / 8).U // Set step to number of bytes in word
+    consume_step := (bytes_per_cycle).U
     message_bits := io.message.bits
     message_ready := false.B
   }
 
-  // Computation not finished when step is not 0
+    // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc1 := crc0 ^ CRC16Lookup.table(lookup_index)(15, 8)
-    crc0 := CRC16Lookup.table(lookup_index)(7, 0)
+    crc_calc := (crc_calc << 8) ^ CRC16Lookup.table(crc_calc(15, 8) ^ message_bits(width - 1, width - 8))
     message_bits := message_bits << 8
+
+    consume_step := (bytes_per_cycle).U
     step := step - 1.U
     crc_valid := step === 1.U // If next step will be 0, CRC is now valid
   }
