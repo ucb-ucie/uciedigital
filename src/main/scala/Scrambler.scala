@@ -40,10 +40,11 @@ class UCIeScrambler (
   val UCIe_seeds = List("1dbfbc", "0607bb", "1ec760", "18c0db", "010f12", "19cfc9", "0277ce", "1bb807")
   val seeds = (for (i <- 0 until numLanes) yield UCIe_seeds.apply(i % 8)).toList
   val scramblers = seeds.map(seed => Module(new Scrambler(afeParams, width, BigInt(seed, 16))))
-
   for (i <- 0 until scramblers.length) {
     scramblers.apply(i).io.data_in := io.data_in(i)
     scramblers.apply(i).io.valid := io.valid
+    scramblers.apply(i).reset := reset
+    scramblers.apply(i).clock := clock
     scramblers.apply(i).io.seed := ("h" + seeds.apply(i)).U(23.W)
     io.data_out(i) := scramblers.apply(i).io.data_out
   }
