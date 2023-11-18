@@ -6,17 +6,11 @@ import chiseltest._
 import org.scalatest.funspec.AnyFunSpec
 import chisel3.experimental.VecLiterals._
 
-// Test doesn't work
-
 class ScramblerTest extends AnyFunSpec with ChiselScalatestTester {
 
   describe("Scrambler") {
     it("4 lane scrambler test") {
       test(new UCIeScrambler(new AfeParams(), 16, 4)) { c =>
-        // val in = Vec(4, UInt(16.W))
-        // val out = Vec(4, UInt(16.W))
-        // in := Vec.Lit(1.U(16.W), 1012.U(16.W), 823.U(16.W), 134.U(16.W))
-        // out := Vec.Lit(49085.U(16.W), 1103.U(16.W), 50263.U(16.W), 49245.U(16.W))
         c.reset.poke(true.B)
         c.clock.step()
         c.clock.step()
