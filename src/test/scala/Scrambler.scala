@@ -4,7 +4,6 @@ package interfaces
 import chisel3._
 import chiseltest._
 import org.scalatest.funspec.AnyFunSpec
-import chisel3.experimental.VecLiterals._
 
 class ScramblerTest extends AnyFunSpec with ChiselScalatestTester {
 
