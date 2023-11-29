@@ -28,9 +28,7 @@ class Scrambler(
   LFSR.io.increment := io.valid
   LFSR.io.seed.bits := VecInit(io.seed.asBools)
   LFSR.io.seed.valid := (reset.asBool)
-  val LFSR_result = LFSR.io.out
-  // printf(cf"$LFSR_result.asUInt")
-  io.data_out := LFSR_result.asUInt ^ io.data_in
+  io.data_out := LFSR.io.out.asUInt ^ io.data_in
 }
 
 class UCIeScrambler(
