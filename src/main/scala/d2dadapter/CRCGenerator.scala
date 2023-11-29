@@ -115,7 +115,10 @@ class CRCGenerator(width: Int, bytes_per_cycle: Int) extends Module {
 
   // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc_calc := nextCRC(crc_calc, message_bits(width - 1, width - (8 * bytes_per_cycle)))
+    crc_calc := nextCRC(
+      crc_calc,
+      message_bits(width - 1, width - (8 * bytes_per_cycle)),
+    )
     message_bits := message_bits << (8 * bytes_per_cycle)
     step := step - 1.U
     crc_valid := step === 1.U // If next step will be 0, CRC is now valid
