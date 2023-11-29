@@ -4,7 +4,7 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
-case class RdiParams(width: Int, sbWidth: Int)
+case class RdiParams(width: Int, sbWidth: RdiSbWidth.Value)
 
 /** The raw D2D interface (RDI), from the perspective of the D2D Adapter. */
 class Rdi(rdiParams: RdiParams) extends Bundle {
@@ -80,8 +80,9 @@ class Rdi(rdiParams: RdiParams) extends Bundle {
   val lpWakeReq = Output(Bool())
   val plWakeAck = Input(Bool())
 
-  val plConfig = Flipped(Valid(UInt(rdiParams.sbWidth.W)))
+  val sbWidth = rdiParams.sbWidth.id
+  val plConfig = Flipped(Valid(UInt(sbWidth.W)))
   val plConfigCredit = Input(Bool())
-  val lpConfig = Valid(UInt(rdiParams.sbWidth.W))
+  val lpConfig = Valid(UInt(sbWidth.W))
   val lpConfigCredit = Output(Bool())
 }
