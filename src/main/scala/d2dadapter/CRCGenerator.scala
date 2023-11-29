@@ -105,8 +105,8 @@ class CRCGenerator(width: Int, bytes_per_cycle: Int) extends Module {
       case (crc, byte_num) => {
         (crc << 8) ^ CRC16Lookup.table(
           crc(15, 8) ^ message(
-            width - 1 - (8 * byte_num),
-            width - (8 * (byte_num + 1)),
+            (8 * bytes_per_cycle) - 1 - (8 * byte_num),
+            (8 * bytes_per_cycle) - (8 * (byte_num + 1)),
           ),
         )
       }
@@ -115,7 +115,7 @@ class CRCGenerator(width: Int, bytes_per_cycle: Int) extends Module {
 
   // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc_calc := nextCRC(crc_calc, message_bits)
+    crc_calc := nextCRC(crc_calc, message_bits(width - 1, width - (8 * bytes_per_cycle)))
     message_bits := message_bits << (8 * bytes_per_cycle)
     step := step - 1.U
     crc_valid := step === 1.U // If next step will be 0, CRC is now valid
