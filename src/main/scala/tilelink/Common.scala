@@ -1,4 +1,5 @@
-package ucie.tlfront
+package edu.berkeley.cs.ucie.digital
+package tilelink
 
 import chisel3._
 import chisel3.util._

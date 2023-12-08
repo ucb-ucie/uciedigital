@@ -1,4 +1,5 @@
-package ucie.tilelink
+package edu.berkeley.cs.ucie.digital
+package tilelink
 
 import chisel3._
 import freechips.rocketchip.util._
