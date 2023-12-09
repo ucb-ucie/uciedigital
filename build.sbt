@@ -14,7 +14,14 @@ Compile / doc / scalacOptions += "-groups"
 
 val chiselVersion = "3.6.0"
 
-lazy val root = (project in file("."))
+addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full)
+libraryDependencies ++= Seq(
+  "edu.berkeley.cs" %% "chisel3" % chiselVersion,
+  "edu.berkeley.cs" %% "chiseltest" % "0.6.2" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+)
+
+/*lazy val root = (project in file("."))
   .settings(
     name := "uciedigital",
     libraryDependencies ++= Seq(
@@ -25,8 +32,8 @@ lazy val root = (project in file("."))
     addCompilerPlugin(
       "edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full,
     ),
-  )
+  )*/
 
 // Plugins
 Global / excludeLintKeys += idePackagePrefix
-root / idePackagePrefix := Some("edu.berkeley.cs.ucie.digital")
+idePackagePrefix := Some("edu.berkeley.cs.ucie.digital")
