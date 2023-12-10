@@ -10,6 +10,7 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
+import protocol._
 import interfaces._
 
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
@@ -104,8 +105,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   inward.io.deq.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  protocol.io.fdi.lpData.valid := inward.io.deq.fire
-  protocol.io.fdi.lpData.irdy := inward.io.deq.fire 
+  protocol.io.fdi.lpData.valid := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
+  protocol.io.fdi.lpData.irdy := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
   protocol.io.fdi.lpData.bits := uciTxPayload // need to figure out how this would look
 
   // TODO: update this translation based on the uciPayload formatting
@@ -123,7 +124,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.fdi.plData.valid
 
   // TODO: map the uciRxPayload and the plData based on the uciPayload formatting
-  // TODO: map the rxTLPayload to the uciRxPayload correctly
+  // TODO: map the uciRxPayload to the rxTLPayload TLBundle correctly
   when(rx_fire) {
     uciRxPayload := protocol.io.fdi.plData.bits
     rxTLPayload := uciRxPayload
@@ -135,6 +136,31 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     outward.io.enq.valid := true.B
   }
 
-  // dequeue the rx TL packets 
-  
+  // dequeue the rx TL packets and orchestrate on the client/manager node
+
+  val isRequest = TLMessages.isA(outward.io.deq.bits.opcode)
+  val isResponse = TLMessages.isD(outward.io.deq.bits.opcode)
+
+  when(outward.io.deq.valid) {
+    when(isRequest) {
+      outward.io.deq.ready := out.a.ready // if A request send to client node
+    }.elsewhen(isResponse) {
+      outward.io.deq.ready := in.d.ready // if D response send to manager node
+    }.otherwise {
+      outward.io.deq.ready := false.B
+    }
+  }
+
+  // map the dequeued packets to the client and manager nodes
+  val reqPacket = Wire(new TLBundleA())
+  val respPacket = Wire(new TLBundleD())
+
+  when(isRequest && outward.io.deq.fire) { // send the request A channel packet to client
+    reqPacket <> outward.io.deq.bits
+    out.a.valid := true.B
+  }.elsewhen(isResponse && outward.io.deq.fire) { // send the response D channel packet to manager
+    respPacket <> outward.io.deq.bits
+    in.d.valid := true.B
+  }
+
 }
