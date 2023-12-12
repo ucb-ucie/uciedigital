@@ -18,19 +18,19 @@ import interfaces._
   * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as 
   * an agnostic interface to generate FDI signalling.
   */
-class UCITLFront(val tlParams: TileLinkParams)(implicit p: Parameters) extends LazyModule {
+class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams)(implicit p: Parameters) extends LazyModule {
 
   val device = new SimpleDevice("ucie-front", Seq("ucie,ucie0"))
 
-  val beatBytes = tlParams.beatBytes
+  val beatBytes = tlParams.BEAT_BYTES
 
   // MMIO registers controlled by the sideband module
-  val regNode = LazyModule(new UCIConfig(beatBytes = tlParams.beatBytes, address = tlParams.configAddress))
+  val regNode = LazyModule(new UCIConfig(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
   
   // Manager node to send and acquire traffic to partner die
   val managerNode: TLManagerNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
     Seq(TLSlaveParameters.v1(
-      address = Seq(AddressSet(tlParams.baseAddress, tlParams.addressRange)),
+      address = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
       resources = device.reg,
       regionType = RegionType.UNCACHED, // Should be changed to CACHED eventually
       executable = true,
@@ -46,7 +46,7 @@ class UCITLFront(val tlParams: TileLinkParams)(implicit p: Parameters) extends L
       name = "ucie-client",
       sourceId = IdRange(0, 1),
       requestFifo = false,
-      visibility = Seq(AddressSet(tlParams.baseAddress, tlParams.addressRange)),
+      visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
       supportsGet = TransferSizes(1, beatBytes),
       supportsPutFull = TransferSizes(1, beatBytes),
       supportsPutPartial = TransferSizes(1, beatBytes),
@@ -65,20 +65,20 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   })
 
   // Instantiate the agnostic protocol layer
-  val protocol = Module(new ProtocolLayer())
+  val protocol = Module(new ProtocolLayer(new FdiParams))
 
   val (in, managerEdge) = managerNode.in(0)
   val (out, clientEdge) = clientNode.out(0)
 
   // Async queue to handle the clock crossing between system bus and UCIe stack clock
-  val inward = Module(new AsyncQueue(new TLBundleAUnionD(params), new AsyncQueueParams(depth = params.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
+  val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
   inward.io.enq_clock := io.sbus_clk
   inward.io.enq_reset := io.sbus_reset
   inward.io.deq_clock := io.lclk
   inward.io.deq_reset := io.lreset
 
   // Async queue to handle the clock crossing between UCIe stack clock and system bus
-  val outward = Module(new AsyncQueue(new TLBundleAUnionD(params), new AsyncQueueParams(depth = params.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
+  val outward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
   outward.io.enq_clock := io.lclk
   outward.io.enq_reset := io.lreset
   outward.io.deq_clock := io.sbus_clk
@@ -87,7 +87,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   // TL packets from System to the UCIe stack, push on the inward queue
   // =======================
-  val txTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = managerEdge.hasData(in.a.bits)
   in.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
@@ -95,13 +95,35 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   inward.io.enq.valid := in.a.fire
 
   when(in.a.fire && aHasData) { // put tx towards partner die
-    txTLPayload
+    when (managerEdge.last(in.a)) { // wait for all the beats to arrive
+      txTLPayload.opcode := in.a.bits.opcode
+      txTLPayload.param := in.a.bits.param
+      txTLPayload.size := in.a.bits.size
+      txTLPayload.source := in.a.bits.source
+      txTLPayload.sink := 0.U
+      txTLPayload.address := in.a.bits.address
+      txTLPayload.mask := in.a.bits.mask
+      txTLPayload.data := in.a.bits.data
+      txTLPayload.denied := false.B
+      txTLPayload.corrupt := false.B
+    }
   }.elsewhen(in.a.fire && ~aHasData) { // get rx data from partner die
-    txTLPayload
+    when (managerEdge.last(in.a)) { // wait for all the beats to arrive
+      txTLPayload.opcode := in.a.bits.opcode
+      txTLPayload.param := in.a.bits.param
+      txTLPayload.size := in.a.bits.size
+      txTLPayload.source := in.a.bits.source
+      txTLPayload.sink := 0.U
+      txTLPayload.address := in.a.bits.address
+      txTLPayload.mask := in.a.bits.mask
+      txTLPayload.data := 0.U
+      txTLPayload.denied := false.B
+      txTLPayload.corrupt := false.B      
+    }
   }
 
   // dequeue the TX TL packets and translate to UCIe flit
-  val uciTxPayload = Wire(new UCIRawPayloadFormat()) // User-defined UCIe flit for streaming
+  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
 
   inward.io.deq.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
@@ -113,14 +135,14 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   when(inward.io.deq.fire) {
     uciTxPayload := inward.io.deq.bits
   }
-
+ 
   // =======================
   // TL packets coming from the UCIe stack to the System, push on the outward queue
   // =======================
-  val rxTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   protocol.io.fdi.lpData.irdy := outward.io.enq.ready
-  val uciRxPayload = Wire(new UCIRawPayloadFormat()) // User-defined UCIe flit for streaming
+  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
   val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.fdi.plData.valid
 
   // TODO: map the uciRxPayload and the plData based on the uciPayload formatting

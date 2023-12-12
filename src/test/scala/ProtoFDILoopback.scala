@@ -32,11 +32,33 @@ object LatencyPipe {
   * It consists of the FDI interface and a latency pipe to emulate
   * the latency imparted by the D2D adapter.
   */
-class ProtoFDILoopback(fdiParams: FdiParams, latency: Int = 8) extends Module {
+class ProtoFDILoopback(val fdiParams: FdiParams, val latency: Int = 8) extends Module {
     val io = IO(Flipped(new Fdi(fdiParams)))
 
+    when(io.lpData.valid) {
+      /* For now, the protocol layer must assert lpData.valid and lpData.irdy
+      * together */
+      chisel3.assert(
+        io.lpData.irdy,
+        "lpData.valid was asserted without lpData.irdy",
+      )
+    }
+
+    // Restructure lpData as Decoupled[UInt]
+    val lpDataDecoupled = Wire(DecoupledIO(chiselTypeOf(io.lpData.bits)))
+    lpDataDecoupled.bits := io.lpData.bits
+    lpDataDecoupled.valid := io.lpData.valid
+    io.lpData.ready := lpDataDecoupled.ready
+
+    // Loopback lpData to plData with some fixed latency
+    val pipe = Module(new LatencyPipe(chiselTypeOf(io.lpData.bits), latency))
+    pipe.io.in <> lpDataDecoupled
+    pipe.io.out.ready := true.B // immediately fetch the data after <latency> cycles
+    io.plData.valid := pipe.io.out.valid
+    io.plData.bits := pipe.io.out.bits
+
     // Signals from Protocol layer to D2D adapter
-    io.lpData
+    /*
     io.lpRetimerCrd
     io.lpCorruptCrc
     io.lpDlio.lp
@@ -50,9 +72,9 @@ class ProtoFDILoopback(fdiParams: FdiParams, latency: Int = 8) extends Module {
     io.lpWakeReq
     io.lpConfig
     io.lpConfigCredit
+    */
 
     // Signals from D2D adapter to Protocol layer
-    io.plData
     io.plRetimerCrd
     io.plDllp
     io.plDllpOfc

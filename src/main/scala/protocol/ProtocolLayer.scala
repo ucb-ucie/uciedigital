@@ -4,9 +4,7 @@ package protocol
 import chisel3._
 import chisel3.util._
 
-import interface._
-
-case class ProtocolParams(width: Int, dllpWidth: Int, sbWidth: Int)
+import interfaces._
 
 /**
   * Class to handle the FDI signalling between the D2D adapter and protocol layer. The class
@@ -14,12 +12,12 @@ case class ProtocolParams(width: Int, dllpWidth: Int, sbWidth: Int)
   * the FDI signals to the D2D adapter. It also instantiates sideband node to orchestrate
   * register access from system over the SB messaging. Finally, it handles the auxillary
   * signalling required for link initialization and link managements.
-  * @param d2dParams
+  * @param fdiParams
   * @param protoParams
   */
-class ProtocolLayer(val d2dParams: D2DAdapterParams, val protoParams: ProtocolParams) extends Module {
+class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     val io = IO(new Bundle{
-        val fdi = new Fdi(d2dParams)
+        val fdi = new Fdi(fdiParams)
     })
 
     // Constants for the FDI signals not used in v1
@@ -73,10 +71,10 @@ class ProtocolLayer(val d2dParams: D2DAdapterParams, val protoParams: ProtocolPa
     // Whent he lpStallAck is asserted the TL A channel is stalled and the lp irdy and valid
     // signals are deasserted in the UCITLFront class.
     val lp_stall_reg = RegInit(false.B)
-    lp_stall_req := io.fdi.plStallReq
+    lp_stall_reg := io.fdi.plStallReq
     io.fdi.lpStallAck := lp_stall_reg
 
     // TODO: these are SB messaging signals
-    io.fdi.lpConfig
-    io.fdi.lpConfigCredit
+    //io.fdi.lpConfig
+    //io.fdi.lpConfigCredit
 }
