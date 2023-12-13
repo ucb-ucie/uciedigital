@@ -51,7 +51,6 @@ class UCIHeader2Format(val tl: TileLinkParams) extends Bundle {
     val source = Output(UInt(tl.sourceIDWidth.W))
     val sink = Output(UInt(tl.sinkIDWidth.W))
     val mask = Output(UInt(tl.maskWidth.W))
-    val data = Output(UInt(tl.dataWidth.W))
     val denied = Output(UInt(tl.deniedWidth.W))
     val corrupt = Output(UInt(tl.corruptWidth.W))
 }

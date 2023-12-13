@@ -85,7 +85,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   outward.io.deq_reset := io.sbus_reset
 
   // =======================
-  // TL packets from System to the UCIe stack, push on the inward queue
+  // TL TX packets from System to the UCIe stack, push on the inward queue
   // =======================
   val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
@@ -96,70 +96,37 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   when(in.a.fire && aHasData) { // put tx towards partner die
     when (managerEdge.last(in.a)) { // wait for all the beats to arrive
-      txTLPayload.opcode := in.a.bits.opcode
-      txTLPayload.param := in.a.bits.param
-      txTLPayload.size := in.a.bits.size
-      txTLPayload.source := in.a.bits.source
-      txTLPayload.sink := 0.U
+      txTLPayload.opcode  := in.a.bits.opcode
+      txTLPayload.param   := in.a.bits.param
+      txTLPayload.size    := in.a.bits.size
+      txTLPayload.source  := in.a.bits.source
+      txTLPayload.sink    := 0.U
       txTLPayload.address := in.a.bits.address
-      txTLPayload.mask := in.a.bits.mask
-      txTLPayload.data := in.a.bits.data
-      txTLPayload.denied := false.B
+      txTLPayload.mask    := in.a.bits.mask
+      txTLPayload.data    := in.a.bits.data
+      txTLPayload.denied  := false.B
       txTLPayload.corrupt := false.B
     }
   }.elsewhen(in.a.fire && ~aHasData) { // get rx data from partner die
     when (managerEdge.last(in.a)) { // wait for all the beats to arrive
-      txTLPayload.opcode := in.a.bits.opcode
-      txTLPayload.param := in.a.bits.param
-      txTLPayload.size := in.a.bits.size
-      txTLPayload.source := in.a.bits.source
-      txTLPayload.sink := 0.U
+      txTLPayload.opcode  := in.a.bits.opcode
+      txTLPayload.param   := in.a.bits.param
+      txTLPayload.size    := in.a.bits.size
+      txTLPayload.source  := in.a.bits.source
+      txTLPayload.sink    := 0.U
       txTLPayload.address := in.a.bits.address
-      txTLPayload.mask := in.a.bits.mask
-      txTLPayload.data := 0.U
-      txTLPayload.denied := false.B
+      txTLPayload.mask    := in.a.bits.mask
+      txTLPayload.data    := 0.U
+      txTLPayload.denied  := false.B
       txTLPayload.corrupt := false.B      
     }
   }
 
-  // dequeue the TX TL packets and translate to UCIe flit
-  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+  // queue the txTLPayload on the inward queue
+  inward.io.enq.bits <> txTLPayload
 
-  inward.io.deq.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
-  // specs implies that these needs to be asserted at the same time
-  protocol.io.fdi.lpData.valid := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.fdi.lpData.irdy := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.fdi.lpData.bits := uciTxPayload // need to figure out how this would look
-
-  // TODO: update this translation based on the uciPayload formatting
-  when(inward.io.deq.fire) {
-    uciTxPayload := inward.io.deq.bits
-  }
- 
-  // =======================
-  // TL packets coming from the UCIe stack to the System, push on the outward queue
-  // =======================
-  val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
-
-  protocol.io.fdi.lpData.irdy := outward.io.enq.ready
-  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
-  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.fdi.plData.valid
-
-  // TODO: map the uciRxPayload and the plData based on the uciPayload formatting
-  // TODO: map the uciRxPayload to the rxTLPayload TLBundle correctly
-  when(rx_fire) {
-    uciRxPayload := protocol.io.fdi.plData.bits
-    rxTLPayload := uciRxPayload
-  }
-
-  // Queue the translated RX TL packet to send to the system
-  when(rx_fire) {
-    outward.io.enq.bits := rxTLPayload
-    outward.io.enq.valid := true.B
-  }
-
+  // ============== Translated TL packet coming out of the outward queue to the system ========
   // dequeue the rx TL packets and orchestrate on the client/manager node
-
   val isRequest = TLMessages.isA(outward.io.deq.bits.opcode)
   val isResponse = TLMessages.isD(outward.io.deq.bits.opcode)
 
@@ -173,9 +140,19 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     }
   }
 
+  val tlBundleParams = new TLBundleParameters(addressBits = outer.tlParams.addressWidth,
+                                              dataBits = outer.tlParams.dataWidth,
+                                              sourceBits = outer.tlParams.sourceIDWidth,
+                                              sinkBits = outer.tlParams.sinkIDWidth,
+                                              sizeBits = outer.tlParams.sizeWidth, 
+                                              echoFields = Nil, 
+                                              requestFields = Nil,
+                                              responseFields = Nil,
+                                              hasBCE = false)
+
   // map the dequeued packets to the client and manager nodes
-  val reqPacket = Wire(new TLBundleA())
-  val respPacket = Wire(new TLBundleD())
+  val reqPacket = Wire(new TLBundleA(tlBundleParams))
+  val respPacket = Wire(new TLBundleD(tlBundleParams))
 
   when(isRequest && outward.io.deq.fire) { // send the request A channel packet to client
     reqPacket <> outward.io.deq.bits
@@ -183,6 +160,94 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   }.elsewhen(isResponse && outward.io.deq.fire) { // send the response D channel packet to manager
     respPacket <> outward.io.deq.bits
     in.d.valid := true.B
+  }
+
+  // ============ Below code should run on the UCIe clock? ==============
+  
+  // Dequeue the TX TL packets and translate to UCIe flit
+  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+
+  inward.io.deq.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
+  // specs implies that these needs to be asserted at the same time
+  protocol.io.fdi.lpData.valid := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
+  protocol.io.fdi.lpData.irdy := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
+  protocol.io.fdi.lpData.bits := uciTxPayload // assign uciTXPayload to the FDI lp data signal
+
+  // Translation based on the uciPayload formatting from outgoing TL packet
+  when(inward.io.deq.fire) {
+    // form the cmd header with TL message type
+    uciTxPayload.cmd.msgType := UCIProtoMsgTypes.TileLink
+    uciTxPayload.cmd.hostID := 0.U
+    uciTxPayload.cmd.partnerID := 0.U
+    uciTxPayload.cmd.reservedCmd := 0.U
+    // header 1
+    uciTxPayload.header1.address := inward.io.deq.bits.address
+    // header 2
+    uciTxPayload.header2.opcode  := inward.io.deq.bits.opcode
+    uciTxPayload.header2.param   := inward.io.deq.bits.param
+    uciTxPayload.header2.size    := inward.io.deq.bits.size
+    uciTxPayload.header2.source  := inward.io.deq.bits.source
+    uciTxPayload.header2.sink    := inward.io.deq.bits.sink
+    uciTxPayload.header2.mask    := inward.io.deq.bits.mask
+    uciTxPayload.header2.denied  := inward.io.deq.bits.denied
+    uciTxPayload.header2.corrupt := inward.io.deq.bits.corrupt
+    // data mapping
+    // TODO: replace with FP coding
+    uciTxPayload.data(0) := inward.io.deq.bits(63,0)
+    uciTxPayload.data(1) := inward.io.deq.bits(127,64)
+    uciTxPayload.data(2) := inward.io.deq.bits(191,128)
+    uciTxPayload.data(3) := inward.io.deq.bits(255,192)
+    uciTxPayload.data(4) := inward.io.deq.bits(319,256)
+    // TODO: add ECC/checksum functionality, for now tieing to 0
+    uciTxPayload.ecc := 0.U
+  }
+ 
+  // =======================
+  // TL RX packets coming from the UCIe stack to the System, push on the outward queue
+  // =======================
+  val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
+
+  protocol.io.fdi.lpData.irdy := outward.io.enq.ready
+  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.fdi.plData.valid
+
+  // map the uciRxPayload and the plData based on the uciPayload formatting
+  // map the uciRxPayload to the rxTLPayload TLBundle
+  when(rx_fire) {
+    // ucie cmd
+    uciRxPayload.cmd := protocol.io.fdi.plData.bits(31,0)
+    // ucie header 1
+    uciRxPayload.header1 := protocol.io.fdi.plData.bits(95,32)
+    // ucie header 2
+    uciRxPayload.header2 := protocol.io.fdi.plData.bits(159,96)
+    // ucie data payload
+    uciRxPayload.data := protocol.io.fdi.plData.bits(223,160)
+    uciRxPayload.data := protocol.io.fdi.plData.bits(287,224)
+    uciRxPayload.data := protocol.io.fdi.plData.bits(351,288)
+    uciRxPayload.data := protocol.io.fdi.plData.bits(415,352)
+    uciRxPayload.data := protocol.io.fdi.plData.bits(479,416)
+    // ucie ecc
+    uciRxPayload.ecc := protocol.io.fdi.plData.bits(511,480)
+
+    // map the uciRxPayload to the rxTLPayload
+    rxTLPayload.address := uciRxPayload.header1.address
+    
+    rxTLPayload.opcode  := uciRxPayload.header2.opcode
+    rxTLPayload.param   := uciRxPayload.header2.param
+    rxTLPayload.size    := uciRxPayload.header2.size
+    rxTLPayload.source  := uciRxPayload.header2.source
+    rxTLPayload.sink    := uciRxPayload.header2.sink
+    rxTLPayload.mask    := uciRxPayload.header2.mask
+    rxTLPayload.denied  := uciRxPayload.header2.denied
+    rxTLPayload.corrupt := uciRxPayload.header2.corrupt
+    
+    rxTLPayload.data    := uciRxPayload.data
+  }
+
+  // Queue the translated RX TL packet to send to the system
+  when(rx_fire) {
+    outward.io.enq.bits := rxTLPayload
+    outward.io.enq.valid := true.B
   }
 
 }

@@ -36,6 +36,8 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     streaming.protoType := ProtoStreamType.Stream
     io.fdi.lpStream <> streaming
 
+    val sb_linkReset_req = RegInit(false.B)
+
     // Refer to section 8.2.7 for rx_active_req/sts handshake
     val lp_rx_active_sts_reg = RegInit(false.B)
     // lpRxActiveStatus can change before the plStateStatus becomes Active
@@ -57,7 +59,7 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
 
     when(reqActive) {
         lp_state_req_reg := PhyStateReq.active
-    }.elsewhen() {// TODO: SB register to initiate LinkReset
+    }.elsewhen(sb_linkReset_req) {// TODO: SB register to initiate LinkReset
         lp_state_req_reg := PhyStateReq.linkReset
     }.otherwise { lp_state_req_reg := PhyStateReq.nop }
 
