@@ -21,19 +21,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.17" % Test,
 )
 
-/*lazy val root = (project in file("."))
-  .settings(
-    name := "uciedigital",
-    libraryDependencies ++= Seq(
-      "edu.berkeley.cs" %% "chisel3" % chiselVersion,
-      "edu.berkeley.cs" %% "chiseltest" % "0.6.2" % Test,
-      "org.scalatest" %% "scalatest" % "3.2.17" % Test,
-    ),
-    addCompilerPlugin(
-      "edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full,
-    ),
-  )*/
-
 // Plugins
 Global / excludeLintKeys += idePackagePrefix
 idePackagePrefix := Some("edu.berkeley.cs.ucie.digital")
