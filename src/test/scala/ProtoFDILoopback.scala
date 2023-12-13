@@ -57,7 +57,8 @@ class ProtoFDILoopback(val fdiParams: FdiParams, val latency: Int = 8) extends M
     io.plData.valid := pipe.io.out.valid
     io.plData.bits := pipe.io.out.bits
 
-    // Signals from Protocol layer to D2D adapter
+    // Signals from Protocol layer to D2D adapter. 
+    // These needs to be driven by ProtocolLayer.scala
     /*
     io.lpRetimerCrd
     io.lpCorruptCrc
@@ -75,29 +76,33 @@ class ProtoFDILoopback(val fdiParams: FdiParams, val latency: Int = 8) extends M
     */
 
     // Signals from D2D adapter to Protocol layer
-    io.plRetimerCrd
-    io.plDllp
-    io.plDllpOfc
-    io.plStream
-    io.plFlitCancel
-    io.plStateStatus
-    io.plInbandPres
-    io.plError
-    io.plCerror
-    io.plNfError
-    io.plTrainError
-    io.plRxActiveReq
-    io.plProtocol
-    io.plProtocolFlitFormat
-    io.plProtocolValid
-    io.plStallReq
-    io.plPhyInRecenter
-    io.plPhyInL1
-    io.plPhyInL2
-    io.plSpeedMode
-    io.plLinkWidth
-    io.plClkReq
-    io.plWakeAck
-    io.plConfig
-    io.plConfigCredit
+    // Tieoffs signals and drive from test harness
+    io.plRetimerCrd := false.B
+    io.plDllp.valid := false.B
+    io.plDllp.bits := 0.U
+    io.plDllpOfc := false.B
+    io.plStream.protoStack := ProtoStack.stack0
+    io.plStream.protoType := ProtoStreamType.Stream
+    io.plFlitCancel := false.B
+    io.plStateStatus := PhyState.nop
+    io.plInbandPres := false.B
+    io.plError := false.B
+    io.plCerror := false.B
+    io.plNfError := false.B
+    io.plTrainError := false.B
+    io.plRxActiveReq := false.B
+    io.plProtocol := Protocol.streaming
+    io.plProtocolFlitFormat := FlitFormat.raw
+    io.plProtocolValid := true.B
+    io.plStallReq := false.B
+    io.plPhyInRecenter := false.B
+    io.plPhyInL1 := false.B
+    io.plPhyInL2 := false.B
+    io.plSpeedMode := SpeedMode.speed4
+    io.plLinkWidth := PhyWidth.width64
+    io.plClkReq := false.B
+    io.plWakeAck := false.B
+    io.plConfig.valid := false.B
+    io.plConfig.bits := 0.U
+    io.plConfigCredit := false.B
 }
