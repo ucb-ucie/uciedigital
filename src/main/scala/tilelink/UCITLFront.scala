@@ -13,6 +13,7 @@ import freechips.rocketchip.subsystem._
 import protocol._
 import interfaces._
 
+// TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
   * These needs to get connected to the chipyard system. The class converts tilelink 
   * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as 
@@ -44,8 +45,8 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v2(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
-      sourceId = IdRange(0, 1),
-      requestFifo = false,
+      sourceId = IdRange(0, 4),
+      requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
       supportsGet = TransferSizes(1, beatBytes),
       supportsPutFull = TransferSizes(1, beatBytes),
@@ -85,45 +86,84 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   outward.io.deq_reset := io.sbus_reset
 
   // =======================
-  // TL TX packets from System to the UCIe stack, push on the inward queue
+  // TL TX packets from System to the UCIe stack, push on the inward queue.
+  // The TX packets can be A request from manager node or D response from
+  // the client node. This needs to be arbitrated to be sent to partner die.
   // =======================
-  val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
+  val txArbiter = Module(new Arbiter(new TLBundleAUnionD(outer.tlParams), 2))
+  val txATLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
+  val txDTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
+  //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = managerEdge.hasData(in.a.bits)
+  /*
   in.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
   inward.io.enq.valid := in.a.fire
+  */
+
+  // A request to partner die logic
+  in.a.ready = (txArbiter.io.in(0).ready & ~protocol.io.fdi.lpStallAck & 
+                (protocol.io.fdi.plStateStatus === PhyState.active))
+  txArbiter.io.in(0).valid := in.a.fire
 
   when(in.a.fire && aHasData) { // put tx towards partner die
     when (managerEdge.last(in.a)) { // wait for all the beats to arrive
-      txTLPayload.opcode  := in.a.bits.opcode
-      txTLPayload.param   := in.a.bits.param
-      txTLPayload.size    := in.a.bits.size
-      txTLPayload.source  := in.a.bits.source
-      txTLPayload.sink    := 0.U
-      txTLPayload.address := in.a.bits.address
-      txTLPayload.mask    := in.a.bits.mask
-      txTLPayload.data    := in.a.bits.data
-      txTLPayload.denied  := false.B
-      txTLPayload.corrupt := false.B
+      txATLPayload.opcode  := in.a.bits.opcode
+      txATLPayload.param   := in.a.bits.param
+      txATLPayload.size    := in.a.bits.size
+      txATLPayload.source  := in.a.bits.source
+      txATLPayload.sink    := 0.U
+      txATLPayload.address := in.a.bits.address
+      txATLPayload.mask    := in.a.bits.mask
+      txATLPayload.data    := in.a.bits.data
+      txATLPayload.denied  := false.B
+      txATLPayload.corrupt := false.B
     }
   }.elsewhen(in.a.fire && ~aHasData) { // get rx data from partner die
     when (managerEdge.last(in.a)) { // wait for all the beats to arrive
-      txTLPayload.opcode  := in.a.bits.opcode
-      txTLPayload.param   := in.a.bits.param
-      txTLPayload.size    := in.a.bits.size
-      txTLPayload.source  := in.a.bits.source
-      txTLPayload.sink    := 0.U
-      txTLPayload.address := in.a.bits.address
-      txTLPayload.mask    := in.a.bits.mask
-      txTLPayload.data    := 0.U
-      txTLPayload.denied  := false.B
-      txTLPayload.corrupt := false.B      
+      txATLPayload.opcode  := in.a.bits.opcode
+      txATLPayload.param   := in.a.bits.param
+      txATLPayload.size    := in.a.bits.size
+      txATLPayload.source  := in.a.bits.source
+      txATLPayload.sink    := 0.U
+      txATLPayload.address := in.a.bits.address
+      txATLPayload.mask    := in.a.bits.mask
+      txATLPayload.data    := 0.U
+      txATLPayload.denied  := false.B
+      txATLPayload.corrupt := false.B      
     }
   }
 
-  // queue the txTLPayload on the inward queue
-  inward.io.enq.bits <> txTLPayload
+  txArbiter.io.in(0).bits <> txATLPayload
+
+  // D response to partner die's A request logic
+  out.d.ready = (txArbiter.io.in(1).ready & ~protocol.io.fdi.lpStallAck & 
+                (protocol.io.fdi.plStateStatus === PhyState.active))
+  txArbiter.io.in(1).valid := out.d.fire
+
+  when(out.d.fire) {
+    when (managerEdge.last(out.d)) { // wait for all the beats to arrive
+      txDTLPayload.opcode  := out.d.bits.opcode
+      txDTLPayload.param   := out.d.bits.param
+      txDTLPayload.size    := out.d.bits.size
+      txDTLPayload.source  := out.d.bits.source
+      txDTLPayload.sink    := out.d.bits.sink
+      txDTLPayload.address := 0.U
+      txDTLPayload.mask    := out.d.bits.mask
+      txDTLPayload.data    := out.d.bits.data
+      txDTLPayload.denied  := false.B
+      txDTLPayload.corrupt := false.B
+    }
+  }
+
+  txArbiter.io.in(1).bits <> txDTLPayload
+
+  // queue the txTLPayload (A or D) on the inward queue from the arbiter
+  txArbiter.io.out.ready := inward.io.enq.ready
+  inward.io.enq.valid := txArbiter.io.out.valid
+  inward.io.enq.bits <> txArbiter.io.out.bits
+  //inward.io.enq.bits <> txTLPayload
 
   // ============== Translated TL packet coming out of the outward queue to the system ========
   // dequeue the rx TL packets and orchestrate on the client/manager node
