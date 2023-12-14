@@ -19,7 +19,9 @@ import interfaces._
   * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as 
   * an agnostic interface to generate FDI signalling.
   */
-class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams)(implicit p: Parameters) extends LazyModule {
+class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams
+                 val fdiParams: FdiParams)
+                (implicit p: Parameters) extends LazyModule {
 
   val device = new SimpleDevice("ucie-front", Seq("ucie,ucie0"))
 
@@ -66,7 +68,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   })
 
   // Instantiate the agnostic protocol layer
-  val protocol = Module(new ProtocolLayer(new FdiParams))
+  val protocol = Module(new ProtocolLayer(outer.fdiParams))
 
   val (in, managerEdge) = managerNode.in(0)
   val (out, clientEdge) = clientNode.out(0)

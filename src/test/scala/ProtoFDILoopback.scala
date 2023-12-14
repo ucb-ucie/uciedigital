@@ -33,76 +33,78 @@ object LatencyPipe {
   * the latency imparted by the D2D adapter.
   */
 class ProtoFDILoopback(val fdiParams: FdiParams, val latency: Int = 8) extends Module {
-    val io = IO(Flipped(new Fdi(fdiParams)))
+    val io = IO(new Bundle{
+      val fdi = Flipped(new Fdi(fdiParams))
+    })
 
-    when(io.lpData.valid) {
+    when(io.fdi.lpData.valid) {
       /* For now, the protocol layer must assert lpData.valid and lpData.irdy
       * together */
       chisel3.assert(
-        io.lpData.irdy,
+        io.fdi.lpData.irdy,
         "lpData.valid was asserted without lpData.irdy",
       )
     }
 
     // Restructure lpData as Decoupled[UInt]
-    val lpDataDecoupled = Wire(DecoupledIO(chiselTypeOf(io.lpData.bits)))
-    lpDataDecoupled.bits := io.lpData.bits
-    lpDataDecoupled.valid := io.lpData.valid
-    io.lpData.ready := lpDataDecoupled.ready
+    val lpDataDecoupled = Wire(DecoupledIO(chiselTypeOf(io.fdi.lpData.bits)))
+    lpDataDecoupled.bits := io.fdi.lpData.bits
+    lpDataDecoupled.valid := io.fdi.lpData.valid
+    io.fdi.lpData.ready := lpDataDecoupled.ready
 
     // Loopback lpData to plData with some fixed latency
-    val pipe = Module(new LatencyPipe(chiselTypeOf(io.lpData.bits), latency))
+    val pipe = Module(new LatencyPipe(chiselTypeOf(io.fdi.lpData.bits), latency))
     pipe.io.in <> lpDataDecoupled
     pipe.io.out.ready := true.B // immediately fetch the data after <latency> cycles
-    io.plData.valid := pipe.io.out.valid
-    io.plData.bits := pipe.io.out.bits
+    io.fdi.plData.valid := pipe.io.out.valid
+    io.fdi.plData.bits := pipe.io.out.bits
 
     // Signals from Protocol layer to D2D adapter. 
     // These needs to be driven by ProtocolLayer.scala
     /*
-    io.lpRetimerCrd
-    io.lpCorruptCrc
-    io.lpDlio.lp
-    io.lpDlio.lpOfc
-    io.lpStream
-    io.lpStateReq
-    io.lpLinkError
-    io.lpRxActiveStatus
-    io.lpStallAck
-    io.lpClkAck
-    io.lpWakeReq
-    io.lpConfig
-    io.lpConfigCredit
+    io.fdi.lpRetimerCrd
+    io.fdi.lpCorruptCrc
+    io.fdi.lpDllp
+    io.fdi.lpDllpOfc
+    io.fdi.lpStream
+    io.fdi.lpStateReq
+    io.fdi.lpLinkError
+    io.fdi.lpRxActiveStatus
+    io.fdi.lpStallAck
+    io.fdi.lpClkAck
+    io.fdi.lpWakeReq
+    io.fdi.lpConfig
+    io.fdi.lpConfigCredit
     */
 
     // Signals from D2D adapter to Protocol layer
     // Tieoffs signals and drive from test harness
-    io.plRetimerCrd := false.B
-    io.plDllp.valid := false.B
-    io.plDllp.bits := 0.U
-    io.plDllpOfc := false.B
-    io.plStream.protoStack := ProtoStack.stack0
-    io.plStream.protoType := ProtoStreamType.Stream
-    io.plFlitCancel := false.B
-    io.plStateStatus := PhyState.nop
-    io.plInbandPres := false.B
-    io.plError := false.B
-    io.plCerror := false.B
-    io.plNfError := false.B
-    io.plTrainError := false.B
-    io.plRxActiveReq := false.B
-    io.plProtocol := Protocol.streaming
-    io.plProtocolFlitFormat := FlitFormat.raw
-    io.plProtocolValid := true.B
-    io.plStallReq := false.B
-    io.plPhyInRecenter := false.B
-    io.plPhyInL1 := false.B
-    io.plPhyInL2 := false.B
-    io.plSpeedMode := SpeedMode.speed4
-    io.plLinkWidth := PhyWidth.width64
-    io.plClkReq := false.B
-    io.plWakeAck := false.B
-    io.plConfig.valid := false.B
-    io.plConfig.bits := 0.U
-    io.plConfigCredit := false.B
+    io.fdi.plRetimerCrd := false.B
+    io.fdi.plDllp.valid := false.B
+    io.fdi.plDllp.bits := 0.U
+    io.fdi.plDllpOfc := false.B
+    io.fdi.plStream.protoStack := ProtoStack.stack0
+    io.fdi.plStream.protoType := ProtoStreamType.Stream
+    io.fdi.plFlitCancel := false.B
+    io.fdi.plStateStatus := PhyState.nop
+    io.fdi.plInbandPres := false.B
+    io.fdi.plError := false.B
+    io.fdi.plCerror := false.B
+    io.fdi.plNfError := false.B
+    io.fdi.plTrainError := false.B
+    io.fdi.plRxActiveReq := false.B
+    io.fdi.plProtocol := Protocol.streaming
+    io.fdi.plProtocolFlitFormat := FlitFormat.raw
+    io.fdi.plProtocolValid := true.B
+    io.fdi.plStallReq := false.B
+    io.fdi.plPhyInRecenter := false.B
+    io.fdi.plPhyInL1 := false.B
+    io.fdi.plPhyInL2 := false.B
+    io.fdi.plSpeedMode := SpeedMode.speed4
+    io.fdi.plLinkWidth := PhyWidth.width64
+    io.fdi.plClkReq := false.B
+    io.fdi.plWakeAck := false.B
+    io.fdi.plConfig.valid := false.B
+    io.fdi.plConfig.bits := 0.U
+    io.fdi.plConfigCredit := false.B
 }
