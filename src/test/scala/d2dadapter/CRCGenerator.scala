@@ -55,6 +55,7 @@ class CRCGeneratorTest extends AnyFunSpec with ChiselScalatestTester {
           c.io.crc.expectDequeueNow("hD34D".U)
       }
     }
+
   }
 
   describe("CRCGenerator, 32-bit messages, 2 bytes/16 bits per cycle") {

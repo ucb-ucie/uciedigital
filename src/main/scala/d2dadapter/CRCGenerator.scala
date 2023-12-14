@@ -71,6 +71,7 @@ class CRCGenerator(width: Int, bytes_per_cycle: Int) extends Module {
 
   // CRC data
   val crc_calc = RegInit(Bits(16.W), 0.U)
+  val crc_poly = RegInit(Bits((width).W), 0x18005.U << width - 17)
 
   // Output control signals
   val message_ready = RegInit(Bool(), true.B)
@@ -100,26 +101,19 @@ class CRCGenerator(width: Int, bytes_per_cycle: Int) extends Module {
     message_ready := false.B
   }
 
-  def nextCRC(crc: UInt, message: UInt) = {
-    (0 until bytes_per_cycle).foldLeft(crc) {
-      case (crc, byte_num) => {
-        (crc << 8) ^ CRC16Lookup.table(
-          crc(15, 8) ^ message(
-            (8 * bytes_per_cycle) - 1 - (8 * byte_num),
-            (8 * bytes_per_cycle) - (8 * (byte_num + 1)),
-          ),
-        )
+  def nextCRC(message: UInt) = {
+    (0 until (bytes_per_cycle * 8)).foldLeft(message) {
+      case (message, bit_num) => {
+        Mux(message(width - 1) === 1.U, (message ^ crc_poly) << 1, message << 1)
       }
     }
   }
 
   // Computation not finished when step is not 0
   when(step > 0.U) {
-    crc_calc := nextCRC(
-      crc_calc,
-      message_bits(width - 1, width - (8 * bytes_per_cycle)),
-    )
-    message_bits := message_bits << (8 * bytes_per_cycle)
+    val update = nextCRC(message_bits)
+    message_bits := update
+    crc_calc := update(width - 1, width - 16)
     step := step - 1.U
     crc_valid := step === 1.U // If next step will be 0, CRC is now valid
   }
