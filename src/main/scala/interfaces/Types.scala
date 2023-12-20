@@ -96,3 +96,9 @@ object FlitFormat extends ChiselEnum {
   val latencyOpt256NoOptional = Value(0x5.U(4.W))
   val latencyOpt256Optional = Value(0x6.U(4.W))
 }
+
+object RdiSbWidth extends Enumeration {
+  val width8 = Value(8)
+  val width16 = Value(16)
+  val width32 = Value(32)
+}
