@@ -18,14 +18,14 @@ case class TileLinkParams(
   val CONFIG_ADDRESS = configAddress
   val ADDRESS = address
   val ADDR_RANGE = addressRange
-  val BEAT_BYTES = 32 // 256 bits/8
+  val BEAT_BYTES = 64 // 256 bits/8, change to 8 to get SBUS connection to work
   val opcodeWidth = 3
   val paramWidth = 3
   val sourceIDWidth = 8
   val sinkIDWidth = 8
   val addressWidth = 64
   val maskWidth = dataWidth/8
-  val dataWidth = 320
+  val dataWidth = 512//320 //TODO: needs to be a power of 2, see rocket-chip/tilelink/Parameters.scala:TLBundleParameters (used in UCITLFront.scala:193)
   val sizeWidth = log2Ceil(dataWidth/8) // 5 bits if 256
   val deniedWidth = 1
   val corruptWidth = 1
