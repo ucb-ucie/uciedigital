@@ -11,11 +11,11 @@ import tilelink._
 // Protocol parameters to convert TL packets to UCIe Flits
 case class ProtocolLayerParams() {
   val ucieFlitWidth = 64 // flit width
-  val ucieFlitSize = 5 // number of ucie flits
-  val ucieEccWidth = 32 // width of the ECC bits
+  val ucieFlitSize = 4 // number of ucie flits
+  val ucieEccWidth = 64 // width of the ECC bits
   val hostIDWidth = 8 // hostID of the initiator chiplet
   val partnerIDWidth = 8 // partnerID of the consumer chiplet
-  val reservedCmdWidth = 12 // width of the reserved bits in cmd header
+  val reservedCmdWidth = 44 // width of the reserved bits in cmd header
 }
 
 object UCIProtoMsgTypes extends ChiselEnum {

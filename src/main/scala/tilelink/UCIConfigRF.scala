@@ -10,7 +10,7 @@ import org.chipsalliance.cde.config.{Field, Config, Parameters}
 import freechips.rocketchip.subsystem.{BaseSubsystem, CacheBlockBytes}
 import freechips.rocketchip.regmapper.{HasRegMap, RegField}
 
-class UCIConfig(val beatBytes: Int, val address: BigInt)(implicit p: Parameters)
+class UCIConfigRF(val beatBytes: Int, val address: BigInt)(implicit p: Parameters)
     extends LazyModule {
   val device = new SimpleDevice(s"ucie-regs", Nil)
   val node = TLRegisterNode(

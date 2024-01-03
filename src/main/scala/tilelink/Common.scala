@@ -25,7 +25,7 @@ case class TileLinkParams(
   val sinkIDWidth = 8
   val addressWidth = 64
   val maskWidth = dataWidth/8
-  val dataWidth = 320
+  val dataWidth = 256
   val sizeWidth = log2Ceil(dataWidth/8) // 5 bits if 256
   val deniedWidth = 1
   val corruptWidth = 1

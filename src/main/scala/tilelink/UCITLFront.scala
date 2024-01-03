@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
-import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.cde.config._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
@@ -19,7 +19,7 @@ import interfaces._
   * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as 
   * an agnostic interface to generate FDI signalling.
   */
-class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams
+class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams,
                  val fdiParams: FdiParams)
                 (implicit p: Parameters) extends LazyModule {
 
@@ -28,7 +28,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val beatBytes = tlParams.BEAT_BYTES
 
   // MMIO registers controlled by the sideband module
-  val regNode = LazyModule(new UCIConfig(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
+  val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
   
   // Manager node to send and acquire traffic to partner die
   val managerNode: TLManagerNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
@@ -49,14 +49,11 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
       name = "ucie-client",
       sourceId = IdRange(0, 4),
       requestFifo = true,
-      visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
-      supportsGet = TransferSizes(1, beatBytes),
-      supportsPutFull = TransferSizes(1, beatBytes),
-      supportsPutPartial = TransferSizes(1, beatBytes),
+      visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )),
     channelBytes = TLChannelBeatBytes(beatBytes))))
 
-  lazy val module = UCITLFrontImp(this)
+  lazy val module = new UCITLFrontImp(this)
 }
 
 class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
@@ -70,8 +67,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Instantiate the agnostic protocol layer
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
 
-  val (in, managerEdge) = managerNode.in(0)
-  val (out, clientEdge) = clientNode.out(0)
+  val (in, managerEdge) = outer.managerNode.in(0)
+  val (out, clientEdge) = outer.clientNode.out(0)
 
   // Async queue to handle the clock crossing between system bus and UCIe stack clock
   val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
@@ -105,7 +102,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   */
 
   // A request to partner die logic
-  in.a.ready = (txArbiter.io.in(0).ready & ~protocol.io.fdi.lpStallAck & 
+  in.a.ready := (txArbiter.io.in(0).ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
   txArbiter.io.in(0).valid := in.a.fire
 
@@ -140,7 +137,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   txArbiter.io.in(0).bits <> txATLPayload
 
   // D response to partner die's A request logic
-  out.d.ready = (txArbiter.io.in(1).ready & ~protocol.io.fdi.lpStallAck & 
+  out.d.ready := (txArbiter.io.in(1).ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
   txArbiter.io.in(1).valid := out.d.fire
 
@@ -152,7 +149,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txDTLPayload.source  := out.d.bits.source
       txDTLPayload.sink    := out.d.bits.sink
       txDTLPayload.address := 0.U
-      txDTLPayload.mask    := out.d.bits.mask
+      txDTLPayload.mask    := 0.U
       txDTLPayload.data    := out.d.bits.data
       txDTLPayload.denied  := false.B
       txDTLPayload.corrupt := false.B
@@ -235,11 +232,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciTxPayload.header2.corrupt := inward.io.deq.bits.corrupt
     // data mapping
     // TODO: replace with FP coding
-    uciTxPayload.data(0) := inward.io.deq.bits(63,0)
-    uciTxPayload.data(1) := inward.io.deq.bits(127,64)
-    uciTxPayload.data(2) := inward.io.deq.bits(191,128)
-    uciTxPayload.data(3) := inward.io.deq.bits(255,192)
-    uciTxPayload.data(4) := inward.io.deq.bits(319,256)
+    uciTxPayload.data(0) := inward.io.deq.bits.data(63,0)
+    uciTxPayload.data(1) := inward.io.deq.bits.data(127,64)
+    uciTxPayload.data(2) := inward.io.deq.bits.data(191,128)
+    uciTxPayload.data(3) := inward.io.deq.bits.data(255,192)
     // TODO: add ECC/checksum functionality, for now tieing to 0
     uciTxPayload.ecc := 0.U
   }
