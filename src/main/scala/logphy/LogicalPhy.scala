@@ -11,6 +11,7 @@ class LogicalPhy(
 ) extends Module {
   val io = IO(new Bundle {
     val rdi = Flipped(new Rdi(rdiParams))
+    val sideband = Flipped(new SidebandIo)
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
   })

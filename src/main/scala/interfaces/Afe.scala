@@ -61,6 +61,7 @@ class SidebandAfeIo(
     * Output from the async FIFO.
     */
   val txData = Decoupled(Bits(afeParams.sbSerializerRatio.W))
+  val txValid = Decoupled(Bits(afeParams.sbSerializerRatio.W))
 
   /** Data received on the sideband.
     *
@@ -114,6 +115,10 @@ class MainbandAfeIo(
     */
   val txData = Decoupled(
     Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W)),
+  )
+
+  val txValid = Decoupled(
+    Bits(afeParams.mbSerializerRatio.W),
   )
 
   /** Data received on the mainband.
