@@ -120,27 +120,24 @@ class LinkTrainingFSM(
 
       switch(sbInitSubState) {
         is(SBInitSubState.SEND_CLOCK) {
-          io.sbIO.transmitPattern.bits.data := VecInit(
-            Seq.fill(64)(0.U),
-          ) // TODO: clock pattern
-          // TODO: fix length
-          io.sbIO.transmitPattern.bits.length := 128.U
+          io.sbIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
           io.sbIO.transmitPattern.valid := true.B
           when(io.sbIO.transmitPattern.fire) {
-            sbInitSubState := SBInitSubState.SEND_LOW
-          }
-        }
-        is(SBInitSubState.SEND_LOW) {
-          io.sbIO.transmitPattern.bits.data := VecInit(
-            Seq.fill(32)(0.U),
-          ) // TODO: low pattern
-          // TODO: fix length
-          io.sbIO.transmitPattern.bits.length := 128.U
-          io.sbIO.transmitPattern.valid := true.B
-          when(io.sbIO.transmitPattern.fire) {
+            // sbInitSubState := SBInitSubState.SEND_LOW
             sbInitSubState := SBInitSubState.WAIT_CLOCK
           }
         }
+        // is(SBInitSubState.SEND_LOW) {
+        //   io.sbIO.transmitPattern.bits.data := VecInit(
+        //     Seq.fill(32)(0.U),
+        //   ) // TODO: low pattern
+        //   // TODO: fix length
+        //   io.sbIO.transmitPattern.bits.length := 128.U
+        //   io.sbIO.transmitPattern.valid := true.B
+        //   when(io.sbIO.transmitPattern.fire) {
+        //     sbInitSubState := SBInitSubState.WAIT_CLOCK
+        //   }
+        // }
         is(SBInitSubState.WAIT_CLOCK) {
           io.sbIO.transmitPattern.ready := true.B
           when(io.sbIO.transmitPatternStatus.fire) {
@@ -155,7 +152,7 @@ class LinkTrainingFSM(
           }
         }
         is(SBInitSubState.SB_OUT_OF_RESET_EXCH) {
-          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.OutOfReset
+          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.OUT_OF_RESET
           io.sbIO.exchangeMsg.valid := true.B
           when(io.sbIO.exchangeMsg.fire) {
             sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_WAIT
@@ -175,7 +172,7 @@ class LinkTrainingFSM(
           }
         }
         is(SBInitSubState.SB_DONE_EX) {
-          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.Done
+          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.DONE
           io.sbIO.exchangeMsg.valid := true.B
           when(io.sbIO.exchangeMsg.fire) {
             sbInitSubState := SBInitSubState.SB_DONE_WAIT

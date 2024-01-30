@@ -6,7 +6,7 @@ import chisel3.util._
 
 /** Sideband Types */
 object SBMsgType extends ChiselEnum {
-  val OutOfReset, Done = Value
+  val OUT_OF_RESET, DONE, PARAM = Value
 }
 
 class SBMsgExchange extends Bundle {
@@ -23,6 +23,7 @@ object SBMsgReqRespStatus extends ChiselEnum {
 
 class SBMsgReqResp extends Bundle {
   val reqMsg = SBMsgType()
+  val data = UInt(64.W)
   val respMsg = SBMsgType()
 }
 
