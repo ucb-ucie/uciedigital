@@ -4,7 +4,7 @@ package sideband
 import chisel3._
 import chisel3.util._
 import chisel3.experimental._
-import circt.stage.ChiselStage
+//import circt.stage.ChiselStage
 
 import interfaces._
 
@@ -120,12 +120,12 @@ class sidebandTwoInOneOutSwitch(val sbParams: SidebandParams) extends Module {
   )
 }
 
-object FirrtlMain extends App {
-  ChiselStage.emitCHIRRTL(new sidebandSwitcher(0, new SidebandParams()))
-}
+// object FirrtlMain extends App {
+//   ChiselStage.emitCHIRRTL(new sidebandSwitcher(0, new SidebandParams()))
+// }
 
-object VerilogMain extends App {
-  ChiselStage.emitSystemVerilog(
-    new sidebandOneInTwoOutSwitch(0, new SidebandParams()),
-  )
-}
+// object VerilogMain extends App {
+//   ChiselStage.emitSystemVerilog(
+//     new sidebandOneInTwoOutSwitch(0, new SidebandParams()),
+//   )
+// }
