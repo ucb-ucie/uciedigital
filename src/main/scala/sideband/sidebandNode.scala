@@ -15,8 +15,7 @@ import freechips.rocketchip.util._
 
 case class SidebandParams(
     // val NC_width: Int = 32, // This is merged into the FDI Params
-    val sbNodeMsgWidth: Int =
-      128, // Internal SB msg widths in individual layers
+    val sbNodeMsgWidth: Int = 128, // Internal SB msg widths in individual layers
     val maxCrd: Int = 32,
 )
 
