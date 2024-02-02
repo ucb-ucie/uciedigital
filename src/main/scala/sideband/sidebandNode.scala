@@ -3,15 +3,11 @@ package sideband
 
 import chisel3._
 import chisel3.util._
-import chisel3.experimental._
 
 import interfaces._
 
 //TODO: 1) L317-318 needs to be revisited
 //      2) SidebandLinkDeserializer needs to have CDC crossings
-
-// import freechips.rocketchip.config.Parameters
-import freechips.rocketchip.util._
 
 case class SidebandParams(
     // val NC_width: Int = 32, // This is merged into the FDI Params

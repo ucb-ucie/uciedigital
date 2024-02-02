@@ -2,7 +2,6 @@ package edu.berkeley.cs.ucie.digital
 package sideband
 
 import chisel3._
-import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -86,8 +85,8 @@ class SerDesTester extends AnyFlatSpec with ChiselScalatestTester {
     test(new SidebandSerializer(new SidebandParams(), fdiParams)) { c =>
         // prepare random data generator
         println("Test started")
-        val seed: Int = 0
-        val rand = new scala.util.Random(seed)
+        //val seed: Int = 0
+        //val rand = new scala.util.Random(seed)
 
         //init
         c.io.in.valid.poke(false.B)
