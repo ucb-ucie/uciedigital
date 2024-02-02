@@ -9,9 +9,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import interfaces._
 
 class SerDesTester extends AnyFlatSpec with ChiselScalatestTester {
+  val fdiParams = new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32)
   behavior of "SerDes"
   it should "simple serializer sanity" in {
-    test(new SidebandSerializer(new SidebandParams(), new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32))) { c =>
+    test(new SidebandSerializer(new SidebandParams(), fdiParams)) { c =>
         // prepare random data generator
         println("Test started")
         val seed: Int = 0
@@ -47,7 +48,7 @@ class SerDesTester extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "simple deserializer sanity" in {
-    test(new SidebandDeserializer(new SidebandParams(), new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32))) { c => 
+    test(new SidebandDeserializer(new SidebandParams(), fdiParams)) { c => 
       // prepare random data generator
       println("Test started")
       val seed: Int = 0
@@ -82,7 +83,7 @@ class SerDesTester extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "stress serializer sanity" in {
-    test(new SidebandSerializer(new SidebandParams(), new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32))) { c =>
+    test(new SidebandSerializer(new SidebandParams(), fdiParams)) { c =>
         // prepare random data generator
         println("Test started")
         val seed: Int = 0
