@@ -2,13 +2,8 @@ package edu.berkeley.cs.ucie.digital
 package sideband
 
 import chisel3._
-import chisel3.util._
-import chisel3.experimental._
 
 import interfaces._
-
-// import freechips.rocketchip.config.Parameters
-import freechips.rocketchip.util._
 
 class D2DSidebandChannel(
     val myID: BigInt = BigInt(1),
