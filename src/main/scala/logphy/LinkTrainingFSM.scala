@@ -10,9 +10,7 @@ case class LinkTrainingParams(
     /** The amount of cycles to wait after driving the PLL frequency */
     pllWaitTime: Int = 100,
     maxSBMessageSize: Int = 128,
-    voltageSwing: Int = 0,
-    maximumDataRate: Int = 0,
-    clockMode: ClockModeParam.Type = ClockModeParam.strobe,
+    mbTrainingParams: MBTrainingParams,
 )
 
 class LinkTrainingFSM(
@@ -25,23 +23,17 @@ class LinkTrainingFSM(
   val io = IO(new Bundle {
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
-    val sbIO = new LogPHYSBTrainIO(sidebandParams)
+    val sbIO = new LogPHYSBTrainIO(sidebandParams, afeParams)
+    val patternGeneratorIO = new PatternGeneratorIO()
     val rdi = new Rdi(rdiParams)
   })
 
-  /** Initialize params */
-  private val voltageSwing = RegInit(linkTrainingParams.voltageSwing.U(5.W))
-
-  private object State extends ChiselEnum {
-    val reset, sbInit, mbInit, linkInit, active, linkError = Value
-  }
-
-  private val currentState = RegInit(State.reset)
+  private val currentState = RegInit(LinkTrainingState.reset)
   private val nextState = Wire(currentState)
   private val resetCounter = Counter(
     Range(1, 10000), // TODO: value
     true.B,
-    (nextState === State.reset && currentState =/= State.reset), // TODO: does this also reset on implicit reset
+    (nextState === LinkTrainingState.reset && currentState =/= LinkTrainingState.reset), // TODO: does this also reset on implicit reset
   )
   io.mbAfe.txZpd := VecInit.fill(afeParams.mbLanes)(0.U)
   io.mbAfe.txZpu := VecInit.fill(afeParams.mbLanes)(0.U)
@@ -51,7 +43,7 @@ class LinkTrainingFSM(
     val INIT, FREQ_SEL_CYC_WAIT, FREQ_SEL_LOCK_WAIT = Value
   }
   private val resetSubState = RegInit(ResetSubState.INIT)
-  when(nextState === State.reset) {
+  when(nextState === LinkTrainingState.reset) {
     resetSubState := ResetSubState.INIT
   }
 
@@ -60,23 +52,28 @@ class LinkTrainingFSM(
         SB_OUT_OF_RESET_WAIT, SB_DONE_EX, SB_DONE_WAIT = Value
   }
   private val sbInitSubState = RegInit(SBInitSubState.SEND_CLOCK)
-  when(nextState === State.sbInit) {
+  when(nextState === LinkTrainingState.sbInit) {
     sbInitSubState := SBInitSubState.SEND_CLOCK
   }
 
-  private object MBInitSubState extends ChiselEnum {
-    val PARAM, REPAIR_CLK, REPAIR_VAL = Value
-  }
-  private val mbInitSubState = RegInit(MBInitSubState.PARAM)
-  when(nextState === State.mbInit) {
-    mbInitSubState := MBInitSubState.PARAM
+  private val mbInit = Module(
+    new MBInitFSM(
+      linkTrainingParams.mbTrainingParams,
+      sidebandParams,
+      afeParams,
+    ),
+  )
+  when(
+    (nextState === LinkTrainingState.mbInit) && (currentState =/= LinkTrainingState.mbInit),
+  ) {
+    mbInit.reset := true.B
   }
 
   // TODO: incorporate lpstatereq
   currentState := nextState
 
   switch(currentState) {
-    is(State.reset) {
+    is(LinkTrainingState.reset) {
       io.mbAfe.rxEn := false.B
       io.sbAfe.rxEn := true.B
       val resetFreqCtrValue = false.B
@@ -105,13 +102,13 @@ class LinkTrainingFSM(
           when(
             io.mbAfe.pllLock && io.sbAfe.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.reset),
           ) {
-            nextState := State.sbInit
+            nextState := LinkTrainingState.sbInit
           }
         }
 
       }
     }
-    is(State.sbInit) {
+    is(LinkTrainingState.sbInit) {
 
       /** UCIe Module mainband (MB) transmitters remain tri-stated, SB
         * Transmitters continue to be held Low, SB Receivers continue to be
@@ -120,9 +117,9 @@ class LinkTrainingFSM(
 
       switch(sbInitSubState) {
         is(SBInitSubState.SEND_CLOCK) {
-          io.sbIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
-          io.sbIO.transmitPattern.valid := true.B
-          when(io.sbIO.transmitPattern.fire) {
+          io.patternGeneratorIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
+          io.patternGeneratorIO.transmitPattern.valid := true.B
+          when(io.patternGeneratorIO.transmitPattern.fire) {
             // sbInitSubState := SBInitSubState.SEND_LOW
             sbInitSubState := SBInitSubState.WAIT_CLOCK
           }
@@ -139,14 +136,14 @@ class LinkTrainingFSM(
         //   }
         // }
         is(SBInitSubState.WAIT_CLOCK) {
-          io.sbIO.transmitPattern.ready := true.B
-          when(io.sbIO.transmitPatternStatus.fire) {
-            switch(io.sbIO.transmitPatternStatus.bits) {
+          io.patternGeneratorIO.transmitPattern.ready := true.B
+          when(io.patternGeneratorIO.transmitPatternStatus.fire) {
+            switch(io.patternGeneratorIO.transmitPatternStatus.bits) {
               is(SBMsgExchangeStatus.SUCCESS) {
                 sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_EXCH
               }
               is(SBMsgExchangeStatus.ERR) {
-                nextState := State.linkError
+                nextState := LinkTrainingState.linkError
               }
             }
           }
@@ -166,7 +163,7 @@ class LinkTrainingFSM(
                 sbInitSubState := SBInitSubState.SB_DONE_EX
               }
               is(SBMsgExchangeStatus.ERR) {
-                nextState := State.linkError
+                nextState := LinkTrainingState.linkError
               }
             }
           }
@@ -183,10 +180,10 @@ class LinkTrainingFSM(
           when(io.sbIO.exchangeMsgStatus.fire) {
             switch(io.sbIO.exchangeMsgStatus.bits) {
               is(SBMsgExchangeStatus.SUCCESS) {
-                nextState := State.mbInit
+                nextState := LinkTrainingState.mbInit
               }
               is(SBMsgExchangeStatus.ERR) {
-                nextState := State.linkError
+                nextState := LinkTrainingState.linkError
               }
             }
           }
@@ -194,20 +191,23 @@ class LinkTrainingFSM(
       }
 
     }
-    is(State.mbInit) {
-      switch(mbInitSubState) {
-        is(MBInitSubState.PARAM) {}
-        is(MBInitSubState.REPAIR_CLK) {}
-        is(MBInitSubState.REPAIR_VAL) {}
+    is(LinkTrainingState.mbInit) {
+      mbInit.io.sbIO <> io.sbIO
+      when(mbInit.io.transition.asBool) {
+        nextState := Mux(
+          mbInit.io.error,
+          LinkTrainingState.linkError,
+          LinkTrainingState.linkInit,
+        )
       }
     }
-    is(State.linkInit) {}
-    is(State.active) {
+    is(LinkTrainingState.linkInit) {}
+    is(LinkTrainingState.active) {
 
       /** Active state = do nothing, not currently in training.
         */
     }
-    is(State.linkError) {
+    is(LinkTrainingState.linkError) {
       // TODO: What to do when I receive an error?
     }
   }

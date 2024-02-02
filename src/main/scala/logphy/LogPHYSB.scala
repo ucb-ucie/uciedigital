@@ -16,7 +16,7 @@ class SBLaneIO(params: AfeParams) extends Bundle {
     * Output from the async FIFO.
     */
   val txData = Decoupled(Bits(params.sbSerializerRatio.W))
-  val txValid = Decoupled(Bits(params.sbSerializerRatio.W))
+  val txValid = Decoupled(Bool())
 
   /** Data received on the sideband.
     *
@@ -29,17 +29,13 @@ class LogPHYSBTrainIO(
     params: LogPHYSBParams,
     afeParams: AfeParams,
 ) extends Bundle {
-  // may be moved to common module to share between SB and MB
-  val transmitPattern = Flipped(
-    Decoupled(TransmitPattern()),
-  ) // data to transmit & receive over SB
-  val transmitPatternStatus = Decoupled(SBMsgExchangeStatus())
+
   val exchangeMsg = Flipped(Decoupled(new SBMsgExchange))
   val exchangeMsgStatus = Decoupled(SBMsgExchangeStatus())
-  val reqRespMsg = Flipped(Decoupled(new SBMsgReqResp))
-  val reqRspMsgStatus = Decoupled(SBMsgReqRespStatus())
-  val dataReceived = Decoupled()
-  val dataOut = new SBLaneIO(afeParams)
+  val reqMsg = Flipped(Decoupled(new SBReqMsg))
+  val respMsg = Flipped(Decoupled(new SBReqMsg))
+  val reqMsgStatus = Decoupled(new SBMsgReqRespStatus)
+  val rspMsgStatus = Decoupled(new SBMsgReqRespStatus)
 }
 
 /** TODO: implementation */
@@ -47,7 +43,10 @@ class LogPHYSB(
     params: LogPHYSBParams,
     afeParams: AfeParams,
 ) extends Module {
-  val io = IO(new LogPHYSBTrainIO(params, afeParams))
+  val io = IO(new Bundle {
+    val trainIO = new LogPHYSBTrainIO(params, afeParams)
+    val laneIO = new SBLaneIO(afeParams)
+  })
 
   private object State extends ChiselEnum {
     val IDLE, TRANSMIT_AND_DETECT, EXCHANGE_MSG_SEND, EXCHANGE_MSG_WAIT,
