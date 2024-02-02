@@ -7,8 +7,7 @@ import chisel3.experimental._
 
 import interfaces._
 
-//TODO: 1) L289-290 should be reconsidered
-//      2) SidebandLinkDeserializer needs to have CDC crossings
+//TODO: 1) SidebandLinkDeserializer needs to have CDC crossings
 
 // import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.util._
@@ -318,10 +317,10 @@ class SidebandLinkDeserializer(
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
 
-    val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
-    recvCount_delay := recvCount
+    //val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
+    //recvCount_delay := recvCount
 
-    data(recvCount_delay) := io.in.bits
+    data(recvCount) := io.in.bits
     when(recvDone) { receiving := false.B }
     when(io.out.fire) { receiving := true.B }
     io.out.valid := !receiving
