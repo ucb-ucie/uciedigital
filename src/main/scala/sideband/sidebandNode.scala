@@ -7,7 +7,8 @@ import chisel3.experimental._
 
 import interfaces._
 
-//TODO: 1) SidebandLinkDeserializer needs to have CDC crossings
+//TODO: 1) L317-318 needs to be revisited
+//      2) SidebandLinkDeserializer needs to have CDC crossings
 
 // import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.util._
@@ -38,11 +39,7 @@ class SidebandLinkNode(val sbParams: SidebandParams, val fdiParams: FdiParams)
   // Connect inner signals
   io.inner.layer_to_node.ready <> tx_ser.io.in.ready
 
-  tx_ser.io.in.bits <> Cat(
-    io.inner.layer_to_node.bits(127, 59),
-    0.U(1.W),
-    io.inner.layer_to_node.bits(57, 0),
-  )
+  tx_ser.io.in.bits <> Cat(io.inner.layer_to_node.bits(127, 59), 0.U(1.W), io.inner.layer_to_node.bits(57, 0))
   tx_ser.io.in.valid <> io.inner.layer_to_node.valid
 
   io.inner.node_to_layer <> rx_queue.io.deq
@@ -317,10 +314,10 @@ class SidebandLinkDeserializer(
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
 
-    //val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
-    //recvCount_delay := recvCount
+    val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
+    recvCount_delay := recvCount
 
-    data(recvCount) := io.in.bits
+    data(recvCount_delay) := io.in.bits
     when(recvDone) { receiving := false.B }
     when(io.out.fire) { receiving := true.B }
     io.out.valid := !receiving
