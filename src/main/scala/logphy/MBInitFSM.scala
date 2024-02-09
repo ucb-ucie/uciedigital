@@ -17,13 +17,12 @@ case class MBTrainingParams(
 
 class MBInitFSM(
     trainingParams: MBTrainingParams,
-    sidebandParams: LogPHYSBParams,
     afeParams: AfeParams,
 ) extends Module {
 
   val io = IO(new Bundle {
     // TODO: needs trigger?
-    val sbIO = new LogPHYSBTrainIO(sidebandParams, afeParams)
+    val sbIO = new LogPHYSBTrainIO
     val transition = Output(Bool())
     val error = Output(Bool())
   })

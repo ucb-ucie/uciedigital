@@ -10,10 +10,7 @@ case class LogPHYSBParams(
 )
 
 class LogPHYSBTrainIO(
-    params: LogPHYSBParams,
-    afeParams: AfeParams,
 ) extends Bundle {
-
   val exchangeMsg = Flipped(Decoupled(new SBMsgExchange))
   val exchangeMsgStatus = Decoupled(SBMsgExchangeStatus())
   val reqMsg = Flipped(Decoupled(new SBReqMsg))
@@ -24,11 +21,10 @@ class LogPHYSBTrainIO(
 
 /** TODO: implementation */
 class LogPHYSB(
-    params: LogPHYSBParams,
     afeParams: AfeParams,
 ) extends Module {
   val io = IO(new Bundle {
-    val trainIO = new LogPHYSBTrainIO(params, afeParams)
+    val trainIO = new LogPHYSBTrainIO
     val laneIO = new SBIO(afeParams)
   })
 
@@ -38,10 +34,6 @@ class LogPHYSB(
   }
 
   /** checks for a match in the pattern sent */
-  // TODO: possibly fix API here
-  private val patternIn = RegInit(0.U(params.width.W))
-  private val patternDetect = RegInit(0.U(params.width.W))
-
   private val currentState = RegInit(State.IDLE)
   private val nextState = Wire(State.IDLE)
 

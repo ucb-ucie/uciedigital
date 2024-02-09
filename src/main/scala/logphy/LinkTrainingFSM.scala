@@ -13,19 +13,25 @@ case class LinkTrainingParams(
     mbTrainingParams: MBTrainingParams,
 )
 
+class LinkTrainingRdiIO(
+    rdiParams: RdiParams,
+) extends Bundle {
+  val lpStateReq = Input(PhyStateReq())
+}
+
 class LinkTrainingFSM(
     linkTrainingParams: LinkTrainingParams,
     afeParams: AfeParams,
-    sidebandParams: LogPHYSBParams,
     rdiParams: RdiParams,
 ) extends Module {
 
   val io = IO(new Bundle {
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
-    val sbIO = new LogPHYSBTrainIO(sidebandParams, afeParams)
+    val sbIO = new LogPHYSBTrainIO
     val patternGeneratorIO = new PatternGeneratorIO(afeParams)
-    val rdi = new Rdi(rdiParams)
+    val rdi = new LinkTrainingRdiIO(rdiParams)
+    val active = Output(Bool())
   })
 
   private val currentState = RegInit(LinkTrainingState.reset)
@@ -59,7 +65,6 @@ class LinkTrainingFSM(
   private val mbInit = Module(
     new MBInitFSM(
       linkTrainingParams.mbTrainingParams,
-      sidebandParams,
       afeParams,
     ),
   )
@@ -71,13 +76,13 @@ class LinkTrainingFSM(
 
   // TODO: incorporate lpstatereq
   currentState := nextState
+  io.active := currentState === LinkTrainingState.active
 
   switch(currentState) {
     is(LinkTrainingState.reset) {
       io.mbAfe.rxEn := false.B
       io.sbAfe.rxEn := true.B
       val resetFreqCtrValue = false.B
-      // TODO: is this the correct way to set a vec to be all 0's
       io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       val (freqSelCtrValue, freqSelCtrWrap) = Counter(

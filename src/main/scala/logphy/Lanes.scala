@@ -14,7 +14,7 @@ class Lanes(
     val mainbandIo = new MainbandIO(afeParams)
     val sidebandIo = new SBIO(afeParams)
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandLaneIO = new MainbandLaneIO(afeParams)
+    val sidebandLaneIO = new SidebandLaneIO(afeParams)
   })
 
   val txMBFifo =
