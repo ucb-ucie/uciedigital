@@ -22,7 +22,7 @@ class MBInitFSM(
 
   val io = IO(new Bundle {
     // TODO: needs trigger?
-    val sbIO = new LogPHYSBTrainIO
+    val sbTrainIO = new LogPHYSBTrainIO
     val transition = Output(Bool())
     val error = Output(Bool())
   })
@@ -104,8 +104,8 @@ class MBInitFSM(
 
       switch(paramSubState) {
         is(ParamSubState.SEND_REQ) {
-          io.sbIO.reqMsg.valid := true.B
-          io.sbIO.reqMsg.bits := formParamsReqMsg(
+          io.sbTrainIO.reqMsg.valid := true.B
+          io.sbTrainIO.reqMsg.bits := formParamsReqMsg(
             true.B,
             voltageSwing,
             maxDataRate,
@@ -114,16 +114,16 @@ class MBInitFSM(
             moduleId,
             ucieAx32,
           )
-          when(io.sbIO.reqMsg.fire) {
+          when(io.sbTrainIO.reqMsg.fire) {
             paramSubState := ParamSubState.WAIT_REQ
           }
         }
         is(ParamSubState.WAIT_REQ) {
-          io.sbIO.reqMsgStatus.ready := true.B
-          when(io.sbIO.reqMsgStatus.fire) {
-            reqData := io.sbIO.reqMsgStatus.bits.data
+          io.sbTrainIO.reqMsgStatus.ready := true.B
+          when(io.sbTrainIO.reqMsgStatus.fire) {
+            reqData := io.sbTrainIO.reqMsgStatus.bits.data
             when(
-              io.sbIO.reqMsgStatus.bits.status === SBMsgReqRespStatusType.ERR,
+              io.sbTrainIO.reqMsgStatus.bits.status === SBMsgReqRespStatusType.ERR,
             ) {
               nextState := State.ERR
             }.otherwise {
@@ -132,7 +132,7 @@ class MBInitFSM(
           }
         }
         is(ParamSubState.SEND_RESP) {
-          io.sbIO.respMsg.valid := true.B
+          io.sbTrainIO.respMsg.valid := true.B
           val exchangedMaxDataRate = UInt(4.W)
           exchangedMaxDataRate := Mux(
             maxDataRate >= reqData(3, 0),
@@ -140,7 +140,7 @@ class MBInitFSM(
             maxDataRate,
           )
 
-          io.sbIO.respMsg.bits := formParamsReqMsg(
+          io.sbTrainIO.respMsg.bits := formParamsReqMsg(
             false.B,
             0.U,
             exchangedMaxDataRate,

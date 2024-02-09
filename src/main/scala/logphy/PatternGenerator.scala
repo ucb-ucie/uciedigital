@@ -12,10 +12,6 @@ class PatternGeneratorIO(
     Decoupled(TransmitPattern()),
   ) // data to transmit & receive over SB
   val transmitPatternStatus = Decoupled(SBMsgExchangeStatus())
-  val mainbandTxData = Decoupled(
-    Bits((afeParams.mbLanes * afeParams.mbSerializerRatio).W),
-  )
-  val sidebandTxData = Decoupled(Bits((afeParams.sbSerializerRatio).W))
 }
 
 class PatternGenerator(
@@ -23,5 +19,10 @@ class PatternGenerator(
 ) extends Module {
   val io = IO(new Bundle {
     val patternGeneratorIO = new PatternGeneratorIO(afeParams)
+    val mainbandLaneIO = new MainbandLaneIO(afeParams)
+    val sidebandLaneIO = new SidebandLaneIO(afeParams)
   })
+
+  /** TODO: generate static patterns */
+
 }

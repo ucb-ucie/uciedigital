@@ -28,11 +28,27 @@ class LinkTrainingFSM(
   val io = IO(new Bundle {
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
-    val sbIO = new LogPHYSBTrainIO
-    val patternGeneratorIO = new PatternGeneratorIO(afeParams)
+
+    /** packet output from training */
+    val mainbandLaneIO = new MainbandLaneIO(afeParams)
+    val sidebandLaneIO = new SidebandLaneIO(afeParams)
     val rdi = new LinkTrainingRdiIO(rdiParams)
     val active = Output(Bool())
   })
+
+  val patternGenerator = new PatternGenerator(afeParams)
+  val sbMsgWrapper = new LogPHYSB(afeParams)
+
+  private object MsgSource extends ChiselEnum {
+    val PATTERN_GENERATOR, SB_MSG_WRAPPER = Value
+  }
+  private val msgSource = Wire(MsgSource.PATTERN_GENERATOR)
+  io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
+  when(msgSource === MsgSource.PATTERN_GENERATOR) {
+    io.sidebandLaneIO <> patternGenerator.io.sidebandLaneIO
+  }.otherwise {
+    io.sidebandLaneIO <> sbMsgWrapper.io.laneIO
+  }
 
   private val currentState = RegInit(LinkTrainingState.reset)
   private val nextState = Wire(currentState)
@@ -122,28 +138,23 @@ class LinkTrainingFSM(
 
       switch(sbInitSubState) {
         is(SBInitSubState.SEND_CLOCK) {
-          io.patternGeneratorIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
-          io.patternGeneratorIO.transmitPattern.valid := true.B
-          when(io.patternGeneratorIO.transmitPattern.fire) {
+          patternGenerator.io.patternGeneratorIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
+          patternGenerator.io.patternGeneratorIO.transmitPattern.valid := true.B
+          msgSource := MsgSource.PATTERN_GENERATOR
+          when(patternGenerator.io.patternGeneratorIO.transmitPattern.fire) {
             // sbInitSubState := SBInitSubState.SEND_LOW
             sbInitSubState := SBInitSubState.WAIT_CLOCK
           }
         }
-        // is(SBInitSubState.SEND_LOW) {
-        //   io.sbIO.transmitPattern.bits.data := VecInit(
-        //     Seq.fill(32)(0.U),
-        //   ) // TODO: low pattern
-        //   // TODO: fix length
-        //   io.sbIO.transmitPattern.bits.length := 128.U
-        //   io.sbIO.transmitPattern.valid := true.B
-        //   when(io.sbIO.transmitPattern.fire) {
-        //     sbInitSubState := SBInitSubState.WAIT_CLOCK
-        //   }
-        // }
         is(SBInitSubState.WAIT_CLOCK) {
-          io.patternGeneratorIO.transmitPattern.ready := true.B
-          when(io.patternGeneratorIO.transmitPatternStatus.fire) {
-            switch(io.patternGeneratorIO.transmitPatternStatus.bits) {
+          patternGenerator.io.patternGeneratorIO.transmitPattern.ready := true.B
+          msgSource := MsgSource.PATTERN_GENERATOR
+          when(
+            patternGenerator.io.patternGeneratorIO.transmitPatternStatus.fire,
+          ) {
+            switch(
+              patternGenerator.io.patternGeneratorIO.transmitPatternStatus.bits,
+            ) {
               is(SBMsgExchangeStatus.SUCCESS) {
                 sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_EXCH
               }
@@ -154,16 +165,18 @@ class LinkTrainingFSM(
           }
         }
         is(SBInitSubState.SB_OUT_OF_RESET_EXCH) {
-          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.OUT_OF_RESET
-          io.sbIO.exchangeMsg.valid := true.B
-          when(io.sbIO.exchangeMsg.fire) {
+          sbMsgWrapper.io.trainIO.exchangeMsg.bits.exchangeMsg := SBMsgType.OUT_OF_RESET
+          sbMsgWrapper.io.trainIO.exchangeMsg.valid := true.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          when(sbMsgWrapper.io.trainIO.exchangeMsg.fire) {
             sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_WAIT
           }
         }
         is(SBInitSubState.SB_OUT_OF_RESET_WAIT) {
-          io.sbIO.exchangeMsgStatus.ready := true.B
-          when(io.sbIO.exchangeMsgStatus.fire) {
-            switch(io.sbIO.exchangeMsgStatus.bits) {
+          sbMsgWrapper.io.trainIO.exchangeMsgStatus.ready := true.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          when(sbMsgWrapper.io.trainIO.exchangeMsgStatus.fire) {
+            switch(sbMsgWrapper.io.trainIO.exchangeMsgStatus.bits) {
               is(SBMsgExchangeStatus.SUCCESS) {
                 sbInitSubState := SBInitSubState.SB_DONE_EX
               }
@@ -174,16 +187,18 @@ class LinkTrainingFSM(
           }
         }
         is(SBInitSubState.SB_DONE_EX) {
-          io.sbIO.exchangeMsg.bits.exchangeMsg := SBMsgType.DONE
-          io.sbIO.exchangeMsg.valid := true.B
-          when(io.sbIO.exchangeMsg.fire) {
+          sbMsgWrapper.io.trainIO.exchangeMsg.bits.exchangeMsg := SBMsgType.DONE
+          sbMsgWrapper.io.trainIO.exchangeMsg.valid := true.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          when(sbMsgWrapper.io.trainIO.exchangeMsg.fire) {
             sbInitSubState := SBInitSubState.SB_DONE_WAIT
           }
         }
         is(SBInitSubState.SB_DONE_WAIT) {
-          io.sbIO.exchangeMsgStatus.ready := true.B
-          when(io.sbIO.exchangeMsgStatus.fire) {
-            switch(io.sbIO.exchangeMsgStatus.bits) {
+          sbMsgWrapper.io.trainIO.exchangeMsgStatus.ready := true.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          when(sbMsgWrapper.io.trainIO.exchangeMsgStatus.fire) {
+            switch(sbMsgWrapper.io.trainIO.exchangeMsgStatus.bits) {
               is(SBMsgExchangeStatus.SUCCESS) {
                 nextState := LinkTrainingState.mbInit
               }
@@ -194,10 +209,10 @@ class LinkTrainingFSM(
           }
         }
       }
-
     }
     is(LinkTrainingState.mbInit) {
-      mbInit.io.sbIO <> io.sbIO
+      mbInit.io.sbTrainIO <> sbMsgWrapper.io.trainIO
+      msgSource := MsgSource.SB_MSG_WRAPPER
       when(mbInit.io.transition.asBool) {
         nextState := Mux(
           mbInit.io.error,

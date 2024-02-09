@@ -5,13 +5,30 @@ import chisel3._
 import chisel3.util._
 import interfaces._
 
+class RdiDataMapperIO(rdiParams: RdiParams) extends Bundle {
+
+  /** Adapter to Physical Layer data.
+    *
+    * Encompasses lp_irdy, lp_valid, and pl_trdy from the UCIe specification.
+    */
+  val lpData = Decoupled3(Bits((8 * rdiParams.width).W))
+
+  /** Physical Layer to Adapter data.
+    *
+    * Encompasses `pl_valid` and `pl_data` from the UCIe specification. Note
+    * that backpressure is not possible. Data should be sampled whenever valid
+    * is asserted at a clock edge.
+    */
+  val plData = Flipped(Valid(Bits((8 * rdiParams.width).W)))
+}
+
 class RdiDataMapper(
     rdiParams: RdiParams,
     afeParams: AfeParams,
 ) extends Module {
 
   val io = IO(new Bundle {
-    val rdi = Flipped(new Rdi(rdiParams))
+    val rdi = Flipped(new RdiDataMapperIO(rdiParams))
     val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
   })
 
@@ -19,8 +36,8 @@ class RdiDataMapper(
     val IDLE, CHUNK = Value
   }
 
-  val currentTxState = RegInit(State.IDLE)
-  val nextTxState = Wire(currentTxState)
+  private val currentTxState = RegInit(State.IDLE)
+  private val nextTxState = Wire(currentTxState)
   currentTxState := nextTxState
 
   /** send data to tx fifo */
@@ -50,12 +67,12 @@ class RdiDataMapper(
 
     /** chunk */
     rxData(rxSliceCounter) := io.mainbandLaneIO.rxData.bits
-    rxSliceCounter := rxSliceCounter + 1
-    when(rxSliceCounter === ratio - 1) {
+    rxSliceCounter := rxSliceCounter + 1.U
+    when(rxSliceCounter === (ratio - 1).U) {
       rxSliceCounter := 0.U
     }
   }
-  io.rdi.plData.valid := rxSliceCounter === ratio - 1
+  io.rdi.plData.valid := rxSliceCounter === (ratio - 1).U
   io.rdi.plData.bits := rxData.asUInt
 
   /** chunk RDI message to transmit */
@@ -73,14 +90,14 @@ class RdiDataMapper(
     is(State.CHUNK) {
       val bitmask = 1 << (afeBits) - 1
       io.mainbandLaneIO.txData.bits :=
-        ((txData & (bitmask << (txSliceCounter * afeBits)).U) >> (txSliceCounter * afeBits))(
+        ((txData & (bitmask.U << (txSliceCounter * afeBits.U).asUInt)) >> (txSliceCounter * afeBits.U))(
           0,
-          afeBits.W,
+          afeBits,
         )
       io.mainbandLaneIO.txData.valid := true.B
       when(io.mainbandLaneIO.txData.fire) {
-        txSliceCounter := txSliceCounter + 1
-        when(txSliceCounter === ratio - 1) {
+        txSliceCounter := txSliceCounter + 1.U
+        when(txSliceCounter === (ratio - 1).U) {
           nextTxState := State.IDLE
         }
       }

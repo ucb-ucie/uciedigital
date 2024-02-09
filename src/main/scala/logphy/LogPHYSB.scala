@@ -25,7 +25,7 @@ class LogPHYSB(
 ) extends Module {
   val io = IO(new Bundle {
     val trainIO = new LogPHYSBTrainIO
-    val laneIO = new SBIO(afeParams)
+    val laneIO = new SidebandLaneIO(afeParams)
   })
 
   private object State extends ChiselEnum {
