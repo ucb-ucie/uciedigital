@@ -4,6 +4,11 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
+class FifoParams extends Bundle {
+  val clk = Clock()
+  val reset = Reset()
+}
+
 /** The mainband pins exposed by a standard package UCIe module in one
   * direction.
   */
@@ -56,12 +61,13 @@ class SidebandAfeIo(
     afeParams: AfeParams,
 ) extends Bundle {
 
+  val fifoParams = Input(new FifoParams())
+
   /** Data to transmit on the sideband.
     *
     * Output from the async FIFO.
     */
   val txData = Decoupled(Bits(afeParams.sbSerializerRatio.W))
-  val txValid = Decoupled(Bool())
 
   /** Data received on the sideband.
     *
@@ -107,6 +113,8 @@ class MainbandAfeIo(
     afeParams: AfeParams,
 ) extends Bundle {
 
+  val fifoParams = Input(new FifoParams())
+
   /** Data to transmit on the mainband.
     *
     * Output from the async FIFO.
@@ -115,10 +123,6 @@ class MainbandAfeIo(
     */
   val txData = Decoupled(
     Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W)),
-  )
-
-  val txValid = Decoupled(
-    Bool(),
   )
 
   /** Data received on the mainband.

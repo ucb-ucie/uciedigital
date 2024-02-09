@@ -9,22 +9,6 @@ case class LogPHYSBParams(
     width: Int = 64,
 )
 
-class SBLaneIO(params: AfeParams) extends Bundle {
-
-  /** Data to transmit on the sideband.
-    *
-    * Output from the async FIFO.
-    */
-  val txData = Decoupled(Bits(params.sbSerializerRatio.W))
-  val txValid = Decoupled(Bool())
-
-  /** Data received on the sideband.
-    *
-    * Input to the async FIFO.
-    */
-  val rxData = Flipped(Decoupled(Bits(params.sbSerializerRatio.W)))
-}
-
 class LogPHYSBTrainIO(
     params: LogPHYSBParams,
     afeParams: AfeParams,
@@ -45,7 +29,7 @@ class LogPHYSB(
 ) extends Module {
   val io = IO(new Bundle {
     val trainIO = new LogPHYSBTrainIO(params, afeParams)
-    val laneIO = new SBLaneIO(afeParams)
+    val laneIO = new SBIO(afeParams)
   })
 
   private object State extends ChiselEnum {

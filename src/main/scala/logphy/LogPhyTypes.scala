@@ -3,6 +3,7 @@ package logphy
 
 import chisel3._
 import chisel3.util._
+import interfaces._
 
 object LinkTrainingState extends ChiselEnum {
   val reset, sbInit, mbInit, linkInit, active, linkError = Value
@@ -57,4 +58,77 @@ object TransmitPatternConsts {
   val transmitPatternBits = Seq(
     TransmitPattern.CLOCK_64_LOW_32 -> BitPat(""),
   )
+}
+
+class SBIO(params: AfeParams) extends Bundle {
+
+  val fifoParams = Input(new FifoParams())
+
+  /** Data to transmit on the sideband.
+    *
+    * Output from the async FIFO.
+    */
+  val txData = Decoupled(Bits(params.sbSerializerRatio.W))
+  val txValid = Decoupled(Bool())
+
+  /** Data received on the sideband.
+    *
+    * Input to the async FIFO.
+    */
+  val rxData = Flipped(Decoupled(Bits(params.sbSerializerRatio.W)))
+}
+
+class MainbandIO(
+    afeParams: AfeParams,
+) extends Bundle {
+
+  val fifoParams = Input(new FifoParams())
+
+  /** Data to transmit on the mainband.
+    *
+    * Output from the async FIFO.
+    *
+    * @group data
+    */
+  val txData = Decoupled(
+    Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W)),
+  )
+
+  /** Data received on the mainband.
+    *
+    * Input to the async FIFO.
+    *
+    * @group data
+    */
+  val rxData = Flipped(
+    Decoupled(Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W))),
+  )
+}
+
+class MainbandLaneIO(
+    afeParams: AfeParams,
+) extends Bundle {
+
+  /** Data to transmit on the mainband.
+    */
+  val txData = Flipped(
+    Decoupled(Bits((afeParams.mbLanes * afeParams.mbSerializerRatio).W)),
+  )
+
+  val rxData =
+    Decoupled(Bits((afeParams.mbLanes * afeParams.mbSerializerRatio).W))
+}
+
+class SidebandLaneIO(
+    afeParams: AfeParams,
+) extends Bundle {
+
+  /** Data to transmit on the mainband.
+    */
+  val txData = Flipped(
+    Decoupled(Bits((afeParams.sbSerializerRatio).W)),
+  )
+
+  val rxData =
+    Decoupled(Bits((afeParams.sbSerializerRatio).W))
 }

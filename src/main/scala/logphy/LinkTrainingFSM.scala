@@ -24,7 +24,7 @@ class LinkTrainingFSM(
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
     val sbIO = new LogPHYSBTrainIO(sidebandParams, afeParams)
-    val patternGeneratorIO = new PatternGeneratorIO()
+    val patternGeneratorIO = new PatternGeneratorIO(afeParams)
     val rdi = new Rdi(rdiParams)
   })
 
