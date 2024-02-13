@@ -101,7 +101,10 @@ class LinkInitSubmodule (params: D2DAdapterParams) extends Module {
         }
         // FDI BRINGUP
         is(LinkInitState.FDI_BRINGUP) {
-
+            io.linkinit_fdi_pl_inband_pres := true.B
+            when(io.fdi_lp_state_req === PhyStateReq.active) {
+                            
+            }
         }
         // INIT DONE
         is(LinkInitState.INIT_DONE) {
