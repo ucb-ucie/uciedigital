@@ -11,6 +11,7 @@ case class LinkTrainingParams(
     pllWaitTime: Int = 100,
     maxSBMessageSize: Int = 128,
     mbTrainingParams: MBTrainingParams,
+    sbClockFreqAnalog: 800_000_000,
 )
 
 class LinkTrainingRdiIO(
@@ -25,6 +26,9 @@ class LinkTrainingFSM(
     rdiParams: RdiParams,
 ) extends Module {
 
+  val sbClockFreq =
+    linkTrainingParams.sbClockFreqAnalog / afeParams.sbSerializerRatio
+
   val io = IO(new Bundle {
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
@@ -37,7 +41,7 @@ class LinkTrainingFSM(
   })
 
   val patternGenerator = new PatternGenerator(afeParams)
-  val sbMsgWrapper = new LogPHYSB(afeParams)
+  val sbMsgWrapper = new SBMsgWrapper(afeParams)
 
   private object MsgSource extends ChiselEnum {
     val PATTERN_GENERATOR, SB_MSG_WRAPPER = Value
@@ -121,7 +125,9 @@ class LinkTrainingFSM(
         }
         is(ResetSubState.FREQ_SEL_LOCK_WAIT) {
           when(
-            io.mbAfe.pllLock && io.sbAfe.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.reset),
+            io.mbAfe.pllLock && io.sbAfe.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.linkReset
+            /** TODO: what happened to reset */
+            ),
           ) {
             nextState := LinkTrainingState.sbInit
           }
@@ -138,16 +144,22 @@ class LinkTrainingFSM(
 
       switch(sbInitSubState) {
         is(SBInitSubState.SEND_CLOCK) {
-          patternGenerator.io.patternGeneratorIO.transmitPattern.bits := TransmitPattern.CLOCK_64_LOW_32
-          patternGenerator.io.patternGeneratorIO.transmitPattern.valid := true.B
+          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.pattern := TransmitPattern.CLOCK_64_LOW_32
+          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.sideband := true.B
+
+          /** Timeout occurs after 8ms */
+          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.timeoutCycles := (
+            0.008 * sbClockFreq,
+          ).toInt.U
+
+          patternGenerator.io.patternGeneratorIO.transmitInfo.valid := true.B
           msgSource := MsgSource.PATTERN_GENERATOR
-          when(patternGenerator.io.patternGeneratorIO.transmitPattern.fire) {
-            // sbInitSubState := SBInitSubState.SEND_LOW
+          when(patternGenerator.io.patternGeneratorIO.transmitInfo.fire) {
             sbInitSubState := SBInitSubState.WAIT_CLOCK
           }
         }
         is(SBInitSubState.WAIT_CLOCK) {
-          patternGenerator.io.patternGeneratorIO.transmitPattern.ready := true.B
+          patternGenerator.io.patternGeneratorIO.transmitPatternStatus.ready := true.B
           msgSource := MsgSource.PATTERN_GENERATOR
           when(
             patternGenerator.io.patternGeneratorIO.transmitPatternStatus.fire,

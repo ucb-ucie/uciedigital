@@ -2,14 +2,18 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
+import sideband._
+import util._
 
 import chisel3._
-import edu.berkeley.cs.ucie.digital.util.AsyncQueueParams
 
 class LogicalPhy(
+    myId: BigInt,
     linkTrainingParams: LinkTrainingParams,
     afeParams: AfeParams,
     rdiParams: RdiParams,
+    fdiParams: FdiParams,
+    sbParams: SidebandParams,
     laneAsyncQueueParams: AsyncQueueParams,
 ) extends Module {
   val io = IO(new Bundle {
@@ -25,7 +29,7 @@ class LogicalPhy(
     new LinkTrainingFSM(linkTrainingParams, afeParams, rdiParams)
   }
   val lanes = new Lanes(afeParams, laneAsyncQueueParams)
-  val rdiDataMapper = new RdiDataMapper(rdiParams, afeParams)
+  val rdiDataMapper = new RdiDataMapper(rdiParams, fdiParams, afeParams)
 
   /** Connect internal FIFO to AFE */
   lanes.io.mainbandIo.txData <> io.mbAfe.txData
@@ -43,6 +47,15 @@ class LogicalPhy(
     rdiDataMapper.io.mainbandLaneIO <> lanes.io.mainbandLaneIO
   }.otherwise {
     lanes.io.mainbandLaneIO <> trainingModule.io.mainbandLaneIO
+  }
+
+  /** TODO: connect sideband to sideband */
+  val sidebandChannel = new PHYSidebandChannel(myId, sbParams, fdiParams)
+  when(trainingModule.io.active) {
+
+    /** connect sideband transmitter to d2d sideband channel */
+  }.otherwise {
+    lanes.io.sidebandLaneIO <> trainingModule.io.sidebandLaneIO
   }
 
 }

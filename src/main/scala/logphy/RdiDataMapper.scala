@@ -22,29 +22,39 @@ class RdiDataMapperIO(rdiParams: RdiParams) extends Bundle {
   val plData = Flipped(Valid(Bits((8 * rdiParams.width).W)))
 }
 
+class SidebandDataMapperIO(fdiParams: FdiParams) extends Bundle {
+  val tx = new Bundle {
+    val bits = Output(UInt(fdiParams.sbWidth.W))
+    val valid = Output(Bool())
+    val credit = Input(Bool())
+  }
+  val rx = new Bundle {
+    val bits = Input(UInt(fdiParams.sbWidth.W))
+    val valid = Input(Bool())
+    val credit = Output(Bool())
+  }
+}
+
 class RdiDataMapper(
     rdiParams: RdiParams,
+    fdiParams: FdiParams,
     afeParams: AfeParams,
 ) extends Module {
 
   val io = IO(new Bundle {
     val rdi = Flipped(new RdiDataMapperIO(rdiParams))
     val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
+    val sidebandDataMapperIO = new SidebandDataMapperIO(fdiParams)
   })
 
   private object State extends ChiselEnum {
     val IDLE, CHUNK = Value
   }
 
-  private val currentTxState = RegInit(State.IDLE)
-  private val nextTxState = Wire(currentTxState)
-  currentTxState := nextTxState
+  private val currentMBTxState = RegInit(State.IDLE)
+  private val nextMBTxState = Wire(currentMBTxState)
+  currentMBTxState := nextMBTxState
 
-  /** send data to tx fifo */
-  io.rdi.lpData.ready := true.B
-  when(io.rdi.lpData.fire) {}
-
-  /** send data to adapter */
   assert(afeParams.mbSerializerRatio * afeParams.mbLanes < rdiParams.width * 8)
 
   /** need to chunk RDI messages, and collect outgoing phy -> d2d */
@@ -53,7 +63,7 @@ class RdiDataMapper(
     (rdiParams.width * 8) / afeBits
 
   /** collect outgoing phy -> d2d */
-  val rxSliceCounter = RegInit(0.U(4.W))
+  val rxSliceCounter = RegInit(0.U(log2Ceil(ratio).W))
   val rxData =
     RegInit(
       VecInit(
@@ -76,32 +86,62 @@ class RdiDataMapper(
   io.rdi.plData.bits := rxData.asUInt
 
   /** chunk RDI message to transmit */
-  val txSliceCounter = RegInit(0.U(4.W))
-  val txData = RegInit(0.U((rdiParams.width * 8).W))
-  switch(currentTxState) {
+  private val txWidthCoupler = new DataWidthCoupler(
+    DataWidthCouplerParams(
+      inWidth = rdiParams.width * 8,
+      outWidth = afeBits,
+    ),
+  )
+  txWidthCoupler.io.out <> io.mainbandLaneIO.txData
+  txWidthCoupler.io.in <> io.rdi.lpData
+
+  // val txSliceCounter = RegInit(0.U(log2Ceil(ratio).W))
+  // val txData = RegInit(0.U((rdiParams.width * 8).W))
+  // switch(currentMBTxState) {
+  //   is(State.IDLE) {
+  //     io.rdi.lpData.ready := true.B
+  //     when(io.rdi.lpData.fire) {
+  //       txData := io.rdi.lpData.bits
+  //       txSliceCounter := 0.U
+  //       nextMBTxState := State.CHUNK
+  //     }
+  //   }
+  //   is(State.CHUNK) {
+  //     io.mainbandLaneIO.txData.bits := txData.asTypeOf(
+  //       Vec(ratio, Bits(afeBits.W)),
+  //     )(txSliceCounter)
+  //     // val bitmask = 1 << (afeBits) - 1
+  //     // io.mainbandLaneIO.txData.bits :=
+  //     /* ((txData & (bitmask.U << (txSliceCounter * afeBits.U).asUInt)) >>
+  //      * (txSliceCounter * afeBits.U))( */
+  //     //     0,
+  //     //     afeBits,
+  //     //   )
+  //     io.mainbandLaneIO.txData.valid := true.B
+  //     when(io.mainbandLaneIO.txData.fire) {
+  //       txSliceCounter := txSliceCounter + 1.U
+  //       when(txSliceCounter === (ratio - 1).U) {
+  //         nextMBTxState := State.IDLE
+  //       }
+  //     }
+  //   }
+  // }
+
+  /** Sideband Code */
+  /** need to chunk SB message from rdi -> phy, need to collect from phy -> rdi
+    */
+  assert(fdiParams.sbWidth * 8 > afeParams.sbSerializerRatio)
+  val sbRatio = (fdiParams.sbWidth * 8) / afeParams.sbSerializerRatio
+  val fdiSliceCounter = RegInit(0.U(log2Ceil(ratio).W))
+  private val currentSBTxState = RegInit(State.IDLE)
+  switch(currentSBTxState) {
     is(State.IDLE) {
-      io.rdi.lpData.ready := true.B
-      when(io.rdi.lpData.fire) {
-        txData := io.rdi.lpData.bits
-        txSliceCounter := 0.U
-        nextTxState := State.CHUNK
+      when(io.sidebandDataMapperIO.rx.valid) {
+
+        /** TODO: no backpressure from RDI? */
       }
     }
-    is(State.CHUNK) {
-      val bitmask = 1 << (afeBits) - 1
-      io.mainbandLaneIO.txData.bits :=
-        ((txData & (bitmask.U << (txSliceCounter * afeBits.U).asUInt)) >> (txSliceCounter * afeBits.U))(
-          0,
-          afeBits,
-        )
-      io.mainbandLaneIO.txData.valid := true.B
-      when(io.mainbandLaneIO.txData.fire) {
-        txSliceCounter := txSliceCounter + 1.U
-        when(txSliceCounter === (ratio - 1).U) {
-          nextTxState := State.IDLE
-        }
-      }
-    }
+    is(State.CHUNK) {}
   }
 
 }

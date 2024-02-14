@@ -22,7 +22,7 @@ class MBInitFSM(
 
   val io = IO(new Bundle {
     // TODO: needs trigger?
-    val sbTrainIO = new LogPHYSBTrainIO
+    val sbTrainIO = new SBMsgWrapperTrainIO
     val transition = Output(Bool())
     val error = Output(Bool())
   })

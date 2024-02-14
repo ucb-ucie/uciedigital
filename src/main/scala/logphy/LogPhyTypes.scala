@@ -14,7 +14,7 @@ object SBMsgType extends ChiselEnum {
   val OUT_OF_RESET, DONE, PARAM_CONFIG_REQ, PARAM_CONFIG_RESP = Value
 }
 
-class SBMsgExchange extends Bundle {
+class SBExchangeMsg extends Bundle {
   val exchangeMsg = SBMsgType()
 }
 
@@ -37,11 +37,6 @@ class SBReqMsg extends Bundle {
   val msgInfo = UInt(16.W)
 }
 
-// class SBMsgReqResp extends Bundle {
-//   val reqMsg = new SBReqMsg()
-//   val respMsg = new SBReqMsg()
-// }
-
 /** Param Enums */
 
 object ClockModeParam extends ChiselEnum {
@@ -51,13 +46,6 @@ object ClockModeParam extends ChiselEnum {
 
 object TransmitPattern extends ChiselEnum {
   val CLOCK_64_LOW_32 = Value(0.U)
-}
-
-object TransmitPatternConsts {
-
-  val transmitPatternBits = Seq(
-    TransmitPattern.CLOCK_64_LOW_32 -> BitPat(""),
-  )
 }
 
 class SBIO(params: AfeParams) extends Bundle {
