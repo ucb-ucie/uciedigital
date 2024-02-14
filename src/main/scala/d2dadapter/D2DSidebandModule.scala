@@ -13,8 +13,7 @@ object D2DSidebandConstant{
     val ADV_CAP_MESSAGE_DATA = "b0000000000000000000000000000000000000000000000000000000010010001".U// Raw mod [0], streaming [4], Stack0_Enable [7]
 }
 
-class D2DSidebandModuleIO(val d2dParams: D2DAdapterParams, 
-                          val fdiParams: FdiParams, val sbParams: SidebandParams) extends Bundle{
+class D2DSidebandModuleIO(val fdiParams: FdiParams) extends Bundle{
     val fdi_pl_cfg = Output(UInt(fdiParams.sbWidth.W))
     val fdi_pl_cfg_vld = Output(Bool())
     val fdi_pl_cfg_crd = Input(Bool())
@@ -35,9 +34,8 @@ class D2DSidebandModuleIO(val d2dParams: D2DAdapterParams,
     val sideband_rdy = Output(Bool())// sideband can consume the op in sideband_snt. 
 }
 
-class D2DSidebandModule(val d2dParams: D2DAdapterParams,
-                        val fdiParams: FdiParams, val sbParams: SidebandParams) extends Module{
-    val io = IO(new D2DSidebandModuleIO(d2dParams))
+class D2DSidebandModule(val fdiParams: FdiParams, val sbParams: SidebandParams) extends Module{
+    val io = IO(new D2DSidebandModuleIO(fdiParams))
 
     val fdi_sideband_node = Module(new SidebandNode(sbParams, fdiParams))
     val rdi_sideband_node = Module(new SidebandNode(sbParams, fdiParams))

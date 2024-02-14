@@ -6,30 +6,35 @@ import chisel3.util._
 import interfaces._
 import sideband._
 
-class LinkManagementControllerIO (params: D2DAdapterParams) extends Bundle {
-    val fdi = Flipped(new Fdi(params))
-    val rdi = new Rdi(params)
+class LinkManagementControllerIO (val fdiParams: FdiParams,
+                                  val rdiParams: RdiParams) extends Bundle {
+    val fdi = Flipped(new Fdi(fdiParams))
+    val rdi = new Rdi(rdiParams)
     // TODO: We need to define a common packet format for SB internal messages
-    val sb_snd = Decoupled(UInt(16.W))
-    val sb_rcv = Flipped(Valid(UInt(16.W)))
+    val sb_snd = Output(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
+    val sb_rcv = Input(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
+    val sb_rdy = Input(Bool())
 }
 
 /**
   * LinkManagementController for top level FDI/RDI state machine implementation, 
   * decoding the sideband messages and arbitration of triggers for the D2D adapter
   * state machine
-  * @param params D2DAdapterParams
+  * @param fdiParams FdiParams
+  * @param rdiParams RdiParams
+  * @param sbParams SidebandParams
   */
-class LinkManagementController (params: D2DAdapterParams) extends Module {
-    val io = IO(new LinkManagementControllerIO(params))
+class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiParams, 
+                                val sbParams: SidebandParams) extends Module {
+    val io = IO(new LinkManagementControllerIO(fdiParams, rdiParams))
 
     // Submodule instantiations
     // Disabled submodule
-    val disabled_submodule = Module(new LinkDisabledSubmodule(params))
+    val disabled_submodule = Module(new LinkDisabledSubmodule())
     // LinkReset submodule
-    val linkreset_submodule = Module(new LinkResetSubmodule(params))
+    val linkreset_submodule = Module(new LinkResetSubmodule())
     // LinkInit submodule
-    val linkinit_submodule = Module(new LinkInitSubmodule(params))
+    val linkinit_submodule = Module(new LinkInitSubmodule())
     // Output registers
     // LinkError signal propagated to the PHY
     val rdi_lp_linkerror_reg = RegInit(PhyStateReq.nop)
@@ -59,28 +64,31 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     disabled_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
     disabled_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     disabled_submodule.io.link_state := link_state_reg
-    val disabled_entry := disabled_submodule.io.disabled_entry
+    val disabled_entry = disabled_submodule.io.disabled_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
-    val disabled_sb_snd := disabled_submodule.io.disabled_sb_snd
+    val disabled_sb_snd = disabled_submodule.io.disabled_sb_snd
     disabled_submodule.io.disabled_sb_rcv := io.sb_rcv
+    disabled_submodule.io.disabled_sb_rdy := io.sb_rdy
 
     // LinkReset submodule
     linkreset_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
     linkreset_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     linkreset_submodule.io.link_state := link_state_reg
-    val linkreset_entry := linkreset_submodule.io.linkreset_entry
+    val linkreset_entry = linkreset_submodule.io.linkreset_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
-    val linkreset_sb_snd := linkreset_submodule.io.linkreset_sb_snd
+    val linkreset_sb_snd = linkreset_submodule.io.linkreset_sb_snd
     linkreset_submodule.io.linkreset_sb_rcv := io.sb_rcv
+    linkreset_submodule.io.linkreset_sb_rdy := io.sb_rdy
 
     // LinkInit submodule
     linkinit_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
     linkinit_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     linkinit_submodule.io.link_state := link_state_reg
-    val active_entry := linkinit_submodule.io.active_entry
+    val active_entry = linkinit_submodule.io.active_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
-    val active_sb_snd := linkinit_submodule.io.active_sb_snd
-    linkinit_submodule.io.active_sb_rcv := io.sb_rcv
+    val active_sb_snd = linkinit_submodule.io.linkinit_sb_snd
+    linkinit_submodule.io.linkinit_sb_rcv := io.sb_rcv
+    linkinit_submodule.io.linkinit_sb_rdy := io.sb_rdy
 
     // FDI/RDI common state change triggers
     // LinkError logic
@@ -91,11 +99,11 @@ class LinkManagementController (params: D2DAdapterParams) extends Module {
     // Placeholder for any other internal request logic which can trigger linkError
 
     // rx_deactive and rx_active signals for checking if rx on mainband is disabled
-    val rx_deactive := ~io.fdi.lpRxActiveStatus & ~io.fdi.plRxActiveReq
-    val rx_active := io.fdi.lpRxActiveStatus & io.fdi.plRxActiveReq
+    val rx_deactive = ~(io.fdi.lpRxActiveStatus) & ~(io.fdi.plRxActiveReq)
+    val rx_active = io.fdi.lpRxActiveStatus & io.fdi.plRxActiveReq
 
     // PHY informs the adapter over RDI that it should go into retrain
-    val retrain_phy_sts = io.rdi.plStateStatus === PhyState.retrain
+    val retrain_phy_sts = (io.rdi.plStateStatus === PhyState.retrain)
 
     // Moved this condition to the disabled module
     // Reset to disabled requires atleast one clock cycle of lp_state_req = Reset(NOP)

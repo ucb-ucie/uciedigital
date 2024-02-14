@@ -6,10 +6,6 @@ import chisel3.util._
 import interfaces._
 import sideband._
 
-case class D2DAdapterParams () {
-    
-}
-
 object D2DAdapterSignalSize{
     val SIDEBAND_MESSAGE_OP_WIDTH = 6.W
 }
