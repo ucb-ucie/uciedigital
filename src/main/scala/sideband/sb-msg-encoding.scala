@@ -371,7 +371,8 @@ object SBMessage_factory {
       remote: Boolean = false,
       dst: String,
       data: UInt = 0.U(64.W),
-  ) = {
+      msgInfo: UInt = 0.U(16.W),
+  ): UInt = {
     // take the bottom 64 bits of the base by modulo
     var msg: BigInt = base.value % (BigInt(1) << 64)
     val src_num: BigInt = src match {
@@ -393,6 +394,7 @@ object SBMessage_factory {
     dst_num = dst_num << 30
     dst_num = dst_num << 26
     msg += dst_num
+    msg += msgInfo << 32 + 8
     println("SBMessage_factory: " + msg)
     val new_msg = Cat(data, msg.U(64.W))
     println("SBMessage_factory: " + new_msg)
