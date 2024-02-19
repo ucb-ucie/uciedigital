@@ -1,4 +1,5 @@
-package ucie.sideband
+package edu.berkeley.cs.ucie.digital
+package sideband
 import chisel3._
 import chisel3.util._
 import chisel3.experimental._
@@ -134,32 +135,40 @@ object SBM {
 
 // A factory function to create a message from a bitpat, source, destination, and data
 object SBMessage_factory {
-  def apply (base: BitPat, src: String, remote: Boolean = false, dst: String, data: UInt=0.U(64.W)) = {
-    // take the bottom 64 bits of the base by modulo
-    var msg: BigInt = base.value % (BigInt(1) << 64)
-    val src_num: BigInt = src match {
-      case "Protocol_0" => 0
-      case "Protocol_1" => 4
-      case "D2D" => 1
-      case "PHY" => 2
-      case _ => 0
+    def apply(
+        base: BitPat,
+        src: String,
+        remote: Boolean = false,
+        dst: String,
+        data: UInt = 0.U(64.W),
+        msgInfo: UInt = 0.U(16.W),
+    ): UInt = {
+      // take the bottom 64 bits of the base by modulo
+      var msg: BigInt = base.value % (BigInt(1) << 64)
+      val src_num: BigInt = src match {
+        case "Protocol_0" => 0
+        case "Protocol_1" => 4
+        case "D2D"        => 1
+        case "PHY"        => 2
+        case _            => 0
+      }
+      var dst_num: BigInt = dst match {
+        case "Protocol_0" => 0
+        case "Protocol_1" => 4
+        case "D2D"        => 1
+        case "PHY"        => 2
+        case _            => 0
+      }
+      dst_num += (if (remote) 4 else 0)
+      msg += src_num << 29
+      dst_num = dst_num << 30
+      dst_num = dst_num << 26
+      msg += dst_num
+      msg += msgInfo << 32 + 8
+      println("SBMessage_factory: " + msg)
+      val new_msg = Cat(data, msg.U(64.W))
+      println("SBMessage_factory: " + new_msg)
+      new_msg
     }
-    var dst_num: BigInt = dst match {
-      case "Protocol_0" => 0
-      case "Protocol_1" => 4
-      case "D2D" => 1
-      case "PHY" => 2
-      case _ => 0
-    }
-    dst_num += (if (remote) 4 else 0)
-    msg += src_num << 29
-    dst_num = dst_num << 30
-    dst_num = dst_num << 26
-    msg += dst_num
-    println("SBMessage_factory: " + msg)
-    val new_msg = Cat(data, msg.U(64.W))
-    println("SBMessage_factory: " + new_msg) 
-    new_msg
-  }
 }
 

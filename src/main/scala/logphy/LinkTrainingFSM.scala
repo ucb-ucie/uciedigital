@@ -2,7 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
-import ucie.sideband.{SBM, SBMessage_factory}
+import sideband.{SBM, SBMessage_factory}
 
 import chisel3._
 import chisel3.util._

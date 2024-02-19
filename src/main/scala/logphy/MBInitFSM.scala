@@ -4,7 +4,7 @@ package logphy
 import interfaces._
 import chisel3._
 import chisel3.util._
-import ucie.sideband.{SBM, SBMessage_factory}
+import sideband.{SBM, SBMessage_factory}
 
 case class MBTrainingParams(
     voltageSwing: Int = 0,
