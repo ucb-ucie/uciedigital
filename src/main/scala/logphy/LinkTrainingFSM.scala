@@ -2,7 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
-import sideband.{SBM, SBMessage_factory}
+import ucie.sideband.{SBM, SBMessage_factory}
 
 import chisel3._
 import chisel3.util._
@@ -88,6 +88,7 @@ class LinkTrainingFSM(
 
   private val mbInit = Module(
     new MBInitFSM(
+      linkTrainingParams,
       linkTrainingParams.mbTrainingParams,
       afeParams,
     ),

@@ -4,7 +4,6 @@ package logphy
 import interfaces._
 import chisel3._
 import chisel3.util._
-import edu.berkeley.cs.ucie.digital.sideband.{SBM, SBMessage_factory}
 import ucie.sideband.{SBM, SBMessage_factory}
 
 case class MBTrainingParams(
