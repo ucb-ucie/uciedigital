@@ -13,7 +13,7 @@ class PatternGeneratorIO(
     val timeoutCycles = UInt(32.W)
     val sideband = Bool()
   })) // data to transmit & receive over SB
-  val transmitPatternStatus = Decoupled(SBMsgExchangeStatus())
+  val transmitPatternStatus = Decoupled(MessageRequestStatusType())
 }
 
 class PatternGenerator(
@@ -33,7 +33,7 @@ class PatternGenerator(
   private val pattern = RegInit(TransmitPattern.CLOCK_64_LOW_32)
   private val sideband = RegInit(true.B)
   private val timeoutCycles = RegInit(0.U)
-  private val status = RegInit(SBMsgExchangeStatus())
+  private val status = RegInit(MessageRequestStatusType.SUCCESS)
   private val statusValid = RegInit(false.B)
   io.patternGeneratorIO.transmitInfo.ready := (inProgress === false.B)
   io.patternGeneratorIO.transmitPatternStatus.valid := statusValid
@@ -78,7 +78,7 @@ class PatternGenerator(
   when(inProgress) {
     timeoutCycles := timeoutCycles - 1.U
     when(timeoutCycles === 0.U) {
-      status := SBMsgExchangeStatus.ERR
+      status := MessageRequestStatusType.ERR
       statusValid := true.B
       inProgress := false.B
     }.elsewhen(
@@ -89,7 +89,7 @@ class PatternGenerator(
       )),
     ) {
       statusValid := true.B
-      status := SBMsgExchangeStatus.SUCCESS
+      status := MessageRequestStatusType.SUCCESS
       inProgress := false.B
     }
   }

@@ -2,9 +2,10 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
-
 import chisel3._
 import chisel3.util._
+import edu.berkeley.cs.ucie.digital.sideband.{SBM, SBMessage_factory}
+import ucie.sideband.{SBM, SBMessage_factory}
 
 case class MBTrainingParams(
     voltageSwing: Int = 0,
@@ -16,6 +17,7 @@ case class MBTrainingParams(
 )
 
 class MBInitFSM(
+    linkTrainingParams: LinkTrainingParams,
     trainingParams: MBTrainingParams,
     afeParams: AfeParams,
 ) extends Module {
@@ -70,8 +72,13 @@ class MBInitFSM(
     trainingParams.ucieAx32.B,
   )
 
+  val sbClockFreq =
+    linkTrainingParams.sbClockFreqAnalog / afeParams.sbSerializerRatio
+
   switch(state) {
     is(State.PARAM) {
+
+      /** TODO: where am i actually setting up the params? */
       def formParamsReqMsg(
           req: Bool,
           voltageSwing: UInt,
@@ -80,14 +87,10 @@ class MBInitFSM(
           clockPhase: Bool,
           moduleId: UInt,
           UCIeAx32: Bool,
-      ): SBReqMsg = {
-        val sbReq = new SBReqMsg
-        sbReq.msg := Mux(
-          req,
-          SBMsgType.PARAM_CONFIG_REQ,
-          SBMsgType.PARAM_CONFIG_RESP,
-        )
-        sbReq.data := Cat(
+      ): MessageRequest = {
+        val data = UInt(64.W)
+        val msgReq = new MessageRequest()
+        data := Cat(
           0.U(50.W),
           UCIeAx32,
           moduleId(1, 0),
@@ -96,16 +99,29 @@ class MBInitFSM(
           voltageSwing(4, 0),
           maxDataRate(3, 0),
         )
-        sbReq.msgInfo := 0.U(16.W)
-        sbReq
+        msgReq.msg := SBMessage_factory(
+          Mux(req, SBM.MBINIT_PARAM_CONFIG_REQ, SBM.MBINIT_PARAM_CONFIG_RESP),
+          "PHY",
+          false,
+          "PHY",
+          data,
+        )
+        msgReq.msgTypeHasData := true.B
+        msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
+        msgReq.reqType := Mux(
+          req,
+          MessageRequestType.MSG_REQ,
+          MessageRequestType.MSG_RESP,
+        )
+        msgReq
       }
 
       val reqData = RegInit(0.U(64.W))
 
       switch(paramSubState) {
         is(ParamSubState.SEND_REQ) {
-          io.sbTrainIO.reqMsg.valid := true.B
-          io.sbTrainIO.reqMsg.bits := formParamsReqMsg(
+          io.sbTrainIO.msgReq.valid := true.B
+          io.sbTrainIO.msgReq.bits := formParamsReqMsg(
             true.B,
             voltageSwing,
             maxDataRate,
@@ -114,16 +130,16 @@ class MBInitFSM(
             moduleId,
             ucieAx32,
           )
-          when(io.sbTrainIO.reqMsg.fire) {
+          when(io.sbTrainIO.msgReq.fire) {
             paramSubState := ParamSubState.WAIT_REQ
           }
         }
         is(ParamSubState.WAIT_REQ) {
-          io.sbTrainIO.reqMsgStatus.ready := true.B
-          when(io.sbTrainIO.reqMsgStatus.fire) {
-            reqData := io.sbTrainIO.reqMsgStatus.bits.data
+          io.sbTrainIO.msgReqStatus.ready := true.B
+          when(io.sbTrainIO.msgReqStatus.fire) {
+            reqData := io.sbTrainIO.msgReqStatus.bits.data
             when(
-              io.sbTrainIO.reqMsgStatus.bits.status === SBMsgReqRespStatusType.ERR,
+              io.sbTrainIO.msgReqStatus.bits.status === MessageRequestStatusType.ERR,
             ) {
               nextState := State.ERR
             }.otherwise {
@@ -132,7 +148,7 @@ class MBInitFSM(
           }
         }
         is(ParamSubState.SEND_RESP) {
-          io.sbTrainIO.respMsg.valid := true.B
+          io.sbTrainIO.msgReq.valid := true.B
           val exchangedMaxDataRate = UInt(4.W)
           exchangedMaxDataRate := Mux(
             maxDataRate >= reqData(3, 0),
@@ -140,7 +156,7 @@ class MBInitFSM(
             maxDataRate,
           )
 
-          io.sbTrainIO.respMsg.bits := formParamsReqMsg(
+          io.sbTrainIO.msgReq.bits := formParamsReqMsg(
             false.B,
             0.U,
             exchangedMaxDataRate,

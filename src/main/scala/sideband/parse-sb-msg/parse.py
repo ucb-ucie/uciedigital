@@ -172,7 +172,7 @@ object SBMessage_factory {
     for i in instr_dict:
         chisel_names += f'  def {i.upper().replace(".","_"):<30s} = BitPat("b{instr_dict[i]["encoding"].replace("-","?")}")\n'
     else:
-        chisel_file = open('../src/main/scala/sideband/sb-msg-encoding.scala','w')
+        chisel_file = open('../sb-msg-encoding.scala','w')
     chisel_file.write(f'''package ucie.sideband
 import chisel3._
 import chisel3.util._

@@ -2,6 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
+import sideband.{SBM, SBMessage_factory}
 
 import chisel3._
 import chisel3.util._
@@ -75,10 +76,13 @@ class LinkTrainingFSM(
 
   private object SBInitSubState extends ChiselEnum {
     val SEND_CLOCK, SEND_LOW, WAIT_CLOCK, SB_OUT_OF_RESET_EXCH,
-        SB_OUT_OF_RESET_WAIT, SB_DONE_EX, SB_DONE_WAIT = Value
+        SB_OUT_OF_RESET_WAIT, SB_DONE_REQ, SB_DONE_REQ_WAIT, SB_DONE_RESP,
+        SB_DONE_RESP_WAIT = Value
   }
   private val sbInitSubState = RegInit(SBInitSubState.SEND_CLOCK)
-  when(nextState === LinkTrainingState.sbInit) {
+  when(
+    nextState === LinkTrainingState.sbInit && currentState =/= LinkTrainingState.sbInit,
+  ) {
     sbInitSubState := SBInitSubState.SEND_CLOCK
   }
 
@@ -88,11 +92,7 @@ class LinkTrainingFSM(
       afeParams,
     ),
   )
-  when(
-    (nextState === LinkTrainingState.mbInit) && (currentState =/= LinkTrainingState.mbInit),
-  ) {
-    mbInit.reset := true.B
-  }
+  mbInit.reset := (nextState === LinkTrainingState.mbInit) && (currentState =/= LinkTrainingState.mbInit)
 
   // TODO: incorporate lpstatereq
   currentState := nextState
@@ -167,54 +167,107 @@ class LinkTrainingFSM(
             switch(
               patternGenerator.io.patternGeneratorIO.transmitPatternStatus.bits,
             ) {
-              is(SBMsgExchangeStatus.SUCCESS) {
+              is(MessageRequestStatusType.SUCCESS) {
                 sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_EXCH
               }
-              is(SBMsgExchangeStatus.ERR) {
+              is(MessageRequestStatusType.ERR) {
                 nextState := LinkTrainingState.linkError
               }
             }
           }
         }
         is(SBInitSubState.SB_OUT_OF_RESET_EXCH) {
-          sbMsgWrapper.io.trainIO.exchangeMsg.bits.exchangeMsg := SBMsgType.OUT_OF_RESET
-          sbMsgWrapper.io.trainIO.exchangeMsg.valid := true.B
+          sbMsgWrapper.io.trainIO.msgReq.bits.msg := SBMessage_factory(
+            SBM.SBINIT_OUT_OF_RESET,
+            "PHY",
+            true,
+            "PHY",
+          )
+          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_EXCH
+          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          sbMsgWrapper.io.trainIO.msgReq.valid := true.B
+
+          sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
+            0.008 * sbClockFreq,
+          ).toInt.U
           msgSource := MsgSource.SB_MSG_WRAPPER
-          when(sbMsgWrapper.io.trainIO.exchangeMsg.fire) {
+          when(sbMsgWrapper.io.trainIO.msgReq.fire) {
             sbInitSubState := SBInitSubState.SB_OUT_OF_RESET_WAIT
           }
         }
         is(SBInitSubState.SB_OUT_OF_RESET_WAIT) {
-          sbMsgWrapper.io.trainIO.exchangeMsgStatus.ready := true.B
+          sbMsgWrapper.io.trainIO.msgReqStatus.ready := true.B
           msgSource := MsgSource.SB_MSG_WRAPPER
-          when(sbMsgWrapper.io.trainIO.exchangeMsgStatus.fire) {
-            switch(sbMsgWrapper.io.trainIO.exchangeMsgStatus.bits) {
-              is(SBMsgExchangeStatus.SUCCESS) {
-                sbInitSubState := SBInitSubState.SB_DONE_EX
+          when(sbMsgWrapper.io.trainIO.msgReqStatus.fire) {
+            switch(sbMsgWrapper.io.trainIO.msgReqStatus.bits.status) {
+              is(MessageRequestStatusType.SUCCESS) {
+                sbInitSubState := SBInitSubState.SB_DONE_REQ
               }
-              is(SBMsgExchangeStatus.ERR) {
+              is(MessageRequestStatusType.ERR) {
                 nextState := LinkTrainingState.linkError
               }
             }
           }
         }
-        is(SBInitSubState.SB_DONE_EX) {
-          sbMsgWrapper.io.trainIO.exchangeMsg.bits.exchangeMsg := SBMsgType.DONE
-          sbMsgWrapper.io.trainIO.exchangeMsg.valid := true.B
+        is(SBInitSubState.SB_DONE_REQ) {
+          sbMsgWrapper.io.trainIO.msgReq.bits.msg := SBMessage_factory(
+            SBM.SBINIT_DONE_REQ,
+            "PHY",
+            false,
+            "PHY",
+          )
+          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_REQ
+          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          sbMsgWrapper.io.trainIO.msgReq.valid := true.B
+          sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
+            0.008 * sbClockFreq,
+          ).toInt.U
           msgSource := MsgSource.SB_MSG_WRAPPER
-          when(sbMsgWrapper.io.trainIO.exchangeMsg.fire) {
-            sbInitSubState := SBInitSubState.SB_DONE_WAIT
+          when(sbMsgWrapper.io.trainIO.msgReq.fire) {
+            sbInitSubState := SBInitSubState.SB_DONE_REQ_WAIT
           }
         }
-        is(SBInitSubState.SB_DONE_WAIT) {
-          sbMsgWrapper.io.trainIO.exchangeMsgStatus.ready := true.B
+        is(SBInitSubState.SB_DONE_REQ_WAIT) {
+          sbMsgWrapper.io.trainIO.msgReqStatus.ready := true.B
           msgSource := MsgSource.SB_MSG_WRAPPER
-          when(sbMsgWrapper.io.trainIO.exchangeMsgStatus.fire) {
-            switch(sbMsgWrapper.io.trainIO.exchangeMsgStatus.bits) {
-              is(SBMsgExchangeStatus.SUCCESS) {
+          when(sbMsgWrapper.io.trainIO.msgReqStatus.fire) {
+            switch(sbMsgWrapper.io.trainIO.msgReqStatus.bits.status) {
+              is(MessageRequestStatusType.SUCCESS) {
+                sbInitSubState := SBInitSubState.SB_DONE_RESP
+              }
+              is(MessageRequestStatusType.ERR) {
+                nextState := LinkTrainingState.linkError
+              }
+            }
+          }
+        }
+        is(SBInitSubState.SB_DONE_RESP) {
+          sbMsgWrapper.io.trainIO.msgReq.bits.msg := SBMessage_factory(
+            SBM.SBINIT_DONE_RESP,
+            "PHY",
+            false,
+            "PHY",
+          )
+          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_RESP
+          sbMsgWrapper.io.trainIO.msgReq.valid := true.B
+          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
+            0.008 * sbClockFreq,
+          ).toInt.U
+          when(sbMsgWrapper.io.trainIO.msgReq.fire) {
+            sbInitSubState := SBInitSubState.SB_DONE_RESP_WAIT
+          }
+        }
+        is(SBInitSubState.SB_DONE_RESP_WAIT) {
+          sbMsgWrapper.io.trainIO.msgReqStatus.ready := true.B
+          msgSource := MsgSource.SB_MSG_WRAPPER
+          when(sbMsgWrapper.io.trainIO.msgReqStatus.fire) {
+            switch(sbMsgWrapper.io.trainIO.msgReqStatus.bits.status) {
+              is(MessageRequestStatusType.SUCCESS) {
                 nextState := LinkTrainingState.mbInit
               }
-              is(SBMsgExchangeStatus.ERR) {
+              is(MessageRequestStatusType.ERR) {
                 nextState := LinkTrainingState.linkError
               }
             }

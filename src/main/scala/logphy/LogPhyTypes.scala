@@ -1,6 +1,7 @@
 package edu.berkeley.cs.ucie.digital
 package logphy
 
+import scala.math._
 import chisel3._
 import chisel3.util._
 import interfaces._
@@ -10,31 +11,35 @@ object LinkTrainingState extends ChiselEnum {
 }
 
 /** Sideband Types */
-object SBMsgType extends ChiselEnum {
-  val OUT_OF_RESET, DONE, PARAM_CONFIG_REQ, PARAM_CONFIG_RESP = Value
-}
 
 class SBExchangeMsg extends Bundle {
-  val exchangeMsg = SBMsgType()
+  val exchangeMsg = UInt(128.W)
 }
 
-object SBMsgExchangeStatus extends ChiselEnum {
+object MessageRequestStatusType extends ChiselEnum {
   val SUCCESS, ERR = Value
-}
-
-object SBMsgReqRespStatusType extends ChiselEnum {
-  val SUCCESS, ERR = Value
-}
-
-class SBMsgReqRespStatus extends Bundle {
-  val status = SBMsgReqRespStatusType()
-  val data = UInt(64.W)
 }
 
 class SBReqMsg extends Bundle {
-  val msg = SBMsgType()
+  val msg = UInt(128.W)
+}
+
+object MessageRequestType extends ChiselEnum {
+  val MSG_EXCH, MSG_REQ, MSG_RESP = Value
+}
+
+class MessageRequest extends Bundle {
+  /* val msg = UInt(max((new SBReqMsg).getWidth, (new
+   * SBExchangeMsg).getWidth).W) */
+  val msg = UInt(128.W)
+  val reqType = MessageRequestType()
+  val timeoutCycles = UInt(64.W)
+  val msgTypeHasData = Bool()
+}
+
+class MessageRequestStatus extends Bundle {
+  val status = MessageRequestStatusType()
   val data = UInt(64.W)
-  val msgInfo = UInt(16.W)
 }
 
 /** Param Enums */
