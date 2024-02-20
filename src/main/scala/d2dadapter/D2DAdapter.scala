@@ -27,8 +27,8 @@ class D2DAdapter(val fdiParams: FdiParams, val rdiParams: RdiParams,
     val io = IO(new D2DAdapterIO(fdiParams, rdiParams))
 
     val link_manager = Module(new LinkManagementController(fdiParams, rdiParams, sbParams))
-    val fdi_stall_handler = Module(new FDIStallHandler(fdiParams, rdiParams))
-    val rdi_stall_handler = Module(new RDIStallHandler(fdiParams, rdiParams))
+    val fdi_stall_handler = Module(new FDIStallHandler())
+    val rdi_stall_handler = Module(new RDIStallHandler())
 
     val d2d_sideband = Module(new D2DSidebandModule(fdiParams, sbParams))
     val d2d_mainband = Module(new D2DMainbandModule(fdiParams, sbParams))

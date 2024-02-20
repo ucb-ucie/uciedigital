@@ -6,9 +6,7 @@ import chisel3.util._
 import interfaces._
 import sideband._
 
-object D2DAdapterSignalSize{
-    val SIDEBAND_MESSAGE_OP_WIDTH = 6.W
-}
+// LinkInitModule constants
 
 object LinkInitState extends ChiselEnum {
     val INIT_START = Value(0x0.U(3.W))
@@ -16,6 +14,12 @@ object LinkInitState extends ChiselEnum {
     val PARAM_EXCH = Value(0x2.U(3.W))
     val FDI_BRINGUP = Value(0x3.U(3.W))
     val INIT_DONE = Value(0x4.U(3.W))
+}
+
+// Sideband constants
+
+object D2DAdapterSignalSize{
+    val SIDEBAND_MESSAGE_OP_WIDTH = 6.W
 }
 
 object SideBandMessage{
@@ -39,4 +43,17 @@ object SideBandMessage{
     val PARITY_FEATURE_NAK: UInt = "b110010".U(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH)
     val ADV_CAP: UInt = "b100100".U(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH)
     val REGISTER_ACCESS: UInt = "b101000".U(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH)
+}
+
+// Stall Handler constants
+
+object StallHandlerWidth{
+    val STATE_WIDTH = 2.W
+}
+
+object StallHandshakeState extends ChiselEnum{
+    val IDLE = Value(0x0.U(StallHandlerWidth.STATE_WIDTH))
+    val REQSNT = Value(0x1.U(StallHandlerWidth.STATE_WIDTH))
+    val REQFALL = Value(0x2.U(StallHandlerWidth.STATE_WIDTH))
+    val COMPLETE = Value(0x3.U(StallHandlerWidth.STATE_WIDTH))
 }
