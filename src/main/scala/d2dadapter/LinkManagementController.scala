@@ -14,6 +14,9 @@ class LinkManagementControllerIO (val fdiParams: FdiParams,
     val sb_snd = Output(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
     val sb_rcv = Input(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
     val sb_rdy = Input(Bool())
+    // stall handlers for the mainband
+    val linkmgmt_stallreq = Output(Bool())
+    val linkmgmt_stalldone = Input(Bool())
 }
 
 /**
@@ -23,6 +26,7 @@ class LinkManagementControllerIO (val fdiParams: FdiParams,
   * @param fdiParams FdiParams
   * @param rdiParams RdiParams
   * @param sbParams SidebandParams
+  * TODO: parity module and parity negotiation, PM states
   */
 class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiParams, 
                                 val sbParams: SidebandParams) extends Module {
@@ -41,6 +45,9 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val rdi_lp_state_req_reg = RegInit(PhyStateReq.nop)
 
     val fdi_pl_rxactive_req_reg = RegInit(false.B)
+    val fdi_pl_inband_pres_reg = RegInit(false.B)
+
+    val linkmgmt_stallreq_reg = RegInit(false.B)
 
     // Internal registers
     val fdi_lp_state_req_prev_reg = RegNext(io.fdi.lpStateReq)
@@ -55,6 +62,9 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     // FDI
     io.fdi.plStateStatus := link_state_reg
     io.fdi.plRxActiveReq := fdi_pl_rxactive_req_reg
+    io.fdi.plInbandPres := fdi_pl_inband_pres_reg
+
+    io.linkmgmt_stallreq := linkmgmt_stallreq_reg
 
     // LinkError propagation from Protocol layer to PHY
     rdi_lp_linkerror_reg := io.fdi.lpLinkError
@@ -67,8 +77,9 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val disabled_entry = disabled_submodule.io.disabled_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
     val disabled_sb_snd = disabled_submodule.io.disabled_sb_snd
+    val disabled_sb_rdy = Wire(Bool())
     disabled_submodule.io.disabled_sb_rcv := io.sb_rcv
-    disabled_submodule.io.disabled_sb_rdy := io.sb_rdy
+    disabled_submodule.io.disabled_sb_rdy := disabled_sb_rdy
 
     // LinkReset submodule
     linkreset_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
@@ -77,18 +88,23 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val linkreset_entry = linkreset_submodule.io.linkreset_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
     val linkreset_sb_snd = linkreset_submodule.io.linkreset_sb_snd
+    val linkreset_sb_rdy = Wire(Bool())
     linkreset_submodule.io.linkreset_sb_rcv := io.sb_rcv
-    linkreset_submodule.io.linkreset_sb_rdy := io.sb_rdy
+    linkreset_submodule.io.linkreset_sb_rdy := linkreset_sb_rdy
 
     // LinkInit submodule
     linkinit_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
     linkinit_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     linkinit_submodule.io.link_state := link_state_reg
+    val linkinit_fdi_pl_rxactive_req = linkinit_submodule.io.linkinit_fdi_pl_rxactive_req
+    val linkinit_fdi_pl_inband_pres = linkinit_submodule.io.linkinit_fdi_pl_inband_pres
+    val linkinit_rdi_lp_state_req = linkinit_submodule.io.linkinit_rdi_lp_state_req
     val active_entry = linkinit_submodule.io.active_entry
     // Intermediate sideband messgaes which gets assigned to top IO when required
-    val active_sb_snd = linkinit_submodule.io.linkinit_sb_snd
+    val linkinit_sb_snd = linkinit_submodule.io.linkinit_sb_snd
+    val linkinit_sb_rdy = Wire(Bool())
     linkinit_submodule.io.linkinit_sb_rcv := io.sb_rcv
-    linkinit_submodule.io.linkinit_sb_rdy := io.sb_rdy
+    linkinit_submodule.io.linkinit_sb_rdy := linkinit_sb_rdy
 
     // FDI/RDI common state change triggers
     // LinkError logic
@@ -97,6 +113,8 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     // Protocol initiates linkError through lp_linkerror assertion
     val linkerror_fdi_req = io.fdi.lpLinkError
     // Placeholder for any other internal request logic which can trigger linkError
+
+    val stallhandler_handshake_done = linkmgmt_stallreq_reg & io.linkmgmt_stalldone
 
     // rx_deactive and rx_active signals for checking if rx on mainband is disabled
     val rx_deactive = ~(io.fdi.lpRxActiveStatus) & ~(io.fdi.plRxActiveReq)
@@ -111,15 +129,107 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     //                                    io.fdi.lpStateReq === PhyStateReq.reset) &&
     //                                    io.rdi.plStateStatus === PhyState.reset)
 
-    // TODO: Sideband message generation logic
+    // stall arbitration
+    when(link_state_reg === PhyState.active) {
+        linkmgmt_stallreq_reg := linkreset_entry || disabled_entry || retrain_phy_sts
+    }.otherwise {
+        linkmgmt_stallreq_reg := false.B
+    }
 
-    // TODO: RDI lp state request generation logic
+    // rxActive arbitration
+    when(link_state_reg === PhyState.active){
+        when(linkreset_entry || disabled_entry || retrain_phy_sts || linkerror_phy_sts){
+            fdi_pl_rxactive_req_reg := false.B
+        }.otherwise{
+            fdi_pl_rxactive_req_reg := true.B
+        }
+    }.otherwise{
+        when(linkreset_entry || disabled_entry || linkerror_phy_sts){
+            fdi_pl_rxactive_req_reg := false.B
+        }.otherwise{
+            fdi_pl_rxactive_req_reg := linkinit_fdi_pl_rxactive_req
+        }
+    }
+
+    // inband presence arbitration
+    when(link_state_reg === PhyState.reset){
+        when(linkerror_phy_sts){
+            fdi_pl_inband_pres_reg := false.B
+        }.otherwise{
+            fdi_pl_inband_pres_reg := linkinit_fdi_pl_inband_pres
+        }
+    }.elsewhen(link_state_reg === PhyState.linkError || 
+                link_state_reg === PhyState.disabled ||
+                link_state_reg === PhyState.linkReset){
+        fdi_pl_inband_pres_reg := false.B
+    }.otherwise{
+        when(linkerror_phy_sts){
+            fdi_pl_inband_pres_reg := false.B
+        }.otherwise{
+            fdi_pl_inband_pres_reg := true.B
+        }
+    }
+
+    // Sideband message generation logic
+    linkreset_sb_rdy := false.B
+    disabled_sb_rdy := false.B
+    linkinit_sb_rdy := false.B
+
+    when(link_state_reg === PhyState.reset){
+        when(disabled_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := disabled_sb_snd
+            disabled_sb_rdy := io.sb_rdy
+        }.elsewhen(linkreset_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := linkreset_sb_snd
+            linkreset_sb_rdy := io.sb_rdy
+        }.elsewhen(linkinit_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := linkinit_sb_snd
+            linkinit_sb_rdy := io.sb_rdy
+        }.otherwise{
+            io.sb_snd := SideBandMessage.NOP
+        }
+    }.elsewhen(link_state_reg === PhyState.active){
+        when(disabled_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := disabled_sb_snd
+            disabled_sb_rdy := io.sb_rdy
+        }.elsewhen(linkreset_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := linkreset_sb_snd
+            linkreset_sb_rdy := io.sb_rdy
+        }.otherwise{
+            io.sb_snd := SideBandMessage.NOP
+        }
+    }.elsewhen(link_state_reg === PhyState.retrain){
+        when(disabled_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := disabled_sb_snd
+            disabled_sb_rdy := io.sb_rdy
+        }.elsewhen(linkreset_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := linkreset_sb_snd
+            linkreset_sb_rdy := io.sb_rdy
+        }.otherwise{
+            io.sb_snd := SideBandMessage.NOP
+        }
+    }.elsewhen(link_state_reg === PhyState.linkReset){
+        when(disabled_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := disabled_sb_snd
+            disabled_sb_rdy := io.sb_rdy
+        }.otherwise{
+            io.sb_snd := SideBandMessage.NOP
+        }
+    }.elsewhen(link_state_reg === PhyState.disabled || link_state_reg === PhyState.linkError){
+        io.sb_snd := SideBandMessage.NOP
+    }.otherwise{
+        io.sb_snd := SideBandMessage.NOP
+    }
+
+    // RDI lp state request generation logic
     when(link_state_reg === PhyState.reset) {
-
+        rdi_lp_state_req_reg := linkinit_rdi_lp_state_req
     }.elsewhen(link_state_reg === PhyState.active) {
-
+        when(retrain_phy_sts) {
+            rdi_lp_state_req_reg := PhyStateReq.retrain
+        }
     }.elsewhen(link_state_reg === PhyState.retrain) {
-        
+        rdi_lp_state_req_reg := PhyStateReq.nop
     }.elsewhen(link_state_reg === PhyState.linkError) {
         // Section 8.3.4.2 for link error exit
         when(io.fdi.lpStateReq === PhyStateReq.active && !linkerror_fdi_req &&
@@ -164,11 +274,11 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         is(PhyState.active) {
             when(linkerror_phy_sts || linkerror_fdi_req) {
                 link_state_reg := PhyState.linkError
-            }.elsewhen(disabled_entry && rx_deactive) { // TODO: handle the stallreq/ack mechanism
+            }.elsewhen(disabled_entry && rx_deactive && stallhandler_handshake_done) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.disabled
-            }.elsewhen(linkreset_entry && rx_deactive) { // TODO: handle the stallreq/ack mechanism
+            }.elsewhen(linkreset_entry && rx_deactive && stallhandler_handshake_done) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.linkReset
-            }.elsewhen(retrain_phy_sts && rx_deactive) { // TODO: handle the stallreq/ack mechanism
+            }.elsewhen(retrain_phy_sts && rx_deactive && stallhandler_handshake_done) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.retrain
             }.otherwise {
                 link_state_reg := link_state_reg
