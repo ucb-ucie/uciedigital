@@ -69,7 +69,12 @@ class PHYSidebandChannelIO(
     }
   }
   // phy layer drive these
-  val inner = Flipped(new SidebandSwitcherbundle(sbParams))
+  val inner = Flipped(new Bundle {
+    val inputMode = Output(Bool())
+    val rxMode = Input(Bool())
+    val rawInput = Decoupled(UInt(sbParams.sbNodeMsgWidth.W))
+    val switcherBundle = new SidebandSwitcherbundle(sbParams)
+  })
 }
 
 // IO for the RDI and FDI sideband
@@ -132,8 +137,12 @@ class SidebandLinkNodeOuterIO(
 class SidebandLinkIO(val sbParams: SidebandParams, val fdiParams: FdiParams)
     extends Bundle {
   // layers drive these
+  val rxMode = Bool()
+
   val inner = new Bundle {
-    val layer_to_node = Flipped(Decoupled(UInt(sbParams.sbNodeMsgWidth.W)))
+    val layer_to_node = Flipped(Decoupled(new Bundle {
+      val data = UInt(sbParams.sbNodeMsgWidth.W)
+    }))
     /* This signal overrides the tx.ready and takes up the priority reserved
      * queue slot */
     // Should only be asserted high for access completion packets

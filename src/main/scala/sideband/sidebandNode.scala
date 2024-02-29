@@ -11,7 +11,8 @@ import interfaces._
 
 case class SidebandParams(
     // val NC_width: Int = 32, // This is merged into the FDI Params
-    val sbNodeMsgWidth: Int = 128, // Internal SB msg widths in individual layers
+    val sbNodeMsgWidth: Int =
+      128, // Internal SB msg widths in individual layers
     val maxCrd: Int = 32,
 )
 
@@ -35,10 +36,19 @@ class SidebandLinkNode(val sbParams: SidebandParams, val fdiParams: FdiParams)
   // Connect inner signals
   io.inner.layer_to_node.ready <> tx_ser.io.in.ready
 
-  tx_ser.io.in.bits <> Cat(io.inner.layer_to_node.bits(127, 59), 0.U(1.W), io.inner.layer_to_node.bits(57, 0))
+  tx_ser.io.in.bits <> Cat(
+    io.inner.layer_to_node.bits(127, 59),
+    0.U(1.W),
+    io.inner.layer_to_node.bits(57, 0),
+  )
   tx_ser.io.in.valid <> io.inner.layer_to_node.valid
 
-  io.inner.node_to_layer <> rx_queue.io.deq
+  when(io.rxMode) {
+    io.inner.node_to_layer <> rx_queue.io.deq
+  }.otherwise {
+    rx_queue.io.enq.noenq()
+    io.inner.node_to_layer <> rx_des.io.out
+  }
 
 }
 
