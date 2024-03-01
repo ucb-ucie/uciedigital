@@ -1,27 +1,34 @@
-package ucie.d2dadapter
+
+package edu.berkeley.cs.ucie.digital
+package d2dadapter
 
 import chisel3._
 import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
-class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
-    behavior of "MainbandModule"
+import interfaces._
+import sideband._
+
+class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
+    val fdiParams = new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32)
+    val rdiParams = new RdiParams(width = 8, sbWidth = 32)
+    val sbParams = new SidebandParams
+    behavior of "D2DMainbandModule"
     it should "pass mainband data from fdi to rdi" in {
-        val params = new D2DAdapterParams()
-        test(new MainbandModule(params)) { c => 
+        test(new D2DMainbandModule(fdiParams, rdiParams, sbParams)) { c => 
             // prepare random data generator
             println("Test started")
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(params.NBYTES)(0)
+            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
             c.io.parity_insert.poke(false.B)
             c.io.rdi_pl_trdy.poke(false.B)
-            c.io.d2d_state.poke(InterfaceStatus.ACTIVE)
+            c.io.d2d_state.poke(PhyState.active)
             c.io.mainband_stallreq.poke(false.B)
             c.clock.step(1)
             // ensure no absurd data goes to rdi
@@ -34,7 +41,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // fdi send a data to mainband
             println("Send data")
             // start sending data
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 val data = rand.nextLong(256)
                 c.io.fdi_lp_data(j).poke(data.U)
                 data_gold(j) = data
@@ -53,26 +60,25 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             }    
             // check if the data match the original one
             c.io.rdi_pl_trdy.poke(true.B)
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 c.io.rdi_lp_data(j).expect(data_gold(j).U)
             }
         }
     }
 
     it should "pass parity data from to rdi" in {
-        val params = new D2DAdapterParams()
-        test(new MainbandModule(params)) { c => 
+        test(new D2DMainbandModule(fdiParams, rdiParams, sbParams)) { c => 
             // prepare random data generator
             println("Test started")
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(params.NBYTES)(0)
+            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
             c.io.parity_check.poke(false.B)
-            c.io.d2d_state.poke(InterfaceStatus.ACTIVE)
+            c.io.d2d_state.poke(PhyState.active)
             c.io.mainband_stallreq.poke(false.B)
             c.clock.step(1)
             // ensure no absurd data goes to rdi
@@ -85,7 +91,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // parity send data
             println("Send data")
             // start sending data
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 val data = rand.nextLong(256)
                 c.io.parity_data(j).poke(data.U)
                 data_gold(j) = data
@@ -98,26 +104,25 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             }    
             // check if the data match the original one
             c.io.rdi_pl_trdy.poke(true.B)
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 c.io.rdi_lp_data(j).expect(data_gold(j).U)
             }
         }
     }
 
     it should "pass mainband data from rdi to fdi" in {
-        val params = new D2DAdapterParams()
-        test(new MainbandModule(params)) { c => 
+        test(new D2DMainbandModule(fdiParams, rdiParams, sbParams)) { c => 
             // prepare random data generator
             println("Test started")
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(params.NBYTES)(0)
+            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
             c.io.parity_check.poke(false.B)
-            c.io.d2d_state.poke(InterfaceStatus.ACTIVE)
+            c.io.d2d_state.poke(PhyState.active)
             c.io.mainband_stallreq.poke(false.B)
             c.clock.step(1)
             // ensure no absurd data goes to fdi
@@ -129,7 +134,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // rdi send a data to mainband
             println("Send data")
             // start sending data
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 val data = rand.nextLong(256)
                 c.io.rdi_pl_data(j).poke(data.U)
                 data_gold(j) = data
@@ -141,26 +146,25 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }    
             // check if the data match the original one
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 c.io.fdi_pl_data(j).expect(data_gold(j).U)
             }
         }
     }
 
     it should "not pass parity data from rdi to fdi" in {
-        val params = new D2DAdapterParams()
-        test(new MainbandModule(params)) { c => 
+        test(new D2DMainbandModule(fdiParams, rdiParams, sbParams)) { c => 
             // prepare random data generator
             println("Test started")
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(params.NBYTES)(0)
+            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
             c.io.parity_check.poke(false.B)
-            c.io.d2d_state.poke(InterfaceStatus.ACTIVE)
+            c.io.d2d_state.poke(PhyState.active)
             c.io.mainband_stallreq.poke(false.B)
             c.clock.step(1)
             // ensure no absurd data goes to fdi
@@ -172,7 +176,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // rdi send a data to mainband
             println("Send data")
             // start sending data
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 val data = rand.nextLong(256)
                 c.io.rdi_pl_data(j).poke(data.U)
                 data_gold(j) = data
@@ -185,7 +189,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }
             // send another data
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 val data = rand.nextLong(256)
                 c.io.rdi_pl_data(j).poke(data.U)
                 data_gold(j) = data
@@ -199,7 +203,7 @@ class MainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }    
             // check if the data match the original one
-            for(j <- 0 until params.NBYTES){
+            for(j <- 0 until fdiParams.width){
                 c.io.fdi_pl_data(j).expect(data_gold(j).U)
             }
         }

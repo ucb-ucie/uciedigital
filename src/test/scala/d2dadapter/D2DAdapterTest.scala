@@ -1,9 +1,13 @@
-package ucie.d2dadapter
+package edu.berkeley.cs.ucie.digital
+package d2dadapter
 
 import chisel3._
 import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
+
+import interfaces._
+import sideband._
 
     // val fdi_lp_state_req = Input(UInt(D2DAdapterSignalSize.STATE_WIDTH))
     // val disabled_rdi_lp_state_req = Output(UInt(D2DAdapterSignalSize.STATE_WIDTH))
@@ -16,10 +20,12 @@ import org.scalatest.flatspec.AnyFlatSpec
     // val disabled_sideband_rdy = Input(Bool())// sideband can consume the op in sideband_snt. 
 
 class D2DAdapterTest extends AnyFlatSpec with ChiselScalatestTester {
+    val fdiParams = new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32)
+    val rdiParams = new RdiParams(width = 8, sbWidth = 32)
+    val sbParams = new SidebandParams
     behavior of "D2DAdapterTest"
     it should "don't know how to check" in {
-        val params = new D2DAdapterParams()
-        test(new D2DAdapter(params)) { c => 
+        test(new D2DAdapter(fdiParams, rdiParams, sbParams)) { c => 
             println("Do nothing")
         }
     }

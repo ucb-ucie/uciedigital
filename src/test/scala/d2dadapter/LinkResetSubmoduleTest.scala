@@ -1,9 +1,13 @@
-package ucie.d2dadapter
+package edu.berkeley.cs.ucie.digital
+package d2dadapter
 
 import chisel3._
 import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
+
+import interfaces._
+import sideband._
 
     // val fdi_lp_state_req = Input(UInt(D2DAdapterSignalSize.STATE_WIDTH))
     // val linkreset_rdi_lp_state_req = Output(UInt(D2DAdapterSignalSize.STATE_WIDTH))
@@ -15,13 +19,12 @@ import org.scalatest.flatspec.AnyFlatSpec
     // val linkreset_sideband_snt = Output(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH)) // tell sideband module to send request of state change
     // val linkreset_sideband_rdy = Input(Bool())// sideband can consume the op in sideband_snt. 
 
-class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
-    behavior of "LinkresetSubmoduleTest"
+class LinkResetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
+    behavior of "LinkResetSubmoduleTest"
     it should "complete disable flow as DP Adapter" in {
-        val params = new D2DAdapterParams()
-        test(new LinkresetSubmodule(params)) { c => 
+        test(new LinkResetSubmodule()) { c => 
             // init
-            c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+            c.io.fdi_lp_state_req.poke(PhyStateReq.active)
             c.io.link_state.poke(InterfaceStatus.ACTIVE)
             c.io.sideband_rcv.poke(SideBandMessageOP.NOP)
             c.io.linkreset_sideband_rdy.poke(false.B)
@@ -85,7 +88,7 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
                     c.clock.step(1)                   
                 }   
                 // transition to reset go again
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
                 c.clock.step(100)  
                 c.io.link_state.poke(InterfaceStatus.RESET)
                 c.clock.step(100)     
@@ -93,7 +96,7 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.io.linkreset_complete.expect(false.B) 
                 c.io.linkreset_rdi_lp_state_req.expect(StateReq.NOP)
                 c.clock.step(1)
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
                 c.io.linkreset_complete.expect(false.B) 
                 c.io.linkreset_rdi_lp_state_req.expect(StateReq.NOP)
                 c.clock.step(100)  
@@ -110,10 +113,9 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
     }
 
     it should "complete disable flow as UP Adapter" in {
-        val params = new D2DAdapterParams()
-        test(new LinkresetSubmodule(params)) { c => 
+        test(new LinkResetSubmodule()) { c => 
             // init
-            c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+            c.io.fdi_lp_state_req.poke(PhyStateReq.active)
             c.io.link_state.poke(InterfaceStatus.ACTIVE)
             c.io.sideband_rcv.poke(SideBandMessageOP.NOP)
             c.io.linkreset_sideband_rdy.poke(false.B)
@@ -168,7 +170,7 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
                     c.clock.step(1)                   
                 }   
                 // transition to reset go again
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
                 c.clock.step(100)  
                 c.io.link_state.poke(InterfaceStatus.RESET)
                 c.clock.step(100)     
@@ -176,7 +178,7 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.io.linkreset_complete.expect(false.B) 
                 c.io.linkreset_rdi_lp_state_req.expect(StateReq.NOP)
                 c.clock.step(1)
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
                 c.io.linkreset_complete.expect(false.B) 
                 c.io.linkreset_rdi_lp_state_req.expect(StateReq.NOP)
                 c.clock.step(100)  
@@ -192,11 +194,10 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
         }
     }
     it should "complete linkreset flow as DP Adapter from reset" in {
-        val params = new D2DAdapterParams()
-        test(new LinkresetSubmodule(params)) { c => 
+        test(new LinkResetSubmodule()) { c => 
             // init
-            c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
-            c.io.fdi_lp_state_req_prev.poke(StateReq.ACTIVE)
+            c.io.fdi_lp_state_req.poke(PhyStateReq.active)
+            c.io.fdi_lp_state_req_prev.poke(PhyStateReq.active)
             c.io.link_state.poke(InterfaceStatus.RESET)
             c.io.sideband_rcv.poke(SideBandMessageOP.NOP)
             c.io.linkreset_sideband_rdy.poke(false.B)
@@ -205,7 +206,7 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
             for(i <- 0 until 5){
                 // fdi request linkreset but not from NOP
                 c.io.fdi_lp_state_req.poke(StateReq.LINKRESET)
-                c.io.fdi_lp_state_req_prev.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req_prev.poke(PhyStateReq.active)
                 c.clock.step(1)
                 c.io.fdi_lp_state_req.poke(StateReq.LINKRESET)
                 c.io.fdi_lp_state_req_prev.poke(StateReq.LINKRESET)
@@ -281,14 +282,14 @@ class LinkresetSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
                     c.clock.step(1)                   
                 }   
                 // transition to reset go again
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
                 c.clock.step(100)  
                 c.io.link_state.poke(InterfaceStatus.RESET)
                 c.clock.step(100)     
                 c.io.fdi_lp_state_req.poke(StateReq.NOP)
                 c.clock.step(1)
-                c.io.fdi_lp_state_req.poke(StateReq.ACTIVE)
-                c.io.fdi_lp_state_req_prev.poke(StateReq.ACTIVE)
+                c.io.fdi_lp_state_req.poke(PhyStateReq.active)
+                c.io.fdi_lp_state_req_prev.poke(PhyStateReq.active)
                 c.clock.step(100)
             }
         }
