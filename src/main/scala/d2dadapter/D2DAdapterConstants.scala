@@ -57,3 +57,26 @@ object StallHandshakeState extends ChiselEnum{
     val REQFALL = Value(0x2.U(StallHandlerWidth.STATE_WIDTH))
     val COMPLETE = Value(0x3.U(StallHandlerWidth.STATE_WIDTH))
 }
+
+// Parity module constants
+
+object ParityGeneratorWidth{
+    val PARITY_N_WIDTH = 3.W
+}
+
+object ParityAmount{
+    val BASESIZE: Int = 64
+    val PARITY_DATA_NBYTE_1: Int = 64
+    val DATA_NBYTE_1: Int = 256 * 256 * 1
+    val PARITY_DATA_NBYTE_2: Int = 64 * 2
+    val DATA_NBYTE_2: Int = 256 * 256 * 2
+    val PARITY_DATA_NBYTE_4: Int = 64 * 4
+    val DATA_NBYTE_4: Int = 256 * 256 * 4
+    val CORRECT_REG_WIDTH = 256.W // 4 * 64 for maximum four 64Bytes parity
+}
+
+object ParityN{
+    val ONE: UInt = "b000".U
+    val TWO: UInt = "b001".U
+    val FOUR: UInt = "b010".U
+}
