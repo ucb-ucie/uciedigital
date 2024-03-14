@@ -49,7 +49,6 @@ class SidebandLinkNode(val sbParams: SidebandParams, val fdiParams: FdiParams)
     rx_queue.io.enq.noenq()
     io.inner.node_to_layer <> rx_des.io.out
   }
-
 }
 
 // SidebandNode is the inter/intra layer SB messaging and uses credit flow

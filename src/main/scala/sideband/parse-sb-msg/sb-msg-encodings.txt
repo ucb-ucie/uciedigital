@@ -137,8 +137,6 @@ mbtrain_valvref_start_req 39..32=0x00 21..14=0xB5 4..0=0b00000
 mbtrain_valvref_start_resp 39..32=0x00 21..14=0xBA 4..0=0b00000
 mbtrain_valvref_end_req 39..32=0x01 21..14=0xB5 4..0=0b00000
 
-
-
 # adv_cap needed for D2D
 adv_cap                              55..40=0x0000 39..32=0x00 21..14=0x01 4..0=0b11011
 
