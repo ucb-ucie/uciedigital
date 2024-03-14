@@ -130,7 +130,7 @@ class PatternGenerator(
       is(TransmitPattern.CLOCK_64_LOW_32) {
 
         assert(
-          sbParams.sbNodeMsgWidth.W == 128,
+          sbParams.sbNodeMsgWidth == 128,
           "comparing with 128 bit clock pattern",
         )
         val patternToDetect = "h_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa".U(

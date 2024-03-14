@@ -164,9 +164,9 @@ object SBMessage_factory {
       dst_num = dst_num << 30
       dst_num = dst_num << 26
       msg += dst_num
-      msg += msgInfo << 32 + 8
       println("SBMessage_factory: " + msg)
       val new_msg = Cat(data, msg.U(64.W))
+      new_msg := new_msg | (msgInfo << (32 + 8).U)
       println("SBMessage_factory: " + new_msg)
       new_msg
     }

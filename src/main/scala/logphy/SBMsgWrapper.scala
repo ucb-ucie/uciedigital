@@ -165,7 +165,7 @@ class SBMsgWrapper(
       // }
 
       /** timeout logic */
-      timeoutCounter := timeoutCounter + 1
+      timeoutCounter := timeoutCounter + 1.U
       when(timeoutCounter === currentReqTimeoutMax) {
         nextState := State.WAIT_ACK
         currentStatus := MessageRequestStatusType.ERR

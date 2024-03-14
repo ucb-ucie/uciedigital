@@ -23,7 +23,7 @@ class LogicalPhy(
   })
 
   val trainingModule = {
-    new LinkTrainingFSM(linkTrainingParams, afeParams, rdiParams)
+    new LinkTrainingFSM(linkTrainingParams, sbParams, afeParams, rdiParams)
   }
   val lanes = new Lanes(afeParams, laneAsyncQueueParams)
   val rdiDataMapper = new RdiDataMapper(rdiParams, afeParams)

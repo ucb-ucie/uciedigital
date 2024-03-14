@@ -12,7 +12,7 @@ class Lanes(
 ) extends Module {
   val io = IO(new Bundle() {
     val mainbandIo = new MainbandIO(afeParams)
-    val sidebandIo = new SBIO(afeParams)
+    // val sidebandIo = new SBIO(afeParams)
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
     // val sidebandLaneIO = new SidebandLaneIO(afeParams)
   })

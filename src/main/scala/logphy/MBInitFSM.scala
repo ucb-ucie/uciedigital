@@ -86,7 +86,7 @@ class MBInitFSM(
 
       /** TODO: where am i actually setting up the params? */
       def formParamsReqMsg(
-          req: Bool,
+          req: Boolean,
           voltageSwing: UInt,
           maxDataRate: UInt,
           clockMode: ClockModeParam.Type,
@@ -106,7 +106,8 @@ class MBInitFSM(
           maxDataRate(3, 0),
         )
         msgReq.msg := SBMessage_factory(
-          Mux(req, SBM.MBINIT_PARAM_CONFIG_REQ, SBM.MBINIT_PARAM_CONFIG_RESP),
+          if (req) SBM.MBINIT_PARAM_CONFIG_REQ
+          else SBM.MBINIT_PARAM_CONFIG_RESP,
           "PHY",
           false,
           "PHY",
@@ -114,11 +115,8 @@ class MBInitFSM(
         )
         msgReq.msgTypeHasData := true.B
         msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
-        msgReq.reqType := Mux(
-          req,
-          MessageRequestType.MSG_REQ,
-          MessageRequestType.MSG_RESP,
-        )
+        msgReq.reqType := (if (req) MessageRequestType.MSG_REQ
+                           else MessageRequestType.MSG_RESP)
         msgReq
       }
 
@@ -129,7 +127,7 @@ class MBInitFSM(
         is(ParamSubState.SEND_REQ) {
           io.sbTrainIO.msgReq.valid := true.B
           io.sbTrainIO.msgReq.bits := formParamsReqMsg(
-            true.B,
+            true,
             voltageSwing,
             maxDataRate,
             clockMode,
@@ -164,7 +162,7 @@ class MBInitFSM(
           )
 
           io.sbTrainIO.msgReq.bits := formParamsReqMsg(
-            false.B,
+            false,
             0.U,
             exchangedMaxDataRate,
             ClockModeParam(reqData(9, 9)),

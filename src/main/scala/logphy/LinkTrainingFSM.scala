@@ -2,7 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
-import sideband.{SBM, SBMessage_factory}
+import sideband.{SBM, SBMessage_factory, SidebandParams}
 
 import chisel3._
 import chisel3.util._
@@ -23,6 +23,7 @@ class LinkTrainingRdiIO(
 
 class LinkTrainingFSM(
     linkTrainingParams: LinkTrainingParams,
+    sbParams: SidebandParams,
     afeParams: AfeParams,
     rdiParams: RdiParams,
 ) extends Module {
@@ -36,13 +37,13 @@ class LinkTrainingFSM(
 
     /** packet output from training */
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandLaneIO = new SidebandLaneIO(afeParams)
+    val sidebandLaneIO = new SidebandLaneIO(sbParams)
     val rdi = new LinkTrainingRdiIO(rdiParams)
     val active = Output(Bool())
   })
 
-  val patternGenerator = new PatternGenerator(afeParams)
-  val sbMsgWrapper = new SBMsgWrapper(afeParams)
+  val patternGenerator = new PatternGenerator(afeParams, sbParams)
+  val sbMsgWrapper = new SBMsgWrapper(sbParams)
 
   private val msgSource = Wire(MsgSource.PATTERN_GENERATOR)
   io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
