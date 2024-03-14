@@ -31,12 +31,12 @@ class LinkResetSubmodule() extends Module {
   val linkreset_sbmsg_ext_req_reg = RegInit(false.B) // send and wait for sb linkreset response
 
   when(
-    io.link_state === PhyState.reset ||
+      io.link_state === PhyState.reset ||
       io.link_state === PhyState.active ||
       io.link_state === PhyState.retrain
   ) {
 
-    io.linkreset_entry := linkreset_sbmsg_ext_rsp_reg || linkreset_sbmsg_ext_req_reg
+    io.linkreset_entry := linkreset_sbmsg_ext_rsp_reg || linkreset_sbmsg_rsp_rcv_flag
 
     // State change request by fdi
     when(
@@ -54,6 +54,18 @@ class LinkResetSubmodule() extends Module {
       linkreset_fdi_req_reg := linkreset_fdi_req_reg
     }
 
+    when(io.linkreset_sb_snd === SideBandMessage.REQ_LINKRESET && io.linkreset_sb_rdy){
+      linkreset_sbmsg_ext_req_reg := true.B
+    }.otherwise{
+      linkreset_sbmsg_ext_req_reg := linkreset_sbmsg_ext_req_reg
+    }
+
+    when(io.linkreset_sb_snd === SideBandMessage.RSP_LINKRESET && io.linkreset_sb_rdy){
+      linkreset_sbmsg_ext_rsp_reg := true.B
+    }.otherwise{
+      linkreset_sbmsg_ext_rsp_reg := linkreset_sbmsg_ext_rsp_reg
+    }
+
     // Check whether there is inflight linkreset request sbmsg from partner link
     when(io.linkreset_sb_rcv === SideBandMessage.REQ_LINKRESET) {
       linkreset_sbmsg_req_rcv_flag := true.B
@@ -61,30 +73,23 @@ class LinkResetSubmodule() extends Module {
       linkreset_sbmsg_req_rcv_flag := linkreset_sbmsg_req_rcv_flag
     }
 
-    /* Check whether there is inflight disaabled response sbmsg from partner
+    /* Check whether there is inflight linkreset response sbmsg from partner
      * link */
     when(io.linkreset_sb_rcv === SideBandMessage.RSP_LINKRESET) {
       linkreset_sbmsg_rsp_rcv_flag := true.B
-      linkreset_sbmsg_ext_req_reg := true.B
     }.otherwise {
-      linkreset_sbmsg_rsp_rcv_flag := linkreset_sbmsg_req_rcv_flag
-      linkreset_sbmsg_ext_req_reg := linkreset_sbmsg_ext_req_reg
+      linkreset_sbmsg_rsp_rcv_flag := linkreset_sbmsg_rsp_rcv_flag
     }
 
     // TODO: Check if this logic works on all corner cases
     // lp_state_req triggers sideband message
-    when(
-      linkreset_fdi_req_reg && io.linkreset_sb_rdy &&
-        !linkreset_sbmsg_req_rcv_flag && !linkreset_sbmsg_rsp_rcv_flag
-    ) {
+    when(linkreset_fdi_req_reg && !linkreset_sbmsg_req_rcv_flag &&
+         !linkreset_sbmsg_ext_req_reg) {
       io.linkreset_sb_snd := SideBandMessage.REQ_LINKRESET
-      linkreset_sbmsg_ext_rsp_reg := linkreset_sbmsg_ext_rsp_reg
-    }.elsewhen(io.linkreset_sb_rdy && linkreset_sbmsg_req_rcv_flag) {
+    }.elsewhen(linkreset_sbmsg_req_rcv_flag && !linkreset_sbmsg_ext_rsp_reg) {
       io.linkreset_sb_snd := SideBandMessage.RSP_LINKRESET
-      linkreset_sbmsg_ext_rsp_reg := true.B
     }.otherwise {
       io.linkreset_sb_snd := SideBandMessage.NOP
-      linkreset_sbmsg_ext_rsp_reg := linkreset_sbmsg_ext_rsp_reg
     }
   }.otherwise {
     linkreset_fdi_req_reg := false.B

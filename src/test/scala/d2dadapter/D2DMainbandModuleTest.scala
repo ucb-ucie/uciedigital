@@ -22,7 +22,6 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
@@ -39,13 +38,11 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             }
 
             // fdi send a data to mainband
-            println("Send data")
+            println("Send data to mainband")
             // start sending data
-            for(j <- 0 until fdiParams.width){
-                val data = rand.nextLong(256)
-                c.io.fdi_lp_data(j).poke(data.U)
-                data_gold(j) = data
-            }
+            val data = rand.nextLong(256)
+            c.io.fdi_lp_data.poke(data.U)
+
             c.io.fdi_lp_irdy.poke(true.B)
             c.io.fdi_lp_valid.poke(true.B)
 
@@ -60,9 +57,7 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             }    
             // check if the data match the original one
             c.io.rdi_pl_trdy.poke(true.B)
-            for(j <- 0 until fdiParams.width){
-                c.io.rdi_lp_data(j).expect(data_gold(j).U)
-            }
+            c.io.rdi_lp_data.expect(data.U)
         }
     }
 
@@ -73,7 +68,6 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
@@ -91,11 +85,9 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // parity send data
             println("Send data")
             // start sending data
-            for(j <- 0 until fdiParams.width){
-                val data = rand.nextLong(256)
-                c.io.parity_data(j).poke(data.U)
-                data_gold(j) = data
-            }
+            val data = rand.nextLong(256)
+            c.io.parity_data.poke(data.U)
+            
             c.io.parity_insert.poke(true.B)
 
             // data taken by mainband module // check when the data is to be sent
@@ -104,9 +96,7 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             }    
             // check if the data match the original one
             c.io.rdi_pl_trdy.poke(true.B)
-            for(j <- 0 until fdiParams.width){
-                c.io.rdi_lp_data(j).expect(data_gold(j).U)
-            }
+            c.io.rdi_lp_data.expect(data.U)
         }
     }
 
@@ -117,7 +107,6 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
@@ -134,11 +123,9 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // rdi send a data to mainband
             println("Send data")
             // start sending data
-            for(j <- 0 until fdiParams.width){
-                val data = rand.nextLong(256)
-                c.io.rdi_pl_data(j).poke(data.U)
-                data_gold(j) = data
-            }
+            val data = rand.nextLong(256)
+            c.io.rdi_pl_data.poke(data.U)
+
             c.io.rdi_pl_valid.poke(true.B)
             c.clock.step(1)
             // data taken by mainband module // check when the data is to be sent
@@ -146,9 +133,7 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }    
             // check if the data match the original one
-            for(j <- 0 until fdiParams.width){
-                c.io.fdi_pl_data(j).expect(data_gold(j).U)
-            }
+            c.io.fdi_pl_data.expect(data.U)
         }
     }
 
@@ -159,7 +144,6 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             val seed: Int = 0
             val rand = new scala.util.Random(seed)
 
-            val data_gold: Array[Long] = Array.fill(fdiParams.width)(0)
             // init
             c.io.fdi_lp_irdy.poke(false.B)
             c.io.fdi_lp_valid.poke(false.B)
@@ -176,11 +160,9 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
             // rdi send a data to mainband
             println("Send data")
             // start sending data
-            for(j <- 0 until fdiParams.width){
-                val data = rand.nextLong(256)
-                c.io.rdi_pl_data(j).poke(data.U)
-                data_gold(j) = data
-            }
+            val data1 = rand.nextLong(256)
+            c.io.rdi_pl_data.poke(data1.U)
+
             c.io.parity_check.poke(true.B)
             c.io.rdi_pl_valid.poke(true.B)
             c.clock.step(1)
@@ -189,11 +171,9 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }
             // send another data
-            for(j <- 0 until fdiParams.width){
-                val data = rand.nextLong(256)
-                c.io.rdi_pl_data(j).poke(data.U)
-                data_gold(j) = data
-            }
+            val data2 = rand.nextLong(256)
+            c.io.rdi_pl_data.poke(data2.U)
+
             c.io.fdi_pl_valid.expect(false.B)
             c.io.parity_check.poke(false.B)
             c.io.rdi_pl_valid.poke(true.B)            
@@ -203,9 +183,7 @@ class D2DMainbandModuleTest extends AnyFlatSpec with ChiselScalatestTester {
                 c.clock.step(1)
             }    
             // check if the data match the original one
-            for(j <- 0 until fdiParams.width){
-                c.io.fdi_pl_data(j).expect(data_gold(j).U)
-            }
+            c.io.fdi_pl_data.expect(data2.U)
         }
     }
 }

@@ -6,7 +6,6 @@ import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import interfaces._
-import sideband._
 
 class LinkInitSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "LinkInitSubmoduleTest"
@@ -57,6 +56,7 @@ class LinkInitSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
             }
             c.io.rdi_pl_state_sts.poke(PhyState.active)
             // RDI bring up complete
+            println("RDI Bringup complete")
 
             // parameter exchange
             while(c.io.linkinit_sb_snd.peek().litValue != SideBandMessage.ADV_CAP.litValue){
@@ -172,16 +172,28 @@ class LinkInitSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
             // leave reset
             c.io.link_state.poke(PhyState.active)
             c.clock.step(1)
+
+            for(i <- 0 until 10){
+                // should not give any signal
+                c.io.linkinit_fdi_pl_rxactive_req.expect(false.B)
+                c.io.linkinit_fdi_pl_inband_pres.expect(false.B)
+                c.io.linkinit_sb_snd.expect(SideBandMessage.NOP)
+                c.io.active_entry.expect(false.B)
+                c.io.linkinit_rdi_lp_state_req.expect(PhyStateReq.nop)
+                c.clock.step(1)
+            }
+
             c.io.link_state.poke(PhyState.reset)
+            c.io.rdi_pl_inband_pres.poke(false.B)
             c.clock.step(1)
 
             for(i <- 0 until 10){
                 // should not give any signal
                 c.io.linkinit_fdi_pl_rxactive_req.expect(false.B)
                 c.io.linkinit_fdi_pl_inband_pres.expect(false.B)
-                c.io.linkinit_rdi_lp_state_req.expect(PhyStateReq.nop)
-                c.io.active_entry.expect(false.B)
                 c.io.linkinit_sb_snd.expect(SideBandMessage.NOP)
+                c.io.active_entry.expect(false.B)
+                c.io.linkinit_rdi_lp_state_req.expect(PhyStateReq.nop)
                 c.clock.step(1)
             }
         }

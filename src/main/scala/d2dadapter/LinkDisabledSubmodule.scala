@@ -26,18 +26,18 @@ class LinkDisabledSubmodule() extends Module {
   val io = IO(new LinkDisabledSubmoduleIO())
 
   val disabled_fdi_req_reg = RegInit(false.B)
-  val disabled_sbmsg_req_rcv_flag = RegInit(false.B)
-  val disabled_sbmsg_rsp_rcv_flag = RegInit(false.B)
+  val disabled_sbmsg_req_rcv_reg = RegInit(false.B)
+  val disabled_sbmsg_rsp_rcv_reg = RegInit(false.B)
   val disabled_sbmsg_ext_rsp_reg = RegInit(false.B) // receive and respond to sb disabled request
   val disabled_sbmsg_ext_req_reg = RegInit(false.B) // send and wait for sb disabled response
 
   when(
-    io.link_state === PhyState.reset ||
+      io.link_state === PhyState.reset ||
       io.link_state === PhyState.active ||
       io.link_state === PhyState.retrain ||
       io.link_state === PhyState.linkReset
   ) {
-    io.disabled_entry := disabled_sbmsg_ext_rsp_reg || disabled_sbmsg_ext_req_reg
+    io.disabled_entry := disabled_sbmsg_ext_rsp_reg || disabled_sbmsg_rsp_rcv_reg
 
     // State change request by fdi
     when(
@@ -55,43 +55,47 @@ class LinkDisabledSubmodule() extends Module {
       disabled_fdi_req_reg := disabled_fdi_req_reg
     }
 
+    when(io.disabled_sb_snd === SideBandMessage.REQ_DISABLED && io.disabled_sb_rdy){
+      disabled_sbmsg_ext_req_reg := true.B
+    }.otherwise{
+      disabled_sbmsg_ext_req_reg := disabled_sbmsg_ext_req_reg
+    }
+
+    when(io.disabled_sb_snd === SideBandMessage.RSP_DISABLED && io.disabled_sb_rdy){
+      disabled_sbmsg_ext_rsp_reg := true.B
+    }.otherwise{
+      disabled_sbmsg_ext_rsp_reg := disabled_sbmsg_ext_rsp_reg
+    }
     // Check whether there is inflight disabled request sbmsg from partner link
     when(io.disabled_sb_rcv === SideBandMessage.REQ_DISABLED) {
-      disabled_sbmsg_req_rcv_flag := true.B
+      disabled_sbmsg_req_rcv_reg := true.B
     }.otherwise {
-      disabled_sbmsg_req_rcv_flag := disabled_sbmsg_req_rcv_flag
+      disabled_sbmsg_req_rcv_reg := disabled_sbmsg_req_rcv_reg
     }
 
     /* Check whether there is inflight disaabled response sbmsg from partner
      * link */
     when(io.disabled_sb_rcv === SideBandMessage.RSP_DISABLED) {
-      disabled_sbmsg_rsp_rcv_flag := true.B
-      disabled_sbmsg_ext_req_reg := true.B
+      disabled_sbmsg_rsp_rcv_reg := true.B
     }.otherwise {
-      disabled_sbmsg_rsp_rcv_flag := disabled_sbmsg_req_rcv_flag
-      disabled_sbmsg_ext_req_reg := disabled_sbmsg_ext_req_reg
+      disabled_sbmsg_rsp_rcv_reg := disabled_sbmsg_rsp_rcv_reg
     }
 
     // TODO: Check if this logic works on all corner cases
     // lp_state_req triggers sideband message
     // TODO: find a way to enable valid without probing ready
-    when(
-      disabled_fdi_req_reg && io.disabled_sb_rdy &&
-        !disabled_sbmsg_req_rcv_flag && !disabled_sbmsg_rsp_rcv_flag
-    ) {
+    when(disabled_fdi_req_reg && !disabled_sbmsg_req_rcv_reg 
+         && !disabled_sbmsg_ext_req_reg) {
       io.disabled_sb_snd := SideBandMessage.REQ_DISABLED
-      disabled_sbmsg_ext_rsp_reg := disabled_sbmsg_ext_rsp_reg
-    }.elsewhen(io.disabled_sb_rdy && disabled_sbmsg_req_rcv_flag) {
+    }.elsewhen(disabled_sbmsg_req_rcv_reg && !disabled_sbmsg_ext_rsp_reg) {
       io.disabled_sb_snd := SideBandMessage.RSP_DISABLED
-      disabled_sbmsg_ext_rsp_reg := true.B
     }.otherwise {
       io.disabled_sb_snd := SideBandMessage.NOP
-      disabled_sbmsg_ext_rsp_reg := disabled_sbmsg_ext_rsp_reg
     }
   }.otherwise {
     disabled_fdi_req_reg := false.B
-    disabled_sbmsg_req_rcv_flag := false.B
-    disabled_sbmsg_rsp_rcv_flag := false.B
+    disabled_sbmsg_req_rcv_reg := false.B
+    disabled_sbmsg_rsp_rcv_reg := false.B
     disabled_sbmsg_ext_req_reg := false.B
     disabled_sbmsg_ext_rsp_reg := false.B
     io.disabled_entry := false.B
