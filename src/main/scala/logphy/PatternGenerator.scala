@@ -3,6 +3,7 @@ package logphy
 
 import chisel3._
 import chisel3.util._
+import sideband.SidebandParams
 import interfaces._
 
 class PatternGeneratorIO(
@@ -18,13 +19,14 @@ class PatternGeneratorIO(
 
 class PatternGenerator(
     afeParams: AfeParams,
+    sbParams: SidebandParams,
 ) extends Module {
   val io = IO(new Bundle {
     val patternGeneratorIO = new PatternGeneratorIO(afeParams)
 
     /** for now, assume want to transmit on sideband IO only */
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandLaneIO = new SidebandLaneIO(afeParams)
+    val sidebandLaneIO = new SidebandLaneIO(sbParams)
   })
 
   private val writeInProgress = RegInit(false.B)
@@ -48,8 +50,14 @@ class PatternGenerator(
     statusValid := false.B
   }
 
-  val clockPatternShiftReg = RegInit("h_aaaa_aaaa_aaaa_aaaa_0000_0000".U)
-  val patternToTransmit = Wire(0.U(afeParams.sbSerializerRatio.W))
+  // val clockPatternShiftReg = RegInit("h_aaaa_aaaa_aaaa_aaaa_0000_0000".U)
+  /** clock gating is not implemented, so for now, just send 128 bits of regular
+    * clock data
+    */
+  val clockPatternShiftReg = RegInit(
+    "h_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa".U,
+  )
+  val patternToTransmit = Wire(0.U(sbParams.sbNodeMsgWidth.W))
   val patternDetectedCount = RegInit(0.U)
   val patternWrittenCount = RegInit(0.U)
 
@@ -61,19 +69,19 @@ class PatternGenerator(
     TransmitPattern.CLOCK_64_LOW_32 -> 128.U,
   )
 
-  val outWidth = 4
-  private val sidebandInWidthCoupler = new DataWidthCoupler(
-    /** collect size of largest pattern */
-    DataWidthCouplerParams(
-      inWidth = afeParams.sbSerializerRatio,
-      outWidth = outWidth,
-    ),
-  )
-  sidebandInWidthCoupler.io.in <> io.sidebandLaneIO.rxData
+  // val outWidth = 4
+  // private val sidebandInWidthCoupler = new DataWidthCoupler(
+  //   /** collect size of largest pattern */
+  //   DataWidthCouplerParams(
+  //     inWidth = afeParams.sbSerializerRatio,
+  //     outWidth = outWidth,
+  //   ),
+  // )
+  // sidebandInWidthCoupler.io.in <> io.sidebandLaneIO.rxData
   io.sidebandLaneIO.txData.valid := writeInProgress
   io.sidebandLaneIO.txData.bits := patternToTransmit
-  // io.sidebandLaneIO.rxData.ready := readInProgress
-  sidebandInWidthCoupler.io.out.ready := readInProgress
+  io.sidebandLaneIO.rxData.ready := readInProgress
+  // sidebandInWidthCoupler.io.out.ready := readInProgress
 
   when(inProgress) {
     timeoutCycles := timeoutCycles - 1.U
@@ -102,13 +110,13 @@ class PatternGenerator(
         */
       is(TransmitPattern.CLOCK_64_LOW_32) {
         patternToTransmit := clockPatternShiftReg(
-          afeParams.sbSerializerRatio - 1,
+          sbParams.sbNodeMsgWidth - 1,
           0,
         )
         when(io.sidebandLaneIO.txData.fire) {
-          clockPatternShiftReg := (clockPatternShiftReg >> afeParams.sbSerializerRatio.U).asUInt &
+          clockPatternShiftReg := (clockPatternShiftReg >> sbParams.sbNodeMsgWidth.U).asUInt &
             (clockPatternShiftReg <<
-              (clockPatternShiftReg.getWidth.U - afeParams.sbSerializerRatio.U))
+              (clockPatternShiftReg.getWidth.U - sbParams.sbNodeMsgWidth.U))
           patternWrittenCount := patternWrittenCount + 1.U
         }
       }
@@ -121,19 +129,20 @@ class PatternGenerator(
 
       is(TransmitPattern.CLOCK_64_LOW_32) {
 
-        val patternToDetect = "h_a".U(outWidth.W)
-        when(sidebandInWidthCoupler.io.out.fire) {
+        assert(
+          sbParams.sbNodeMsgWidth.W == 128,
+          "comparing with 128 bit clock pattern",
+        )
+        val patternToDetect = "h_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa".U(
+          sbParams.sbNodeMsgWidth.W,
+        )
+        when(io.sidebandLaneIO.rxData.fire) {
 
           /** detect clock UI pattern -- as long as the pattern is correctly
             * aligned, this is simple
-            *
-            * TODO: should I do more for pattern detection? right now for
-            * pattern detecting 128 clock UI, I count the clock cycles in chunks
-            * of 4 and add 4 if the pattern is 1010, but this wouldn't work if
-            * it is misaligned for any reason
             */
-          when(sidebandInWidthCoupler.io.out.bits === patternToDetect) {
-            patternDetectedCount := patternDetectedCount + outWidth.U
+          when(io.sidebandLaneIO.rxData.bits === patternToDetect) {
+            patternDetectedCount := patternDetectedCount + sbParams.sbNodeMsgWidth.U
           }
         }
 

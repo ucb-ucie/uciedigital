@@ -46,6 +46,7 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
 
 case class AfeParams(
     sbSerializerRatio: Int = 1,
+    sbWidth: Int = 1,
     mbSerializerRatio: Int = 16,
     mbLanes: Int = 16,
 )
@@ -67,13 +68,15 @@ class SidebandAfeIo(
     *
     * Output from the async FIFO.
     */
-  val txData = Decoupled(Bits(afeParams.sbSerializerRatio.W))
+  val txData = Input(UInt(afeParams.sbWidth.W))
+  val txClock = Input(Bool())
 
   /** Data received on the sideband.
     *
     * Input to the async FIFO.
     */
-  val rxData = Flipped(Decoupled(Bits(afeParams.sbSerializerRatio.W)))
+  val rxData = Output(UInt(afeParams.sbWidth.W))
+  val rxClock = Output(Bool())
 
   /** Enable sideband receivers. */
   val rxEn = Output(Bool())

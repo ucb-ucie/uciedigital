@@ -18,9 +18,6 @@ class LogicalPhy(
 ) extends Module {
   val io = IO(new Bundle {
     val rdi = Flipped(new Rdi(rdiParams))
-
-    /** TODO: sideband interface */
-    // val sideband = Flipped()
     val mbAfe = new MainbandAfeIo(afeParams)
     val sbAfe = new SidebandAfeIo(afeParams)
   })
@@ -29,15 +26,15 @@ class LogicalPhy(
     new LinkTrainingFSM(linkTrainingParams, afeParams, rdiParams)
   }
   val lanes = new Lanes(afeParams, laneAsyncQueueParams)
-  val rdiDataMapper = new RdiDataMapper(rdiParams, fdiParams, afeParams)
+  val rdiDataMapper = new RdiDataMapper(rdiParams, afeParams)
 
   /** Connect internal FIFO to AFE */
   lanes.io.mainbandIo.txData <> io.mbAfe.txData
   lanes.io.mainbandIo.rxData <> io.mbAfe.rxData
   lanes.io.mainbandIo.fifoParams <> io.mbAfe.fifoParams
-  lanes.io.sidebandIo.txData <> io.sbAfe.txData
-  lanes.io.sidebandIo.rxData <> io.sbAfe.rxData
-  lanes.io.sidebandIo.fifoParams <> io.sbAfe.fifoParams
+  // lanes.io.sidebandIo.txData <> io.sbAfe.txData
+  // lanes.io.sidebandIo.rxData <> io.sbAfe.rxData
+  // lanes.io.sidebandIo.fifoParams <> io.sbAfe.fifoParams
 
   when(trainingModule.io.active) {
 
@@ -49,13 +46,28 @@ class LogicalPhy(
     lanes.io.mainbandLaneIO <> trainingModule.io.mainbandLaneIO
   }
 
-  /** TODO: connect sideband to sideband */
-  val sidebandChannel = new PHYSidebandChannel(myId, sbParams, fdiParams)
+  private val sidebandChannel =
+    new PHYSidebandChannel(myId, sbParams, fdiParams)
+  assert(
+    afeParams.sbSerializerRatio == 1,
+    "connecting sideband module directly to training module, sb serializer ratio must be 1!",
+  )
+  sidebandChannel.io.inner.switcherBundle.layer_to_node_below <> trainingModule.io.sidebandLaneIO.txData
   when(trainingModule.io.active) {
 
-    /** connect sideband transmitter to d2d sideband channel */
+    /** TODO: */
+
   }.otherwise {
-    lanes.io.sidebandLaneIO <> trainingModule.io.sidebandLaneIO
+
+    sidebandChannel.io.inner.switcherBundle.node_to_layer_below <> trainingModule.io.sidebandLaneIO.rxData
   }
+  assert(
+    afeParams.sbWidth == fdiParams.sbWidth,
+    "AFE SB width and FDI SB width must match",
+  )
+  io.sbAfe.txData <> sidebandChannel.io.to_lower_layer.tx.bits
+  io.sbAfe.txClock <> sidebandChannel.io.to_lower_layer.tx.clock
+  io.sbAfe.rxData <> sidebandChannel.io.to_lower_layer.rx.bits
+  io.sbAfe.rxClock <> sidebandChannel.io.to_lower_layer.rx.clock
 
 }

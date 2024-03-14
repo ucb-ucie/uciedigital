@@ -3,6 +3,7 @@ package logphy
 
 import chisel3._
 import chisel3.util._
+import sideband.SidebandParams
 import interfaces._
 
 class SBMsgWrapperTrainIO(
@@ -11,62 +12,60 @@ class SBMsgWrapperTrainIO(
   val msgReqStatus = Decoupled(new MessageRequestStatus)
 }
 
-/** TODO: implementation */
 class SBMsgWrapper(
-    afeParams: AfeParams,
+    sbParams: SidebandParams,
 ) extends Module {
   val io = IO(new Bundle {
     val trainIO = new SBMsgWrapperTrainIO
-    val laneIO = new SidebandLaneIO(afeParams)
+    val laneIO = new SidebandLaneIO(sbParams)
   })
 
   private object State extends ChiselEnum {
-    val IDLE, EXCHANGE, REQ, RESP, WAIT_ACK_SUCCESS, WAIT_ACK_ERR = Value
+    val IDLE, EXCHANGE, WAIT_ACK = Value
   }
 
-  private object SubState extends ChiselEnum {
-    val SEND_OR_RECEIVE_MESSAGE, SEND_OR_RECEIVE_DATA = Value
-  }
+  // private object SubState extends ChiselEnum {
+  //   val SEND_OR_RECEIVE_MESSAGE, SEND_OR_RECEIVE_DATA = Value
+  // }
 
   private val currentState = RegInit(State.IDLE)
-  private val sendSubState = RegInit(SubState.SEND_OR_RECEIVE_MESSAGE)
-  private val receiveSubState = RegInit(SubState.SEND_OR_RECEIVE_MESSAGE)
+  // private val sendSubState = RegInit(SubState.SEND_OR_RECEIVE_MESSAGE)
+  // private val receiveSubState = RegInit(SubState.SEND_OR_RECEIVE_MESSAGE)
   private val timeoutCounter = RegInit(0.U(64.W))
 
   private val nextState = Wire(currentState)
   currentState := nextState
+  private val sentMsg = RegInit(false.B)
   when(currentState =/= nextState) {
-    sendSubState := SubState.SEND_OR_RECEIVE_MESSAGE
-    receiveSubState := SubState.SEND_OR_RECEIVE_MESSAGE
+    // sendSubState := SubState.SEND_OR_RECEIVE_MESSAGE
+    // receiveSubState := SubState.SEND_OR_RECEIVE_MESSAGE
     timeoutCounter := 0.U
+    sentMsg := false.B
   }
 
-  private val sidebandRxWidthCoupler64 = new DataWidthCoupler(
-    DataWidthCouplerParams(
-      inWidth = io.laneIO.rxData.getWidth,
-      outWidth = 64,
-    ),
-  )
-  private val sidebandTxWidthCoupler64 = new DataWidthCoupler(
-    DataWidthCouplerParams(
-      inWidth = 64,
-      outWidth = io.laneIO.txData.getWidth,
-    ),
-  )
-  io.laneIO.rxData <> sidebandRxWidthCoupler64.io.in
-  io.laneIO.txData <> sidebandTxWidthCoupler64.io.out
+  // private val sidebandRxWidthCoupler64 = new DataWidthCoupler(
+  //   DataWidthCouplerParams(
+  //     inWidth = io.laneIO.rxData.getWidth,
+  //     outWidth = 64,
+  //   ),
+  // )
+  // private val sidebandTxWidthCoupler64 = new DataWidthCoupler(
+  //   DataWidthCouplerParams(
+  //     inWidth = 64,
+  //     outWidth = io.laneIO.txData.getWidth,
+  //   ),
+  // )
+  // io.laneIO.rxData <> sidebandRxWidthCoupler64.io.in
+  // io.laneIO.txData <> sidebandTxWidthCoupler64.io.out
 
   private val currentReq = RegInit(0.U((new MessageRequest).msg.getWidth.W))
   private val currentReqHasData = RegInit(false.B)
   private val currentReqTimeoutMax = RegInit(0.U(64.W))
+  private val currentStatus = RegInit(MessageRequestStatusType.ERR)
 
   private val dataOut = RegInit(0.U(64.W))
   io.trainIO.msgReqStatus.bits.data := dataOut
-  io.trainIO.msgReqStatus.bits.status := Mux(
-    currentState === State.WAIT_ACK_SUCCESS,
-    MessageRequestStatusType.SUCCESS,
-    MessageRequestStatusType.ERR,
-  )
+  io.trainIO.msgReqStatus.bits.status := currentStatus
 
   switch(currentState) {
     is(State.IDLE) {
@@ -101,70 +100,90 @@ class SBMsgWrapper(
       }
 
       /** send message over sideband */
-      switch(sendSubState) {
-        is(SubState.SEND_OR_RECEIVE_MESSAGE) {
-          sidebandTxWidthCoupler64.io.in.valid := true.B
-          sidebandTxWidthCoupler64.io.in.bits := currentReq(64, 0)
-          when(sidebandTxWidthCoupler64.io.in.fire && currentReqHasData) {
-            sendSubState := SubState.SEND_OR_RECEIVE_DATA
-          }
-        }
-        is(SubState.SEND_OR_RECEIVE_DATA) {
-          sidebandTxWidthCoupler64.io.in.valid := true.B
-          sidebandTxWidthCoupler64.io.in.bits := currentReq(128, 64)
-          when(sidebandTxWidthCoupler64.io.in.fire) {
-            sendSubState := SubState.SEND_OR_RECEIVE_MESSAGE
-          }
+      io.laneIO.txData.valid := true.B
+      io.laneIO.txData.bits := currentReq
+      val hasSentMsg = Wire(io.laneIO.txData.fire || sentMsg)
+      sentMsg := hasSentMsg
+
+      /** if receive message, move on */
+      io.laneIO.rxData.ready := true.B
+      when(io.laneIO.rxData.fire) {
+        when(
+          messageIsEqual(
+            io.laneIO.rxData.bits(64, 0),
+            currentReq(64, 0),
+          ) && hasSentMsg,
+        ) {
+          dataOut := io.laneIO.rxData.bits(128, 64)
+          currentStatus := MessageRequestStatusType.SUCCESS
+          nextState := State.WAIT_ACK
         }
       }
 
-      /** if receive message, move on */
-      switch(receiveSubState) {
-        is(SubState.SEND_OR_RECEIVE_MESSAGE) {
-          sidebandRxWidthCoupler64.io.out.ready := true.B
-          when(sidebandRxWidthCoupler64.io.out.fire) {
-            when(
-              messageIsEqual(
-                sidebandRxWidthCoupler64.io.out.bits,
-                currentReq(64, 0),
-              ),
-            ) {
-              when(currentReqHasData) {
-                receiveSubState := SubState.SEND_OR_RECEIVE_DATA
-              }.otherwise {
-                nextState := State.WAIT_ACK_SUCCESS
-              }
-            }
-          }
-        }
-        is(SubState.SEND_OR_RECEIVE_DATA) {
-          sidebandRxWidthCoupler64.io.out.ready := true.B
-          when(sidebandRxWidthCoupler64.io.out.fire) {
-            dataOut := sidebandRxWidthCoupler64.io.out.bits
-            nextState := State.WAIT_ACK_SUCCESS
-          }
-        }
-      }
+      // switch(sendSubState) {
+      //   is(SubState.SEND_OR_RECEIVE_MESSAGE) {
+      //     sidebandTxWidthCoupler64.io.in.valid := true.B
+      //     sidebandTxWidthCoupler64.io.in.bits := currentReq(64, 0)
+      //     when(sidebandTxWidthCoupler64.io.in.fire && currentReqHasData) {
+      //       sendSubState := SubState.SEND_OR_RECEIVE_DATA
+      //     }
+      //   }
+      //   is(SubState.SEND_OR_RECEIVE_DATA) {
+      //     sidebandTxWidthCoupler64.io.in.valid := true.B
+      //     sidebandTxWidthCoupler64.io.in.bits := currentReq(128, 64)
+      //     when(sidebandTxWidthCoupler64.io.in.fire) {
+      //       sendSubState := SubState.SEND_OR_RECEIVE_MESSAGE
+      //     }
+      //   }
+      // }
+
+      // switch(receiveSubState) {
+      //   is(SubState.SEND_OR_RECEIVE_MESSAGE) {
+      //     sidebandRxWidthCoupler64.io.out.ready := true.B
+      //     when(sidebandRxWidthCoupler64.io.out.fire) {
+      //       when(
+      //         messageIsEqual(
+      //           sidebandRxWidthCoupler64.io.out.bits,
+      //           currentReq(64, 0),
+      //         ),
+      //       ) {
+      //         when(currentReqHasData) {
+      //           receiveSubState := SubState.SEND_OR_RECEIVE_DATA
+      //         }.otherwise {
+      //           nextState := State.WAIT_ACK_SUCCESS
+      //         }
+      //       }
+      //     }
+      //   }
+      //   is(SubState.SEND_OR_RECEIVE_DATA) {
+      //     sidebandRxWidthCoupler64.io.out.ready := true.B
+      //     when(sidebandRxWidthCoupler64.io.out.fire) {
+      //       dataOut := sidebandRxWidthCoupler64.io.out.bits
+      //       nextState := State.WAIT_ACK_SUCCESS
+      //     }
+      //   }
+      // }
 
       /** timeout logic */
       timeoutCounter := timeoutCounter + 1
       when(timeoutCounter === currentReqTimeoutMax) {
-        nextState := State.WAIT_ACK_ERR
+        nextState := State.WAIT_ACK
+        currentStatus := MessageRequestStatusType.ERR
       }
 
     }
-    is(State.WAIT_ACK_SUCCESS) {
+    is(State.WAIT_ACK) {
       io.trainIO.msgReqStatus.valid := true.B
       when(io.trainIO.msgReqStatus.fire) {
         nextState := State.IDLE
       }
     }
-    is(State.WAIT_ACK_ERR) {
-      io.trainIO.msgReqStatus.valid := true.B
-      when(io.trainIO.msgReqStatus.fire) {
-        nextState := State.IDLE
-      }
-    }
+    // is(State.WAIT_ACK_ERR) {
+    //   io.trainIO.msgReqStatus.valid := true.B
+    //   when(io.trainIO.msgReqStatus.fire) {
+    //     nextState := State.IDLE
+    //   }
+    // }
   }
 
 }

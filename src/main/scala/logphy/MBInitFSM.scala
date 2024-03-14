@@ -23,7 +23,9 @@ class MBInitFSM(
 
   val io = IO(new Bundle {
     // TODO: needs trigger?
-    val sbTrainIO = new SBMsgWrapperTrainIO
+    val sbTrainIO = Flipped(new SBMsgWrapperTrainIO)
+    val patternGeneratorIO = Flipped(new PatternGeneratorIO(afeParams))
+    val source = Output(MsgSource())
     val transition = Output(Bool())
     val error = Output(Bool())
   })
@@ -35,16 +37,21 @@ class MBInitFSM(
     val SEND_REQ, WAIT_REQ, SEND_RESP, WAIT_RESP = Value
   }
 
+  private object RepairClkSubState extends ChiselEnum {
+    val SEND_INIT_REQ, WAIT_INIT_REQ, SEND_INIT_RESP, WAIT_INIT_RESP,
+        SEND_CLOCK, WAIT_CLOCK, SEND_RESULT_REQ, WAIT_RESULT_REQ,
+        SEND_RESULT_RESP, WAIT_RESULT_RESP = Value
+  }
+
   private val state = RegInit(State.PARAM)
   private val nextState = Wire(state)
   private val paramSubState = RegInit(ParamSubState.SEND_REQ)
   when(nextState === State.PARAM) {
     paramSubState := ParamSubState.SEND_REQ
   }
+  private val source = Wire(MsgSource.PATTERN_GENERATOR)
+  io.source := source
 
-  when(reset.asBool) {
-    nextState := State.PARAM
-  }
   io.transition := nextState === State.IDLE || nextState === State.ERR
   io.error := state === State.ERR
   state := nextState
@@ -116,6 +123,7 @@ class MBInitFSM(
       }
 
       val reqData = RegInit(0.U(64.W))
+      source := MsgSource.SB_MSG_WRAPPER
 
       switch(paramSubState) {
         is(ParamSubState.SEND_REQ) {
@@ -167,7 +175,6 @@ class MBInitFSM(
         }
         is(ParamSubState.WAIT_RESP) {}
       }
-
     }
     is(State.REPAIR_CLK) {}
     is(State.REPAIR_VAL) {}

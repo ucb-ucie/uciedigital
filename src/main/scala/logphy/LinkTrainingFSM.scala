@@ -44,9 +44,6 @@ class LinkTrainingFSM(
   val patternGenerator = new PatternGenerator(afeParams)
   val sbMsgWrapper = new SBMsgWrapper(afeParams)
 
-  private object MsgSource extends ChiselEnum {
-    val PATTERN_GENERATOR, SB_MSG_WRAPPER = Value
-  }
   private val msgSource = Wire(MsgSource.PATTERN_GENERATOR)
   io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
@@ -278,7 +275,8 @@ class LinkTrainingFSM(
     }
     is(LinkTrainingState.mbInit) {
       mbInit.io.sbTrainIO <> sbMsgWrapper.io.trainIO
-      msgSource := MsgSource.SB_MSG_WRAPPER
+      mbInit.io.patternGeneratorIO <> patternGenerator.io.patternGeneratorIO
+      msgSource := mbInit.io.source
       when(mbInit.io.transition.asBool) {
         nextState := Mux(
           mbInit.io.error,

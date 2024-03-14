@@ -22,29 +22,14 @@ class RdiDataMapperIO(rdiParams: RdiParams) extends Bundle {
   val plData = Flipped(Valid(Bits((8 * rdiParams.width).W)))
 }
 
-class SidebandDataMapperIO(fdiParams: FdiParams) extends Bundle {
-  val tx = new Bundle {
-    val bits = Output(UInt(fdiParams.sbWidth.W))
-    val valid = Output(Bool())
-    val credit = Input(Bool())
-  }
-  val rx = new Bundle {
-    val bits = Input(UInt(fdiParams.sbWidth.W))
-    val valid = Input(Bool())
-    val credit = Output(Bool())
-  }
-}
-
 class RdiDataMapper(
     rdiParams: RdiParams,
-    fdiParams: FdiParams,
     afeParams: AfeParams,
 ) extends Module {
 
   val io = IO(new Bundle {
     val rdi = Flipped(new RdiDataMapperIO(rdiParams))
     val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
-    val sidebandDataMapperIO = new SidebandDataMapperIO(fdiParams)
   })
 
   private object State extends ChiselEnum {
@@ -130,18 +115,18 @@ class RdiDataMapper(
   /** Sideband Code */
   /** need to chunk SB message from rdi -> phy, need to collect from phy -> rdi
     */
-  assert(fdiParams.sbWidth * 8 > afeParams.sbSerializerRatio)
-  val sbRatio = (fdiParams.sbWidth * 8) / afeParams.sbSerializerRatio
-  val fdiSliceCounter = RegInit(0.U(log2Ceil(ratio).W))
-  private val currentSBTxState = RegInit(State.IDLE)
-  switch(currentSBTxState) {
-    is(State.IDLE) {
-      when(io.sidebandDataMapperIO.rx.valid) {
+  // assert(fdiParams.sbWidth * 8 > afeParams.sbSerializerRatio)
+  // val sbRatio = (fdiParams.sbWidth * 8) / afeParams.sbSerializerRatio
+  // val fdiSliceCounter = RegInit(0.U(log2Ceil(ratio).W))
+  // private val currentSBTxState = RegInit(State.IDLE)
+  // switch(currentSBTxState) {
+  //   is(State.IDLE) {
+  //     when(io.sidebandDataMapperIO.rx.valid) {
 
-        /** TODO: no backpressure from RDI? */
-      }
-    }
-    is(State.CHUNK) {}
-  }
+  //       /** TODO: no backpressure from RDI? */
+  //     }
+  //   }
+  //   is(State.CHUNK) {}
+  // }
 
 }

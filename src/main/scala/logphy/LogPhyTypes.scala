@@ -4,10 +4,15 @@ package logphy
 import scala.math._
 import chisel3._
 import chisel3.util._
+import sideband.SidebandParams
 import interfaces._
 
 object LinkTrainingState extends ChiselEnum {
   val reset, sbInit, mbInit, linkInit, active, linkError = Value
+}
+
+object MsgSource extends ChiselEnum {
+  val PATTERN_GENERATOR, SB_MSG_WRAPPER = Value
 }
 
 /** Sideband Types */
@@ -113,15 +118,15 @@ class MainbandLaneIO(
 }
 
 class SidebandLaneIO(
-    afeParams: AfeParams,
+    sbParams: SidebandParams,
 ) extends Bundle {
 
   /** Data to transmit on the mainband.
     */
   val txData = Flipped(
-    Decoupled(Bits((afeParams.sbSerializerRatio).W)),
+    Decoupled(Bits(sbParams.sbNodeMsgWidth.W)),
   )
 
   val rxData =
-    Decoupled(Bits((afeParams.sbSerializerRatio).W))
+    Decoupled(Bits(sbParams.sbNodeMsgWidth.W))
 }
