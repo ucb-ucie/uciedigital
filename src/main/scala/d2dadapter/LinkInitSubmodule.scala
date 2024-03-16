@@ -69,6 +69,11 @@ class LinkInitSubmodule() extends Module {
       io.linkinit_sb_snd := SideBandMessage.NOP
       param_exch_sbmsg_rcv_flag := false.B
       param_exch_sbmsg_snt_flag := false.B
+      active_sbmsg_req_rcv_flag := false.B
+      active_sbmsg_rsp_rcv_flag := false.B
+      active_sbmsg_ext_rsp_reg := false.B
+      active_sbmsg_ext_req_reg := false.B
+      transition_to_active_reg := false.B
 
       switch(linkinit_state_reg) {
         // INIT START

@@ -8,8 +8,18 @@ import sideband._
 
 class LinkManagementControllerIO (val fdiParams: FdiParams,
                                   val rdiParams: RdiParams) extends Bundle {
-    val fdi = Flipped(new Fdi(fdiParams))
-    val rdi = new Rdi(rdiParams)
+    //val fdi = Flipped(new Fdi(fdiParams))
+    val fdi_lp_state_req = Input(PhyStateReq())
+    val fdi_lp_linkerror = Input(Bool())
+    val fdi_lp_rx_active_sts = Input(Bool())
+    val fdi_pl_state_sts = Output(PhyState())
+    val fdi_pl_rx_active_req = Output(Bool())
+    val fdi_pl_inband_pres = Output(Bool())
+    //val rdi = new Rdi(rdiParams)
+    val rdi_lp_linkerror = Output(Bool())
+    val rdi_lp_state_req = Output(PhyStateReq())
+    val rdi_pl_state_sts = Input(PhyState())
+    val rdi_pl_inband_pres = Input(Bool())
     // TODO: We need to define a common packet format for SB internal messages
     val sb_snd = Output(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
     val sb_rcv = Input(UInt(D2DAdapterSignalSize.SIDEBAND_MESSAGE_OP_WIDTH))
@@ -41,7 +51,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val linkinit_submodule = Module(new LinkInitSubmodule())
     // Output registers
     // LinkError signal propagated to the PHY
-    val rdi_lp_linkerror_reg = RegInit(PhyStateReq.nop)
+    val rdi_lp_linkerror_reg = RegInit(false.B)
     val rdi_lp_state_req_reg = RegInit(PhyStateReq.nop)
 
     val fdi_pl_rxactive_req_reg = RegInit(false.B)
@@ -50,28 +60,28 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val linkmgmt_stallreq_reg = RegInit(false.B)
 
     // Internal registers
-    val fdi_lp_state_req_prev_reg = RegNext(io.fdi.lpStateReq)
+    val fdi_lp_state_req_prev_reg = RegNext(io.fdi_lp_state_req)
 
     // FDI/RDI state register
     val link_state_reg = RegInit(PhyState.reset)
 
     // Top level IO signal assignments
     // RDI
-    io.rdi.lpLinkError := rdi_lp_linkerror_reg
-    io.rdi.lpStateReq := rdi_lp_state_req_reg
+    io.rdi_lp_linkerror := rdi_lp_linkerror_reg
+    io.rdi_lp_state_req := rdi_lp_state_req_reg
     // FDI
-    io.fdi.plStateStatus := link_state_reg
-    io.fdi.plRxActiveReq := fdi_pl_rxactive_req_reg
-    io.fdi.plInbandPres := fdi_pl_inband_pres_reg
+    io.fdi_pl_state_sts := link_state_reg
+    io.fdi_pl_rx_active_req := fdi_pl_rxactive_req_reg
+    io.fdi_pl_inband_pres := fdi_pl_inband_pres_reg
 
     io.linkmgmt_stallreq := linkmgmt_stallreq_reg
 
     // LinkError propagation from Protocol layer to PHY
-    rdi_lp_linkerror_reg := io.fdi.lpLinkError
+    rdi_lp_linkerror_reg := io.fdi_lp_linkerror
 
     // Submodule IO signal assignments
     // Disabled submodule
-    disabled_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
+    disabled_submodule.io.fdi_lp_state_req := io.fdi_lp_state_req
     disabled_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     disabled_submodule.io.link_state := link_state_reg
     val disabled_entry = disabled_submodule.io.disabled_entry
@@ -82,7 +92,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     disabled_submodule.io.disabled_sb_rdy := disabled_sb_rdy
 
     // LinkReset submodule
-    linkreset_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
+    linkreset_submodule.io.fdi_lp_state_req := io.fdi_lp_state_req
     linkreset_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
     linkreset_submodule.io.link_state := link_state_reg
     val linkreset_entry = linkreset_submodule.io.linkreset_entry
@@ -93,8 +103,11 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     linkreset_submodule.io.linkreset_sb_rdy := linkreset_sb_rdy
 
     // LinkInit submodule
-    linkinit_submodule.io.fdi_lp_state_req := io.fdi.lpStateReq
+    linkinit_submodule.io.fdi_lp_state_req := io.fdi_lp_state_req
     linkinit_submodule.io.fdi_lp_state_req_prev := fdi_lp_state_req_prev_reg
+    linkinit_submodule.io.fdi_lp_rxactive_sts := io.fdi_lp_rx_active_sts
+    linkinit_submodule.io.rdi_pl_state_sts := io.rdi_pl_state_sts
+    linkinit_submodule.io.rdi_pl_inband_pres := io.rdi_pl_inband_pres
     linkinit_submodule.io.link_state := link_state_reg
     val linkinit_fdi_pl_rxactive_req = linkinit_submodule.io.linkinit_fdi_pl_rxactive_req
     val linkinit_fdi_pl_inband_pres = linkinit_submodule.io.linkinit_fdi_pl_inband_pres
@@ -109,25 +122,25 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     // FDI/RDI common state change triggers
     // LinkError logic
     // PHY informs the adapter over RDI that it is in linkError state
-    val linkerror_phy_sts = io.rdi.plStateStatus === PhyState.linkError
+    val linkerror_phy_sts = io.rdi_pl_state_sts === PhyState.linkError
     // Protocol initiates linkError through lp_linkerror assertion
-    val linkerror_fdi_req = io.fdi.lpLinkError
+    //val linkerror_fdi_req = io.fdi_lp_linkerror
     // Placeholder for any other internal request logic which can trigger linkError
 
     val stallhandler_handshake_done = linkmgmt_stallreq_reg & io.linkmgmt_stalldone
 
     // rx_deactive and rx_active signals for checking if rx on mainband is disabled
-    val rx_deactive = ~(io.fdi.lpRxActiveStatus) & ~(io.fdi.plRxActiveReq)
-    val rx_active = io.fdi.lpRxActiveStatus & io.fdi.plRxActiveReq
+    val rx_deactive = ~(io.fdi_lp_rx_active_sts) & ~(io.fdi_pl_rx_active_req)
+    val rx_active = io.fdi_lp_rx_active_sts & io.fdi_pl_rx_active_req
 
     // PHY informs the adapter over RDI that it should go into retrain
-    val retrain_phy_sts = (io.rdi.plStateStatus === PhyState.retrain)
+    val retrain_phy_sts = (io.rdi_pl_state_sts === PhyState.retrain)
 
     // Moved this condition to the disabled module
     // Reset to disabled requires atleast one clock cycle of lp_state_req = Reset(NOP)
     //val disabled_from_reset_fdi_req = ((fdi_lp_state_req_prev_reg === PhyStateReq.reset &&
-    //                                    io.fdi.lpStateReq === PhyStateReq.reset) &&
-    //                                    io.rdi.plStateStatus === PhyState.reset)
+    //                                    io.fdi_lp_state_req === PhyStateReq.reset) &&
+    //                                    io.rdi_pl_state_sts === PhyState.reset)
 
     // stall arbitration
     when(link_state_reg === PhyState.active) {
@@ -232,20 +245,20 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         rdi_lp_state_req_reg := PhyStateReq.nop
     }.elsewhen(link_state_reg === PhyState.linkError) {
         // Section 8.3.4.2 for link error exit
-        when(io.fdi.lpStateReq === PhyStateReq.active && !linkerror_fdi_req &&
-                (io.rdi.plStateStatus === PhyState.linkError)) {
+        when(io.fdi_lp_state_req === PhyStateReq.active &&
+                (io.rdi_pl_state_sts === PhyState.linkError)) {
             rdi_lp_state_req_reg := PhyStateReq.active
         }.otherwise {
             rdi_lp_state_req_reg := PhyStateReq.nop
         }
     }.elsewhen(link_state_reg === PhyState.disabled) {
-        when(io.fdi.lpStateReq === PhyStateReq.active) {
+        when(io.fdi_lp_state_req === PhyStateReq.active) {
             rdi_lp_state_req_reg := PhyStateReq.active
         }.otherwise{
             rdi_lp_state_req_reg := PhyStateReq.disabled
         }
     }.elsewhen(link_state_reg === PhyState.linkReset) {
-        when(io.fdi.lpStateReq === PhyStateReq.active) {
+        when(io.fdi_lp_state_req === PhyStateReq.active) {
             rdi_lp_state_req_reg := PhyStateReq.active
         }.otherwise{
             rdi_lp_state_req_reg := PhyStateReq.linkReset
@@ -257,7 +270,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     switch(link_state_reg) {
         // RESET
         is(PhyState.reset){
-            when(linkerror_phy_sts || linkerror_fdi_req) {
+            when(linkerror_phy_sts) {
                 // TODO: any internal condition to trigger linkError? + SB msgs
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry && rx_deactive) {
@@ -272,7 +285,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         }
         // ACTIVE
         is(PhyState.active) {
-            when(linkerror_phy_sts || linkerror_fdi_req) {
+            when(linkerror_phy_sts) {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry && rx_deactive && stallhandler_handshake_done) { // TODO: handle the stallreq/ack mechanism
                 link_state_reg := PhyState.disabled
@@ -288,7 +301,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         // TODO: Retrain to active without L1 and L2 happens through lp_state_req
         // should not require the linkinit to happen again? 
         is(PhyState.retrain) {
-            when(linkerror_phy_sts || linkerror_fdi_req) {
+            when(linkerror_phy_sts) {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry) {
                 link_state_reg := PhyState.disabled
@@ -302,8 +315,8 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         is(PhyState.linkError) {
             // TODO: Check this logic, also needs state change on internal reset request
             // 
-            when(io.fdi.lpStateReq === PhyStateReq.active && !linkerror_fdi_req &&
-                (io.rdi.plStateStatus === PhyState.linkError) && rx_deactive) {
+            when((io.fdi_lp_state_req === PhyStateReq.active ||
+                  io.rdi_pl_state_sts === PhyState.linkError) && rx_deactive) {
                     link_state_reg := PhyState.reset
                 }.otherwise {
                     link_state_reg := link_state_reg
@@ -311,10 +324,10 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         }
         // DISABLED
         is(PhyState.disabled) {
-            when(linkerror_phy_sts || linkerror_fdi_req) {
+            when(linkerror_phy_sts) {
                 link_state_reg := PhyState.linkError
-            }.elsewhen(io.fdi.lpStateReq === PhyStateReq.active || 
-                        io.rdi.plStateStatus === PhyState.reset) {
+            }.elsewhen(io.fdi_lp_state_req === PhyStateReq.active || 
+                        io.rdi_pl_state_sts === PhyState.reset) {
                 link_state_reg := PhyState.reset
             }.otherwise {
                 link_state_reg := link_state_reg
@@ -322,12 +335,12 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         }
         // LINKRESET
         is(PhyState.linkReset) {
-            when(linkerror_phy_sts || linkerror_fdi_req) {
+            when(linkerror_phy_sts) {
                 link_state_reg := PhyState.linkError
             }.elsewhen(disabled_entry && rx_deactive) {
                 link_state_reg := PhyState.disabled
-            }.elsewhen(io.fdi.lpStateReq === PhyStateReq.active || 
-                        io.rdi.plStateStatus === PhyState.reset) {
+            }.elsewhen(io.fdi_lp_state_req === PhyStateReq.active || 
+                        io.rdi_pl_state_sts === PhyState.reset) {
                 link_state_reg := PhyState.reset
             }.otherwise {
                 link_state_reg := link_state_reg

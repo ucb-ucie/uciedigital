@@ -142,10 +142,7 @@ class ParityGenerator(fdiParams: FdiParams) extends Module{
         parity_pcount_snd_reg := parity_pcount_snd_reg + fdiParams.width.U      
     }
 
-
-    for( i <- 0 until fdiParams.width){
-        io.parity_data(i) := parity_data_snd_reg(i)
-    }
+    io.parity_data := parity_data_snd_reg.asTypeOf(Bits((8 * fdiParams.width).W))
     io.parity_insert := parity_dcount_snd_reg === n_256_256
     // rcv data, check parity
     val parity_check_result_valid_reg = RegInit(false.B)
