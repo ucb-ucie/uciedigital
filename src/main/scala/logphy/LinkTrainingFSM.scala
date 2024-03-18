@@ -2,7 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package logphy
 
 import interfaces._
-import sideband.{SBM, SBMessage_factory, SidebandParams}
+import sideband._
 
 import chisel3._
 import chisel3.util._
@@ -21,6 +21,20 @@ class LinkTrainingRdiIO(
   val lpStateReq = Input(PhyStateReq())
 }
 
+class SidebandFSMIO(
+    sbParams: SidebandParams,
+) extends Bundle {
+  val rxData = Decoupled(Bits(sbParams.sbNodeMsgWidth.W))
+  val patternTxData = Flipped(
+    Decoupled(Bits(sbParams.sbNodeMsgWidth.W)),
+  )
+  val packetTxData = Flipped(
+    Decoupled(Bits(sbParams.sbNodeMsgWidth.W)),
+  )
+  val rxMode = Output(RXTXMode())
+  val txMode = Output(RXTXMode())
+}
+
 class LinkTrainingFSM(
     linkTrainingParams: LinkTrainingParams,
     sbParams: SidebandParams,
@@ -37,7 +51,8 @@ class LinkTrainingFSM(
 
     /** packet output from training */
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandLaneIO = new SidebandLaneIO(sbParams)
+    // val sidebandLaneIO = new SidebandLaneIO(sbParams)
+    val sidebandFSMIO = new SidebandFSMIO(sbParams)
     val rdi = new LinkTrainingRdiIO(rdiParams)
     val active = Output(Bool())
   })
@@ -47,10 +62,12 @@ class LinkTrainingFSM(
 
   private val msgSource = Wire(MsgSource.PATTERN_GENERATOR)
   io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
+  io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
+  io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
-    io.sidebandLaneIO <> patternGenerator.io.sidebandLaneIO
+    io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
   }.otherwise {
-    io.sidebandLaneIO <> sbMsgWrapper.io.laneIO
+    io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
   }
 
   private val currentState = RegInit(LinkTrainingState.reset)
@@ -73,9 +90,8 @@ class LinkTrainingFSM(
   }
 
   private object SBInitSubState extends ChiselEnum {
-    val SEND_CLOCK, SEND_LOW, WAIT_CLOCK, SB_OUT_OF_RESET_EXCH,
-        SB_OUT_OF_RESET_WAIT, SB_DONE_REQ, SB_DONE_REQ_WAIT, SB_DONE_RESP,
-        SB_DONE_RESP_WAIT = Value
+    val SEND_CLOCK, WAIT_CLOCK, SB_OUT_OF_RESET_EXCH, SB_OUT_OF_RESET_WAIT,
+        SB_DONE_REQ, SB_DONE_REQ_WAIT, SB_DONE_RESP, SB_DONE_RESP_WAIT = Value
   }
   private val sbInitSubState = RegInit(SBInitSubState.SEND_CLOCK)
   when(
@@ -96,6 +112,16 @@ class LinkTrainingFSM(
   // TODO: incorporate lpstatereq
   currentState := nextState
   io.active := currentState === LinkTrainingState.active
+  io.sidebandFSMIO.rxMode := Mux(
+    currentState === LinkTrainingState.sbInit &&
+      (sbInitSubState === SBInitSubState.SEND_CLOCK ||
+        sbInitSubState === SBInitSubState.WAIT_CLOCK ||
+        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_EXCH ||
+        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_WAIT),
+    RXTXMode.RAW,
+    RXTXMode.PACKET,
+  )
+  io.sidebandFSMIO.txMode := io.sidebandFSMIO.rxMode
 
   switch(currentState) {
     is(LinkTrainingState.reset) {
@@ -104,7 +130,7 @@ class LinkTrainingFSM(
       val resetFreqCtrValue = false.B
       io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
-      val (freqSelCtrValue, freqSelCtrWrap) = Counter(
+      val (freqSelCtrValue, _) = Counter(
         Range(1, linkTrainingParams.pllWaitTime),
         true.B,
         resetFreqCtrValue,

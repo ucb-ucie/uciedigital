@@ -37,16 +37,17 @@ class SidebandLinkNode(val sbParams: SidebandParams, val fdiParams: FdiParams)
   io.inner.layer_to_node.ready <> tx_ser.io.in.ready
 
   tx_ser.io.in.bits <> Cat(
-    io.inner.layer_to_node.bits.data(127, 59),
+    io.inner.layer_to_node.bits(127, 59),
     0.U(1.W),
-    io.inner.layer_to_node.bits.data(57, 0),
+    io.inner.layer_to_node.bits(57, 0),
   )
   tx_ser.io.in.valid <> io.inner.layer_to_node.valid
 
-  when(io.rxMode) {
+  when(io.rxMode === RXTXMode.PACKET) {
     io.inner.node_to_layer <> rx_queue.io.deq
   }.otherwise {
     rx_queue.io.enq.noenq()
+    rx_queue.io.deq.nodeq()
     io.inner.node_to_layer <> rx_des.io.out
   }
 }
