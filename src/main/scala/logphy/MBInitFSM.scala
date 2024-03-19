@@ -24,7 +24,7 @@ class MBInitFSM(
   val io = IO(new Bundle {
     // TODO: needs trigger?
     val sbTrainIO = Flipped(new SBMsgWrapperTrainIO)
-    val patternGeneratorIO = Flipped(new PatternGeneratorIO(afeParams))
+    val patternGeneratorIO = Flipped(new PatternGeneratorIO)
     val source = Output(MsgSource())
     val transition = Output(Bool())
     val error = Output(Bool())
@@ -113,7 +113,7 @@ class MBInitFSM(
           "PHY",
           data,
         )
-        msgReq.msgTypeHasData := true.B
+        // msgReq.msgTypeHasData := true.B
         msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
         msgReq.reqType := (if (req) MessageRequestType.MSG_REQ
                            else MessageRequestType.MSG_RESP)

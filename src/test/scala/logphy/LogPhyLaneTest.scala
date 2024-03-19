@@ -9,7 +9,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import interfaces._
 
 class LogPhyLaneTest extends AnyFlatSpec with ChiselScalatestTester {
-  val afeParams = new AfeParams()
+  val afeParams = AfeParams()
   val queueParams = new AsyncQueueParams()
   behavior of "log phy TX lanes"
   it should "correctly map TX bytes to their lanes" in {

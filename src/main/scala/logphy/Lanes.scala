@@ -66,7 +66,7 @@ class Lanes(
     txMBFifo.io.enq.bits(i) := txDataVec(i).asUInt
   }
   io.mainbandLaneIO.rxData.bits := rxDataVec.asUInt
-  rxMBFifo.io.deq.ready := io.mainbandLaneIO.rxData.ready
+  rxMBFifo.io.deq.ready := true.B
   io.mainbandLaneIO.txData.ready := txMBFifo.io.enq.ready
 }
 
@@ -132,7 +132,7 @@ class SimLanes(
     txMBFifo.io.enq.bits(i) := txDataVec(i).asUInt
   }
   io.mainbandLaneIO.rxData.bits := rxDataVec.asUInt
-  rxMBFifo.io.deq.ready := io.mainbandLaneIO.rxData.ready
+  rxMBFifo.io.deq.ready := true.B
   io.mainbandLaneIO.txData.ready := txMBFifo.io.enq.ready
 
 }

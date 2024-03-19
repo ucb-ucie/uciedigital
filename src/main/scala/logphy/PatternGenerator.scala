@@ -6,9 +6,7 @@ import chisel3.util._
 import sideband.SidebandParams
 import interfaces._
 
-class PatternGeneratorIO(
-    afeParams: AfeParams,
-) extends Bundle {
+class PatternGeneratorIO extends Bundle {
   val transmitInfo = Flipped(Decoupled(new Bundle {
     val pattern = TransmitPattern()
     val timeoutCycles = UInt(32.W)
@@ -22,19 +20,22 @@ class PatternGenerator(
     sbParams: SidebandParams,
 ) extends Module {
   val io = IO(new Bundle {
-    val patternGeneratorIO = new PatternGeneratorIO(afeParams)
+    val patternGeneratorIO = new PatternGeneratorIO()
 
     /** for now, assume want to transmit on sideband IO only */
-    val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandLaneIO = new SidebandLaneIO(sbParams)
+    val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
+    val sidebandLaneIO = Flipped(new SidebandLaneIO(sbParams))
   })
+
+  /** TODO: remove */
+  io.mainbandLaneIO.txData.noenq()
 
   private val writeInProgress = RegInit(false.B)
   private val readInProgress = RegInit(false.B)
-  private val inProgress = writeInProgress || readInProgress
+  private val inProgress = WireInit(writeInProgress || readInProgress)
   private val pattern = RegInit(TransmitPattern.CLOCK_64_LOW_32)
   private val sideband = RegInit(true.B)
-  private val timeoutCycles = RegInit(0.U)
+  private val timeoutCycles = RegInit(0.U(32.W))
   private val status = RegInit(MessageRequestStatusType.SUCCESS)
   private val statusValid = RegInit(false.B)
   io.patternGeneratorIO.transmitInfo.ready := (inProgress === false.B)
@@ -50,55 +51,54 @@ class PatternGenerator(
     statusValid := false.B
   }
 
-  // val clockPatternShiftReg = RegInit("h_aaaa_aaaa_aaaa_aaaa_0000_0000".U)
   /** clock gating is not implemented, so for now, just send 128 bits of regular
     * clock data
     */
   val clockPatternShiftReg = RegInit(
     "h_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa".U,
   )
-  val patternToTransmit = Wire(0.U(sbParams.sbNodeMsgWidth.W))
-  val patternDetectedCount = RegInit(0.U)
-  val patternWrittenCount = RegInit(0.U)
+  val patternToTransmit = WireInit(0.U(sbParams.sbNodeMsgWidth.W))
+  val patternDetectedCount = RegInit(0.U(log2Ceil(128 * 2 + 1).W))
+  val patternWrittenCount = RegInit(0.U(log2Ceil(2 + 1).W))
 
   val patternWrittenCountMax = Seq(
-    TransmitPattern.CLOCK_64_LOW_32 -> 4.U,
+    TransmitPattern.CLOCK_64_LOW_32 -> 2.U,
   )
 
   val patternDetectedCountMax = Seq(
     TransmitPattern.CLOCK_64_LOW_32 -> 128.U,
   )
 
-  // val outWidth = 4
-  // private val sidebandInWidthCoupler = new DataWidthCoupler(
-  //   /** collect size of largest pattern */
-  //   DataWidthCouplerParams(
-  //     inWidth = afeParams.sbSerializerRatio,
-  //     outWidth = outWidth,
-  //   ),
-  // )
-  // sidebandInWidthCoupler.io.in <> io.sidebandLaneIO.rxData
   io.sidebandLaneIO.txData.valid := writeInProgress
   io.sidebandLaneIO.txData.bits := patternToTransmit
   io.sidebandLaneIO.rxData.ready := readInProgress
-  // sidebandInWidthCoupler.io.out.ready := readInProgress
+
+  when(io.patternGeneratorIO.transmitPatternStatus.fire) {
+    statusValid := false.B
+  }
 
   when(inProgress) {
     timeoutCycles := timeoutCycles - 1.U
     when(timeoutCycles === 0.U) {
       status := MessageRequestStatusType.ERR
       statusValid := true.B
-      inProgress := false.B
+      writeInProgress := false.B
+      readInProgress := false.B
+      patternWrittenCount := 0.U
+      patternDetectedCount := 0.U
     }.elsewhen(
-      (patternWrittenCount === MuxLookup(pattern, 0.U)(
+      (patternWrittenCount >= MuxLookup(pattern, 0.U)(
         patternWrittenCountMax,
-      )) && (patternDetectedCount === MuxLookup(pattern, 0.U)(
+      )) && (patternDetectedCount >= MuxLookup(pattern, 0.U)(
         patternDetectedCountMax,
       )),
     ) {
       statusValid := true.B
       status := MessageRequestStatusType.SUCCESS
-      inProgress := false.B
+      writeInProgress := false.B
+      readInProgress := false.B
+      patternWrittenCount := 0.U
+      patternDetectedCount := 0.U
     }
   }
 
@@ -114,9 +114,11 @@ class PatternGenerator(
           0,
         )
         when(io.sidebandLaneIO.txData.fire) {
-          clockPatternShiftReg := (clockPatternShiftReg >> sbParams.sbNodeMsgWidth.U).asUInt &
-            (clockPatternShiftReg <<
-              (clockPatternShiftReg.getWidth.U - sbParams.sbNodeMsgWidth.U))
+          /* clockPatternShiftReg := (clockPatternShiftReg >>
+           * sbParams.sbNodeMsgWidth.U).asUInt & */
+          //   (clockPatternShiftReg <<
+          //     (clockPatternShiftReg.getWidth.U - sbParams.sbNodeMsgWidth.U))
+          printf("pattern written count: %d\n", patternWrittenCount)
           patternWrittenCount := patternWrittenCount + 1.U
         }
       }

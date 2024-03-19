@@ -39,7 +39,7 @@ class MessageRequest extends Bundle {
   val msg = UInt(128.W)
   val reqType = MessageRequestType()
   val timeoutCycles = UInt(64.W)
-  val msgTypeHasData = Bool()
+  // val msgTypeHasData = Bool()
 }
 
 class MessageRequestStatus extends Bundle {
@@ -114,7 +114,7 @@ class MainbandLaneIO(
   )
 
   val rxData =
-    Decoupled(Bits((afeParams.mbLanes * afeParams.mbSerializerRatio).W))
+    Valid(Bits((afeParams.mbLanes * afeParams.mbSerializerRatio).W))
 }
 
 class SidebandLaneIO(

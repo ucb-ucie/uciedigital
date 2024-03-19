@@ -51,7 +51,6 @@ class LinkTrainingFSM(
 
     /** packet output from training */
     val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    // val sidebandLaneIO = new SidebandLaneIO(sbParams)
     val sidebandFSMIO = new SidebandFSMIO(sbParams)
     val rdi = new LinkTrainingRdiIO(rdiParams)
     val active = Output(Bool())
@@ -209,7 +208,7 @@ class LinkTrainingFSM(
             "PHY",
           )
           sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_EXCH
-          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
 
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
@@ -242,7 +241,7 @@ class LinkTrainingFSM(
             "PHY",
           )
           sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_REQ
-          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
             0.008 * sbClockFreq,
@@ -275,7 +274,7 @@ class LinkTrainingFSM(
           )
           sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_RESP
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
-          sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           msgSource := MsgSource.SB_MSG_WRAPPER
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
             0.008 * sbClockFreq,

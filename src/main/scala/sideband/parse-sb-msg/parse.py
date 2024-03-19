@@ -173,6 +173,42 @@ object SBMessage_factory {
       println("SBMessage_factory: " + new_msg)
       new_msg
     }
+
+    def apply(
+          base: BitPat,
+          src: String,
+          remote: Boolean,
+          dst: String,
+          data: Int,
+          msgInfo: Int,
+      ): BigInt = {
+        // take the bottom 64 bits of the base by modulo
+        var msg: BigInt = base.value % (BigInt(1) << 64)
+        val src_num: BigInt = src match {
+          case "Protocol_0" => 0
+          case "Protocol_1" => 4
+          case "D2D"        => 1
+          case "PHY"        => 2
+          case _            => 0
+        }
+        var dst_num: BigInt = dst match {
+          case "Protocol_0" => 0
+          case "Protocol_1" => 4
+          case "D2D"        => 1
+          case "PHY"        => 2
+          case _            => 0
+        }
+        dst_num += (if (remote) 4 else 0)
+        msg += src_num << 29
+        dst_num = dst_num << 30
+        dst_num = dst_num << 26
+        msg += dst_num
+        println("SBMessage_factory: " + msg)
+        msg = msgInfo << (32 + 8)
+        val new_msg = (data << 64) | msg
+        println("SBMessage_factory: " + new_msg)
+        new_msg
+      }
 }
 '''
     chisel_names=''
