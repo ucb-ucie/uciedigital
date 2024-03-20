@@ -23,7 +23,7 @@ jobs:
         run: |
           sbt -v 'doc'
       - name: Upload atifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./target/scala-2.13/api
 
