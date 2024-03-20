@@ -57,7 +57,7 @@ libraryDependencies ++=
     "edu.berkeley.cs" %% "rocketchip-3.6.0" % "1.6-3.6.0-e3773366a-SNAPSHOT",
     "edu.berkeley.cs" %% "chisel3" % chiselVersion,
     "edu.berkeley.cs" %% "chiseltest" % "0.6.2" % "test",
-    "org.scalatest" %% "scalatest" % "3.2.17" % "test",
+    "org.scalatest" %% "scalatest" % "3.2.18" % "test",
   )
 
 resolvers ++= Resolver.sonatypeOssRepos("snapshots")
