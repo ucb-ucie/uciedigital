@@ -27,7 +27,9 @@ class SBMsgWrapperTest extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "correctly complete parameter exchange" in {
-    test(new SBMsgWrapper(sbParams)) { c => }
+    test(new SBMsgWrapper(sbParams)) { c =>
+      /** TODO */
+    }
   }
 
   private def testSBInitOutOfReset(c: SBMsgWrapper): Unit = {
@@ -48,7 +50,7 @@ class SBMsgWrapperTest extends AnyFlatSpec with ChiselScalatestTester {
     c.io.trainIO.msgReq.enqueueNow(
       (new MessageRequest).Lit(
         _.msg -> sbMsg.U,
-        _.reqType -> MessageRequestType.MSG_EXCH,
+        // _.reqType -> MessageRequestType.MSG_EXCH,
         _.timeoutCycles -> 80.U,
       ),
     )

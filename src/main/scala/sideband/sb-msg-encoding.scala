@@ -438,7 +438,7 @@ object SBMessage_factory {
     dst_num = dst_num << 26
     msg += dst_num
     println("SBMessage_factory: " + msg)
-    msg = msgInfo << (32 + 8)
+    msg |= (msgInfo & 0xffff) << (32 + 8)
     val new_msg = (data << 64) | msg
     println("SBMessage_factory: " + new_msg)
     new_msg

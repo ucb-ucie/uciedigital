@@ -63,17 +63,18 @@ class SBMsgWrapper(
         currentReq := io.trainIO.msgReq.bits.msg
         // currentReqHasData := io.trainIO.msgReq.bits.msgTypeHasData
         currentReqTimeoutMax := io.trainIO.msgReq.bits.timeoutCycles
-        switch(io.trainIO.msgReq.bits.reqType) {
-          is(MessageRequestType.MSG_REQ) {
-            nextState := State.EXCHANGE
-          }
-          is(MessageRequestType.MSG_RESP) {
-            nextState := State.EXCHANGE
-          }
-          is(MessageRequestType.MSG_EXCH) {
-            nextState := State.EXCHANGE
-          }
-        }
+        nextState := State.EXCHANGE
+        // switch(io.trainIO.msgReq.bits.reqType) {
+        //   is(MessageRequestType.MSG_REQ) {
+        //     nextState := State.EXCHANGE
+        //   }
+        //   is(MessageRequestType.MSG_RESP) {
+        //     nextState := State.EXCHANGE
+        //   }
+        //   is(MessageRequestType.MSG_EXCH) {
+        //     nextState := State.EXCHANGE
+        //   }
+        // }
       }
     }
     is(State.EXCHANGE) {

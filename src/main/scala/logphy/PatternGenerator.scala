@@ -7,7 +7,7 @@ import sideband.SidebandParams
 import interfaces._
 
 class PatternGeneratorIO extends Bundle {
-  val transmitInfo = Flipped(Decoupled(new Bundle {
+  val transmitReq = Flipped(Decoupled(new Bundle {
     val pattern = TransmitPattern()
     val timeoutCycles = UInt(32.W)
     val sideband = Bool()
@@ -23,12 +23,12 @@ class PatternGenerator(
     val patternGeneratorIO = new PatternGeneratorIO()
 
     /** for now, assume want to transmit on sideband IO only */
-    val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
+    // val mainbandLaneIO = Flipped(new MainbandLaneIO(afeParams))
     val sidebandLaneIO = Flipped(new SidebandLaneIO(sbParams))
   })
 
   /** TODO: remove */
-  io.mainbandLaneIO.txData.noenq()
+  // io.mainbandLaneIO.txData.noenq()
 
   private val writeInProgress = RegInit(false.B)
   private val readInProgress = RegInit(false.B)
@@ -38,16 +38,16 @@ class PatternGenerator(
   private val timeoutCycles = RegInit(0.U(32.W))
   private val status = RegInit(MessageRequestStatusType.SUCCESS)
   private val statusValid = RegInit(false.B)
-  io.patternGeneratorIO.transmitInfo.ready := (inProgress === false.B)
+  io.patternGeneratorIO.transmitReq.ready := (inProgress === false.B)
   io.patternGeneratorIO.transmitPatternStatus.valid := statusValid
   io.patternGeneratorIO.transmitPatternStatus.bits := status
 
-  when(io.patternGeneratorIO.transmitInfo.fire) {
+  when(io.patternGeneratorIO.transmitReq.fire) {
     writeInProgress := true.B
     readInProgress := true.B
-    pattern := io.patternGeneratorIO.transmitInfo.bits.pattern
-    sideband := io.patternGeneratorIO.transmitInfo.bits.sideband
-    timeoutCycles := io.patternGeneratorIO.transmitInfo.bits.timeoutCycles
+    pattern := io.patternGeneratorIO.transmitReq.bits.pattern
+    sideband := io.patternGeneratorIO.transmitReq.bits.sideband
+    timeoutCycles := io.patternGeneratorIO.transmitReq.bits.timeoutCycles
     statusValid := false.B
   }
 

@@ -11,8 +11,8 @@ case class LinkTrainingParams(
     /** The amount of cycles to wait after driving the PLL frequency */
     pllWaitTime: Int = 100,
     maxSBMessageSize: Int = 128,
-    mbTrainingParams: MBTrainingParams,
-    sbClockFreqAnalog: 800_000_000,
+    mbTrainingParams: MBTrainingParams = MBTrainingParams(),
+    sbClockFreqAnalog: Int = 800_000_000,
 )
 
 class LinkTrainingRdiIO(
@@ -31,8 +31,17 @@ class SidebandFSMIO(
   val packetTxData = Flipped(
     Decoupled(Bits(sbParams.sbNodeMsgWidth.W)),
   )
-  val rxMode = Output(RXTXMode())
-  val txMode = Output(RXTXMode())
+  val rxMode = Input(RXTXMode())
+  val txMode = Input(RXTXMode())
+  val rxEn = Input(Bool())
+  val pllLock = Output(Bool())
+}
+
+class MainbandFSMIO(
+) extends Bundle {
+  val rxEn = Input(Bool())
+  val pllLock = Output(Bool())
+  val txFreqSel = Input(SpeedMode())
 }
 
 class LinkTrainingFSM(
@@ -46,39 +55,43 @@ class LinkTrainingFSM(
     linkTrainingParams.sbClockFreqAnalog / afeParams.sbSerializerRatio
 
   val io = IO(new Bundle {
-    val mbAfe = new MainbandAfeIo(afeParams)
-    val sbAfe = new SidebandAfeIo(afeParams)
-
-    /** packet output from training */
-    val mainbandLaneIO = new MainbandLaneIO(afeParams)
-    val sidebandFSMIO = new SidebandFSMIO(sbParams)
+    val mainbandFSMIO = Flipped(new MainbandFSMIO)
+    val sidebandFSMIO = Flipped(new SidebandFSMIO(sbParams))
     val rdi = new LinkTrainingRdiIO(rdiParams)
     val active = Output(Bool())
   })
 
-  val patternGenerator = new PatternGenerator(afeParams, sbParams)
-  val sbMsgWrapper = new SBMsgWrapper(sbParams)
+  val patternGenerator = Module(new PatternGenerator(afeParams, sbParams))
+  val sbMsgWrapper = Module(new SBMsgWrapper(sbParams))
 
-  private val msgSource = Wire(MsgSource.PATTERN_GENERATOR)
-  io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
+  private val msgSource = WireInit(MsgSource.PATTERN_GENERATOR)
+  // io.mainbandLaneIO <> patternGenerator.io.mainbandLaneIO
+
+  patternGenerator.io.patternGeneratorIO.transmitReq.noenq()
+  patternGenerator.io.patternGeneratorIO.transmitPatternStatus.nodeq()
+  sbMsgWrapper.io.trainIO.msgReq.noenq()
+  sbMsgWrapper.io.trainIO.msgReqStatus.nodeq()
+
   io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
   io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
     io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
+    sbMsgWrapper.io.laneIO.rxData.noenq()
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
+    patternGenerator.io.sidebandLaneIO.rxData.noenq()
   }
 
   private val currentState = RegInit(LinkTrainingState.reset)
-  private val nextState = Wire(currentState)
+  private val nextState = WireInit(currentState)
   private val resetCounter = Counter(
     Range(1, 10000), // TODO: value
     true.B,
     (nextState === LinkTrainingState.reset && currentState =/= LinkTrainingState.reset), // TODO: does this also reset on implicit reset
   )
-  io.mbAfe.txZpd := VecInit.fill(afeParams.mbLanes)(0.U)
-  io.mbAfe.txZpu := VecInit.fill(afeParams.mbLanes)(0.U)
-  io.mbAfe.rxZ := VecInit.fill(afeParams.mbLanes)(0.U)
+  // io.mbAfe.txZpd := VecInit.fill(afeParams.mbLanes)(0.U)
+  // io.mbAfe.txZpu := VecInit.fill(afeParams.mbLanes)(0.U)
+  // io.mbAfe.rxZ := VecInit.fill(afeParams.mbLanes)(0.U)
 
   private object ResetSubState extends ChiselEnum {
     val INIT, FREQ_SEL_CYC_WAIT, FREQ_SEL_LOCK_WAIT = Value
@@ -102,7 +115,6 @@ class LinkTrainingFSM(
   private val mbInit = Module(
     new MBInitFSM(
       linkTrainingParams,
-      linkTrainingParams.mbTrainingParams,
       afeParams,
     ),
   )
@@ -122,13 +134,26 @@ class LinkTrainingFSM(
   )
   io.sidebandFSMIO.txMode := io.sidebandFSMIO.rxMode
 
+  /** initialize MBInit IOs */
+  mbInit.io.sbTrainIO.msgReq.nodeq()
+  mbInit.io.sbTrainIO.msgReqStatus.noenq()
+  mbInit.io.patternGeneratorIO.transmitReq.nodeq()
+  mbInit.io.patternGeneratorIO.transmitPatternStatus.noenq()
+
+  /** TODO: should these ever be false? */
+  io.sidebandFSMIO.rxEn := true.B
+  io.mainbandFSMIO.rxEn := (currentState =/= LinkTrainingState.reset)
+
+  /** TODO: what is default speed selection? */
+  io.mainbandFSMIO.txFreqSel := SpeedMode.speed4
+
   switch(currentState) {
     is(LinkTrainingState.reset) {
-      io.mbAfe.rxEn := false.B
-      io.sbAfe.rxEn := true.B
-      val resetFreqCtrValue = false.B
-      io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
-      io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
+      io.mainbandFSMIO.rxEn := false.B
+      io.sidebandFSMIO.rxEn := true.B
+      val resetFreqCtrValue = WireInit(false.B)
+      // io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
+      // io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       val (freqSelCtrValue, _) = Counter(
         Range(1, linkTrainingParams.pllWaitTime),
         true.B,
@@ -136,8 +161,8 @@ class LinkTrainingFSM(
       )
       switch(resetSubState) {
         is(ResetSubState.INIT) {
-          when(io.mbAfe.pllLock && io.sbAfe.pllLock) {
-            io.mbAfe.txFreqSel := SpeedMode.speed4
+          when(io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock) {
+            io.mainbandFSMIO.txFreqSel := SpeedMode.speed4
             resetSubState := ResetSubState.FREQ_SEL_CYC_WAIT
             resetFreqCtrValue := true.B
           }
@@ -149,7 +174,7 @@ class LinkTrainingFSM(
         }
         is(ResetSubState.FREQ_SEL_LOCK_WAIT) {
           when(
-            io.mbAfe.pllLock && io.sbAfe.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.linkReset
+            io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.linkReset
             /** TODO: what happened to reset */
             ),
           ) {
@@ -168,17 +193,17 @@ class LinkTrainingFSM(
 
       switch(sbInitSubState) {
         is(SBInitSubState.SEND_CLOCK) {
-          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.pattern := TransmitPattern.CLOCK_64_LOW_32
-          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.sideband := true.B
+          patternGenerator.io.patternGeneratorIO.transmitReq.bits.pattern := TransmitPattern.CLOCK_64_LOW_32
+          patternGenerator.io.patternGeneratorIO.transmitReq.bits.sideband := true.B
 
           /** Timeout occurs after 8ms */
-          patternGenerator.io.patternGeneratorIO.transmitInfo.bits.timeoutCycles := (
+          patternGenerator.io.patternGeneratorIO.transmitReq.bits.timeoutCycles := (
             0.008 * sbClockFreq,
           ).toInt.U
 
-          patternGenerator.io.patternGeneratorIO.transmitInfo.valid := true.B
+          patternGenerator.io.patternGeneratorIO.transmitReq.valid := true.B
           msgSource := MsgSource.PATTERN_GENERATOR
-          when(patternGenerator.io.patternGeneratorIO.transmitInfo.fire) {
+          when(patternGenerator.io.patternGeneratorIO.transmitReq.fire) {
             sbInitSubState := SBInitSubState.WAIT_CLOCK
           }
         }
@@ -207,7 +232,8 @@ class LinkTrainingFSM(
             true,
             "PHY",
           )
-          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_EXCH
+          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
+           * MessageRequestType.MSG_EXCH */
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
 
@@ -240,7 +266,8 @@ class LinkTrainingFSM(
             false,
             "PHY",
           )
-          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_REQ
+          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
+           * MessageRequestType.MSG_REQ */
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
@@ -272,7 +299,8 @@ class LinkTrainingFSM(
             false,
             "PHY",
           )
-          sbMsgWrapper.io.trainIO.msgReq.bits.reqType := MessageRequestType.MSG_RESP
+          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
+           * MessageRequestType.MSG_RESP */
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           msgSource := MsgSource.SB_MSG_WRAPPER
@@ -302,7 +330,7 @@ class LinkTrainingFSM(
     is(LinkTrainingState.mbInit) {
       mbInit.io.sbTrainIO <> sbMsgWrapper.io.trainIO
       mbInit.io.patternGeneratorIO <> patternGenerator.io.patternGeneratorIO
-      msgSource := mbInit.io.source
+      msgSource := MsgSource.SB_MSG_WRAPPER
       when(mbInit.io.transition.asBool) {
         nextState := Mux(
           mbInit.io.error,

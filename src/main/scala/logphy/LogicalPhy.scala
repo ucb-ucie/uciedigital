@@ -36,15 +36,14 @@ class LogicalPhy(
   // lanes.io.sidebandIo.rxData <> io.sbAfe.rxData
   // lanes.io.sidebandIo.fifoParams <> io.sbAfe.fifoParams
 
-  when(trainingModule.io.active) {
-
-    /** Connect RDI to Mainband IO */
-    rdiDataMapper.io.rdi.lpData <> io.rdi.lpData
-    io.rdi.plData <> rdiDataMapper.io.rdi.plData
-    rdiDataMapper.io.mainbandLaneIO <> lanes.io.mainbandLaneIO
-  }.otherwise {
-    lanes.io.mainbandLaneIO <> trainingModule.io.mainbandLaneIO
-  }
+  // when(trainingModule.io.active) {
+  /** Connect RDI to Mainband IO */
+  rdiDataMapper.io.rdi.lpData <> io.rdi.lpData
+  io.rdi.plData <> rdiDataMapper.io.rdi.plData
+  rdiDataMapper.io.mainbandLaneIO <> lanes.io.mainbandLaneIO
+  // }.otherwise {
+  //   lanes.io.mainbandLaneIO <> trainingModule.io.mainbandLaneIO
+  // }
 
   private val sidebandChannel =
     new PHYSidebandChannel(myId, sbParams, fdiParams)

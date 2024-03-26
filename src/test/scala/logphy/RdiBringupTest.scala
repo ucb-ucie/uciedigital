@@ -1,0 +1,5 @@
+package logphy
+
+class RdiBringupTest {
+
+}

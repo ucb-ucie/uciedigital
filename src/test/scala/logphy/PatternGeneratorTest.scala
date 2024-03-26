@@ -30,7 +30,7 @@ class PatternGeneratorTest extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def initPorts(c: PatternGenerator) = {
-    c.io.patternGeneratorIO.transmitInfo
+    c.io.patternGeneratorIO.transmitReq
       .initSource()
       .setSourceClock(c.clock)
     c.io.patternGeneratorIO.transmitPatternStatus
@@ -45,14 +45,14 @@ class PatternGeneratorTest extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def testClockPatternSideband(c: PatternGenerator): Unit = {
-    c.io.patternGeneratorIO.transmitInfo.ready.expect(true)
+    c.io.patternGeneratorIO.transmitReq.ready.expect(true)
     c.io.sidebandLaneIO.rxData.ready.expect(false)
     c.io.sidebandLaneIO.txData.expectInvalid()
     c.io.patternGeneratorIO.transmitPatternStatus.expectInvalid()
     c.clock.step()
 
-    c.io.patternGeneratorIO.transmitInfo.enqueueNow(
-      chiselTypeOf(c.io.patternGeneratorIO.transmitInfo.bits).Lit(
+    c.io.patternGeneratorIO.transmitReq.enqueueNow(
+      chiselTypeOf(c.io.patternGeneratorIO.transmitReq.bits).Lit(
         _.pattern -> TransmitPattern.CLOCK_64_LOW_32,
         _.timeoutCycles -> 80.U,
         _.sideband -> true.B,

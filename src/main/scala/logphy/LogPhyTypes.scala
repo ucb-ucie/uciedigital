@@ -29,15 +29,8 @@ class SBReqMsg extends Bundle {
   val msg = UInt(128.W)
 }
 
-object MessageRequestType extends ChiselEnum {
-  val MSG_EXCH, MSG_REQ, MSG_RESP = Value
-}
-
 class MessageRequest extends Bundle {
-  /* val msg = UInt(max((new SBReqMsg).getWidth, (new
-   * SBExchangeMsg).getWidth).W) */
   val msg = UInt(128.W)
-  val reqType = MessageRequestType()
   val timeoutCycles = UInt(64.W)
   // val msgTypeHasData = Bool()
 }

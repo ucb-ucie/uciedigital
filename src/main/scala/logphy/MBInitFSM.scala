@@ -17,15 +17,12 @@ case class MBTrainingParams(
 
 class MBInitFSM(
     linkTrainingParams: LinkTrainingParams,
-    trainingParams: MBTrainingParams,
     afeParams: AfeParams,
 ) extends Module {
 
   val io = IO(new Bundle {
-    // TODO: needs trigger?
     val sbTrainIO = Flipped(new SBMsgWrapperTrainIO)
     val patternGeneratorIO = Flipped(new PatternGeneratorIO)
-    val source = Output(MsgSource())
     val transition = Output(Bool())
     val error = Output(Bool())
   })
@@ -44,38 +41,41 @@ class MBInitFSM(
   }
 
   private val state = RegInit(State.PARAM)
-  private val nextState = Wire(state)
+  private val nextState = WireInit(state)
   private val paramSubState = RegInit(ParamSubState.SEND_REQ)
   when(nextState === State.PARAM) {
     paramSubState := ParamSubState.SEND_REQ
   }
-  private val source = Wire(MsgSource.PATTERN_GENERATOR)
-  io.source := source
 
   io.transition := nextState === State.IDLE || nextState === State.ERR
   io.error := state === State.ERR
   state := nextState
 
+  io.sbTrainIO.msgReq.noenq()
+  io.sbTrainIO.msgReqStatus.nodeq()
+  io.patternGeneratorIO.transmitReq.noenq()
+  io.patternGeneratorIO.transmitPatternStatus.nodeq()
+
   /** Initialize params */
   private val voltageSwing = RegInit(
-    trainingParams.voltageSwing.U(5.W),
+    linkTrainingParams.mbTrainingParams.voltageSwing.U(5.W),
   )
   private val maxDataRate = RegInit(
-    trainingParams.maximumDataRate.U(4.W),
+    linkTrainingParams.mbTrainingParams.maximumDataRate.U(4.W),
   )
   private val clockMode = RegInit(
-    trainingParams.clockMode,
+    linkTrainingParams.mbTrainingParams.clockMode,
   )
   private val clockPhase = RegInit(
-    trainingParams.clockPhase.B,
+    linkTrainingParams.mbTrainingParams.clockPhase.B,
   )
   // TODO: not implemented
   private val moduleId = RegInit(
-    trainingParams.moduleId.U(2.W),
+    linkTrainingParams.mbTrainingParams.moduleId.U(2.W),
   )
   // TODO: not implemented
   private val ucieAx32 = RegInit(
-    trainingParams.ucieAx32.B,
+    linkTrainingParams.mbTrainingParams.ucieAx32.B,
   )
 
   val sbClockFreq =
@@ -94,8 +94,8 @@ class MBInitFSM(
           moduleId: UInt,
           UCIeAx32: Bool,
       ): MessageRequest = {
-        val data = UInt(64.W)
-        val msgReq = new MessageRequest()
+        val data = Wire(UInt(64.W))
+        val msgReq = Wire(new MessageRequest)
         data := Cat(
           0.U(50.W),
           UCIeAx32,
@@ -113,15 +113,15 @@ class MBInitFSM(
           "PHY",
           data,
         )
+
         // msgReq.msgTypeHasData := true.B
         msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
-        msgReq.reqType := (if (req) MessageRequestType.MSG_REQ
-                           else MessageRequestType.MSG_RESP)
+        // msgReq.reqType := (if (req) MessageRequestType.MSG_REQ
+        //                    else MessageRequestType.MSG_RESP)
         msgReq
       }
 
       val reqData = RegInit(0.U(64.W))
-      source := MsgSource.SB_MSG_WRAPPER
 
       switch(paramSubState) {
         is(ParamSubState.SEND_REQ) {
@@ -154,12 +154,13 @@ class MBInitFSM(
         }
         is(ParamSubState.SEND_RESP) {
           io.sbTrainIO.msgReq.valid := true.B
-          val exchangedMaxDataRate = UInt(4.W)
+          val exchangedMaxDataRate = Wire(UInt(4.W))
           exchangedMaxDataRate := Mux(
             maxDataRate >= reqData(3, 0),
             reqData(3, 0),
             maxDataRate,
           )
+          maxDataRate := exchangedMaxDataRate
 
           io.sbTrainIO.msgReq.bits := formParamsReqMsg(
             false,
@@ -170,12 +171,25 @@ class MBInitFSM(
             0.U,
             0.B,
           )
+          when(io.sbTrainIO.msgReq.fire) {
+            paramSubState := ParamSubState.WAIT_RESP
+          }
         }
-        is(ParamSubState.WAIT_RESP) {}
+        is(ParamSubState.WAIT_RESP) {
+          io.sbTrainIO.msgReqStatus.ready := true.B
+          when(io.sbTrainIO.msgReqStatus.fire) {
+            when(
+              io.sbTrainIO.msgReqStatus.bits.status === MessageRequestStatusType.ERR,
+            ) {
+              nextState := State.ERR
+            }.otherwise {
+              nextState := State.IDLE
+            }
+          }
+
+        }
       }
     }
-    is(State.REPAIR_CLK) {}
-    is(State.REPAIR_VAL) {}
 
   }
 
