@@ -6,6 +6,10 @@ import chisel3.util._
 
 import interfaces._
 
+object RXTXMode extends ChiselEnum {
+  val RAW, PACKET = Value
+}
+
 class D2DSidebandChannelIO(
     val sbParams: SidebandParams,
     val fdiParams: FdiParams,
@@ -69,7 +73,14 @@ class PHYSidebandChannelIO(
     }
   }
   // phy layer drive these
-  val inner = Flipped(new SidebandSwitcherbundle(sbParams))
+  val inner = Flipped(new Bundle {
+
+    /** PHY perspective */
+    val inputMode = Output(RXTXMode())
+    val rxMode = Output(RXTXMode())
+    val rawInput = Decoupled(UInt(sbParams.sbNodeMsgWidth.W))
+    val switcherBundle = new SidebandSwitcherbundle(sbParams)
+  })
 }
 
 // IO for the RDI and FDI sideband
@@ -132,6 +143,8 @@ class SidebandLinkNodeOuterIO(
 class SidebandLinkIO(val sbParams: SidebandParams, val fdiParams: FdiParams)
     extends Bundle {
   // layers drive these
+  val rxMode = Input(RXTXMode())
+
   val inner = new Bundle {
     val layer_to_node = Flipped(Decoupled(UInt(sbParams.sbNodeMsgWidth.W)))
     /* This signal overrides the tx.ready and takes up the priority reserved
@@ -159,6 +172,7 @@ class SidebandSwitcherIO(val sbParams: SidebandParams) extends Bundle {
   val outer = new SidebandSwitcherbundle(sbParams)
 }
 
+/** From the perspective of the layer */
 class SidebandSwitcherbundle(val sbParams: SidebandParams) extends Bundle {
   val node_to_layer_above = Flipped(Decoupled(UInt(sbParams.sbNodeMsgWidth.W)))
   val layer_to_node_above = Decoupled(UInt(sbParams.sbNodeMsgWidth.W))

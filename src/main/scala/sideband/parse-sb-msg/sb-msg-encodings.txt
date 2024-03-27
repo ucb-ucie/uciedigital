@@ -118,6 +118,7 @@ mbinit_reversalmb_init_resp          55..40=0x0000 39..32=0x0D 21..14=0xAA 4..0=
 mbinit_reversalmb_clear_error_req    55..40=0x0000 39..32=0x0E 21..14=0xA5 4..0=0b10010
 mbinit_reversalmb_clear_error_resp   55..40=0x0000 39..32=0x0E 21..14=0xAA 4..0=0b10010
 mbinit_reversalmb_result_req         55..40=0x0000 39..32=0x0F 21..14=0xA5 4..0=0b10010
+mbinit_reversalmb_result_resp                      39..32=0xAA 21..14=0x0F 4..0=0b11011
 mbinit_reversalmb_done_req           55..40=0x0000 39..32=0x10 21..14=0xA5 4..0=0b10010
 mbinit_rversalmb_done_resp           55..40=0x0000 39..32=0x10 21..14=0xAA 4..0=0b10010
 mbinit_repairmb_start_req            55..40=0x0000 39..32=0x11 21..14=0xA5 4..0=0b10010
@@ -125,6 +126,8 @@ mbinit_repairmb_start_resp           55..40=0x0000 39..32=0x11 21..14=0xAA 4..0=
 mbinit_repairmb_apply_repair_resp    55..40=0x0000 39..32=0x12 21..14=0xAA 4..0=0b10010
 mbinit_repairmb_end_req              55..40=0x0000 39..32=0x13 21..14=0xA5 4..0=0b10010
 mbinit_repairmb_end_resp             55..40=0x0000 39..32=0x13 21..14=0xAA 4..0=0b10010
+mbinit_param_config_req              55..40=0x0000 39..32=0xA5 21..14=0x00 4..0=0b11011
+mbinit_param_config_resp             55..40=0x0000 39..32=0xAA 21..14=0x00 4..0=0b11011
 
 # skipped page 150 for now - do not understand what that does?
 
