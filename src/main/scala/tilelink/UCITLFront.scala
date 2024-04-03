@@ -62,10 +62,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     val sbus_reset = Input(Bool()) // System bus reset
     val lclk = Input(Clock()) // lclk is the FDI signalling clock
     val lreset = Input(Bool()) // should the UCIe modules have its own reset?
+    val fdi = new Fdi(outer.fdiParams)
   })
 
   // Instantiate the agnostic protocol layer
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
+  io.fdi := protocol.io.fdi
 
   val (in, managerEdge) = outer.managerNode.in(0)
   val (out, clientEdge) = outer.clientNode.out(0)

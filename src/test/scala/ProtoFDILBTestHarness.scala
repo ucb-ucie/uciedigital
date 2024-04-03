@@ -9,6 +9,9 @@ import org.chipsalliance.cde.config.{Field, Parameters, Config}
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
 import scala.collection.immutable.ListMap
+import tilelink._
+import interfaces._
+import protocol._
 
 trait HasSuccessIO { this: Module =>
   val io = IO(new Bundle {
@@ -34,14 +37,13 @@ class ProtoFDILBTester(implicit p: Parameters) extends LazyModule {
                           protoParams = tParams.proto, 
                           fdiParams = tParams.fdi))
 
-  val fdiLoopback = Module(ProtoFDILoopback(fdiParams = tParams.fdi, latency = 8))
+  val fdiLoopback = Module(new ProtoFDILoopback(fdiParams = tParams.fdi, latency = 8))
 
   val tlUcieDie2 = LazyModule(new UCITLFront(tlParams = tParams.tl, 
                           protoParams = tParams.proto, 
                           fdiParams = tParams.fdi))
 
   //tlUcieDie1.node := TLDelayer(tParams.delay) := fuzzm.node
-
   // Connect Die 1's FDI lp signals to the Loopback module's FDI lp signals
   fdiLoopback.io.fdi.lpRetimerCrd     := tlUcieDie1.io.fdi.lpRetimerCrd
   fdiLoopback.io.fdi.lpCorruptCrc     := tlUcieDie1.io.fdi.lpCorruptCrc
