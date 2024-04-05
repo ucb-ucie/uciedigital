@@ -3,7 +3,7 @@ package d2dadapter
 
 import chisel3._
 import chisel3.util._
-import chisel3.experimental._
+//import chisel3.experimental._
 
 class FDIStallHandlerIO() extends Bundle{
     // FDI: send request
