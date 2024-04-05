@@ -81,7 +81,7 @@ class Rdi(rdiParams: RdiParams) extends Bundle {
   val plWakeAck = Input(Bool())
 
   val plConfig = Flipped(Valid(UInt(rdiParams.sbWidth.W)))
-  val plConfigCredit = Input(Bool())
+  val plConfigCredit = Output(Bool())
   val lpConfig = Valid(UInt(rdiParams.sbWidth.W))
-  val lpConfigCredit = Output(Bool())
+  val lpConfigCredit = Input(Bool())
 }
