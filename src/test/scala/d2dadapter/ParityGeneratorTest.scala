@@ -8,7 +8,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import interfaces._
 
-/* Note: I run the test for over 4hr ... I tested the correctness of both test and module by modifying 256*256*N to 128*N */
 class ParityGeneratorTest extends AnyFlatSpec with ChiselScalatestTester {
     val fdiParams = new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32)
     behavior of "ParityGenerator"

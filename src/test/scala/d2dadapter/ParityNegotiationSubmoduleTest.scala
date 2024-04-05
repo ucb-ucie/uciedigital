@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
     // val parity_rx_enable = Output(Bool())// tell parity if the parity should be used for receiving
     // val parity_tx_enable = Output(Bool())// tell parity if the parity should be used for sending
 
-    // val cycles_2us = Input(UInt(32.W))
+    // val cycles_1us = Input(UInt(32.W))
 
 class ParityNegotiationSubmoduleTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "ParityNegotiationSubmoduleTest"
@@ -27,7 +27,7 @@ class ParityNegotiationSubmoduleTest extends AnyFlatSpec with ChiselScalatestTes
         test(new ParityNegotiationSubmodule()) { c => 
             // init
             c.io.start_negotiation.poke(false.B)
-            c.io.cycles_2us.poke(100.U(32.W))
+            c.io.cycles_1us.poke(100.U(32.W))
             c.io.parity_tx_sw_en.poke(false.B)
             c.io.parity_rx_sw_en.poke(false.B)
             c.io.parity_sb_rcv.poke(SideBandMessage.NOP)
@@ -106,7 +106,7 @@ class ParityNegotiationSubmoduleTest extends AnyFlatSpec with ChiselScalatestTes
         test(new ParityNegotiationSubmodule()) { c => 
             // init
             c.io.start_negotiation.poke(false.B)
-            c.io.cycles_2us.poke(100.U(32.W))
+            c.io.cycles_1us.poke(100.U(32.W))
             c.io.parity_tx_sw_en.poke(false.B)
             c.io.parity_rx_sw_en.poke(false.B)
             c.io.parity_sb_rcv.poke(SideBandMessage.NOP)
@@ -168,7 +168,7 @@ class ParityNegotiationSubmoduleTest extends AnyFlatSpec with ChiselScalatestTes
         test(new ParityNegotiationSubmodule()) { c => 
             // init
             c.io.start_negotiation.poke(false.B)
-            c.io.cycles_2us.poke(100.U(32.W))
+            c.io.cycles_1us.poke(100.U(32.W))
             c.io.parity_tx_sw_en.poke(false.B)
             c.io.parity_rx_sw_en.poke(false.B)
             c.io.parity_sb_rcv.poke(SideBandMessage.NOP)
@@ -216,7 +216,7 @@ class ParityNegotiationSubmoduleTest extends AnyFlatSpec with ChiselScalatestTes
         test(new ParityNegotiationSubmodule()) { c => 
             // init
             c.io.start_negotiation.poke(false.B)
-            c.io.cycles_2us.poke(100.U(32.W))
+            c.io.cycles_1us.poke(100.U(32.W))
             c.io.parity_tx_sw_en.poke(false.B)
             c.io.parity_rx_sw_en.poke(false.B)
             c.io.parity_sb_rcv.poke(SideBandMessage.NOP)

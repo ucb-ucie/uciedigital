@@ -8,15 +8,19 @@ import chisel3.experimental._
 import interfaces._
 
 class ParityGeneratorIO(fdiParams: FdiParams) extends Bundle{
-    val snd_data = Input(Bits((8 * fdiParams.width).W))
+    val snd_data = Input(Vec(fdiParams.width, UInt(8.W)))
+    //val snd_data = Input(Bits((8 * fdiParams.width).W))
     val snd_data_vld = Input(Bool())
-    val rcv_data = Input(Bits((8 * fdiParams.width).W))
+    val rcv_data = Input(Vec(fdiParams.width, UInt(8.W)))
+    //val rcv_data = Input(Bits((8 * fdiParams.width).W))
     val rcv_data_vld = Input(Bool())
 
-    val parity_data = Output(Bits((8 * fdiParams.width).W))
+    val parity_data = Output(Vec(fdiParams.width, UInt(8.W)))
+    //val parity_data = Output(Bits((8 * fdiParams.width).W))
     val parity_insert = Output(Bool())
     val parity_check = Output(Bool())
     val parity_rdy = Input(Bool())
+    
     val parity_check_result = Output(Vec(ParityAmount.PARITY_DATA_NBYTE_4, Bool()))
     val parity_check_result_valid = Output(Bool())
     val rdi_state = Input(PhyState())
@@ -142,7 +146,9 @@ class ParityGenerator(fdiParams: FdiParams) extends Module{
         parity_pcount_snd_reg := parity_pcount_snd_reg + fdiParams.width.U      
     }
 
-    io.parity_data := parity_data_snd_reg.asTypeOf(Bits((8 * fdiParams.width).W))
+    for( i <- 0 until fdiParams.width){
+        io.parity_data(i) := parity_data_snd_reg(i)
+    }
     io.parity_insert := parity_dcount_snd_reg === n_256_256
     // rcv data, check parity
     val parity_check_result_valid_reg = RegInit(false.B)

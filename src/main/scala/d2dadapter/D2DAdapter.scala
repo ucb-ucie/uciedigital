@@ -37,6 +37,37 @@ class D2DAdapter(val fdiParams: FdiParams, val rdiParams: RdiParams,
     val d2d_sideband = Module(new D2DSidebandModule(fdiParams, sbParams))
     val d2d_mainband = Module(new D2DMainbandModule(fdiParams, rdiParams, sbParams))
 
+    val parity_generator = Module(new ParityGenerator(fdiParams))
+
+    // default assignments for the FDI and RDI interfaces
+    io.fdi.plProtocolValid := true.B
+    io.fdi.plProtocolFlitFormat := FlitFormat.raw
+    io.fdi.plProtocol := Protocol.streaming
+    io.fdi.plSpeedMode := io.rdi.plSpeedMode
+    io.fdi.plLinkWidth := io.rdi.plLinkWidth
+    io.fdi.plFlitCancel := false.B 
+
+    io.fdi.plNfError := false.B
+    io.fdi.plTrainError := false.B
+    io.fdi.plError := false.B
+    io.fdi.plCerror := false.B
+
+    io.fdi.plPhyInRecenter := false.B
+    io.fdi.plPhyInL1 := false.B
+    io.fdi.plPhyInL2 := false.B
+    io.fdi.plDllp.bits := 0.U
+    io.fdi.plDllp.valid := false.B
+    io.fdi.plDllpOfc := false.B
+
+    io.fdi.plClkReq := true.B
+    io.rdi.lpClkAck := true.B
+    io.fdi.plWakeAck := true.B
+
+    io.fdi.plRetimerCrd := false.B
+
+    io.rdi.lpRetimerCrd := false.B
+    io.rdi.lpWakeReq := true.B
+    
     // link management controller
     // FDI interface
     link_manager.io.fdi_lp_state_req := io.fdi.lpStateReq
@@ -59,6 +90,15 @@ class D2DAdapter(val fdiParams: FdiParams, val rdiParams: RdiParams,
     // stall handler <-> LinkManagementController
     link_manager.io.linkmgmt_stalldone := fdi_stall_handler.io.linkmgmt_stalldone
     fdi_stall_handler.io.linkmgmt_stallreq := link_manager.io.linkmgmt_stallreq
+
+    //TODO: should move this to a MMIO register
+    link_manager.io.cycles_1us := 1000.U
+
+    // parity generator <-> link manager
+    link_manager.io.parity_tx_sw_en := false.B // TODO: this should be software triggered, MMIO regs?
+    link_manager.io.parity_rx_sw_en := false.B // TODO: this should be software triggered, MMIO regs?
+    parity_generator.io.parity_rx_enable := link_manager.io.parity_rx_enable
+    parity_generator.io.parity_tx_enable := link_manager.io.parity_tx_enable
 
     // Sideband 
     io.fdi.plConfig.bits := d2d_sideband.io.fdi_pl_cfg
@@ -105,13 +145,22 @@ class D2DAdapter(val fdiParams: FdiParams, val rdiParams: RdiParams,
     // stall handler <-> mainband
     d2d_mainband.io.mainband_stallreq := rdi_stall_handler.io.mainband_stallreq
     rdi_stall_handler.io.mainband_stalldone := d2d_mainband.io.mainband_stalldone
+    
+    // parity generator <-> mainband
+    //(Bits((8 * fdiParams.width).W))
+    parity_generator.io.snd_data := d2d_mainband.io.snd_data.asTypeOf(Vec(fdiParams.width, UInt(8.W)))
+    parity_generator.io.snd_data_vld := d2d_mainband.io.snd_data_vld
+    parity_generator.io.rcv_data := d2d_mainband.io.rcv_data.asTypeOf(Vec(fdiParams.width, UInt(8.W)))
+    parity_generator.io.rcv_data_vld := d2d_mainband.io.rcv_data_vld
+    d2d_mainband.io.parity_insert := parity_generator.io.parity_insert
+    d2d_mainband.io.parity_data := parity_generator.io.parity_data.asTypeOf(Bits((8 * fdiParams.width).W))
+    parity_generator.io.parity_rdy := d2d_mainband.io.parity_rdy
+    d2d_mainband.io.parity_check := parity_generator.io.parity_check
 
-    // d2d_mainband.io.snd_data = Output(Bits((8 * fdiParams.width).W))
-    // d2d_mainband.io.snd_data_vld = Output(Bool())
-    // d2d_mainband.io.rcv_data = Output(Bits((8 * rdiParams.width).W))
-    // d2d_mainband.io.rcv_data_vld = Output(Bool())
-    // d2d_mainband.io.parity_insert = Input(Bool())// need to send parity
-    // d2d_mainband.io.parity_data = Input(Bits((8 * fdiParams.width).W))// the data needed to be sent first as parity
-    // d2d_mainband.io.parity_rdy = Output(Bool()) // indicating that the parity data is sent, next can come in
-    // d2d_mainband.io.parity_check = Input(Bool())
+    // Parity generator submodule other IOs
+    parity_generator.io.parity_n := ParityN.ONE
+    parity_generator.io.rdi_state := io.rdi.plStateStatus
+    // Store these into some MMIO based registers
+    val parity_check_result = parity_generator.io.parity_check_result
+    val parity_check_result_valid = parity_generator.io.parity_check_result_valid
 }

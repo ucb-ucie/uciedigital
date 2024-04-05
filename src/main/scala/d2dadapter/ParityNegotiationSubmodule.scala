@@ -18,7 +18,7 @@ class ParityNegotiationSubmoduleIO() extends Bundle{
     val parity_rx_enable = Output(Bool())// tell parity if the parity should be used for receiving
     val parity_tx_enable = Output(Bool())// tell parity if the parity should be used for sending
 
-    val cycles_2us = Input(UInt(32.W))
+    val cycles_1us = Input(UInt(32.W))
 }
 
 
@@ -34,7 +34,7 @@ class ParityNegotiationSubmodule() extends Module{
 
     val parity_req_timeout_counter_reg = RegInit(0.U(32.W))
 
-    val timeout = io.cycles_2us << 2 // 8ms
+    val timeout = io.cycles_1us << 2 // 8ms
 
     io.parity_rx_enable := parity_rx_enable_reg
     io.parity_tx_enable := parity_tx_enable_reg

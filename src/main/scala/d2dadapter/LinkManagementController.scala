@@ -27,6 +27,12 @@ class LinkManagementControllerIO (val fdiParams: FdiParams,
     // stall handlers for the mainband
     val linkmgmt_stallreq = Output(Bool())
     val linkmgmt_stalldone = Input(Bool())
+    val cycles_1us = Input(UInt(32.W))// number of cycles to 1 us
+    // Dynamic testing with parity
+    val parity_tx_sw_en = Input(Bool())// if parity tx is enabled by software
+    val parity_rx_sw_en = Input(Bool())// if parity rx is enabled by software
+    val parity_rx_enable = Output(Bool())// tell parity if the parity should be used for receiving
+    val parity_tx_enable = Output(Bool())// tell parity if the parity should be used for sending
 }
 
 /**
@@ -49,6 +55,9 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     val linkreset_submodule = Module(new LinkResetSubmodule())
     // LinkInit submodule
     val linkinit_submodule = Module(new LinkInitSubmodule())
+    // Parity negotiation submodule
+    val parity_negotiation_submodule = Module(new ParityNegotiationSubmodule())
+
     // Output registers
     // LinkError signal propagated to the PHY
     val rdi_lp_linkerror_reg = RegInit(false.B)
@@ -119,6 +128,20 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     linkinit_submodule.io.linkinit_sb_rcv := io.sb_rcv
     linkinit_submodule.io.linkinit_sb_rdy := linkinit_sb_rdy
 
+    // Parity negotiation submodule
+    io.parity_tx_enable := parity_negotiation_submodule.io.parity_tx_enable
+    io.parity_rx_enable := parity_negotiation_submodule.io.parity_rx_enable
+
+    parity_negotiation_submodule.io.start_negotiation := link_state_reg === PhyState.retrain
+    val negotiation_complete = parity_negotiation_submodule.io.negotiation_complete 
+    parity_negotiation_submodule.io.parity_sb_rcv := io.sb_rcv
+    val parity_negotiation_sb_snd = parity_negotiation_submodule.io.parity_sb_snd
+    val parity_negotiation_sb_rdy = Wire(Bool())
+    parity_negotiation_submodule.io.parity_sb_rdy := parity_negotiation_sb_rdy 
+    parity_negotiation_submodule.io.parity_rx_sw_en := io.parity_rx_sw_en
+    parity_negotiation_submodule.io.parity_tx_sw_en := io.parity_tx_sw_en
+    parity_negotiation_submodule.io.cycles_1us := io.cycles_1us
+
     // FDI/RDI common state change triggers
     // LinkError logic
     // PHY informs the adapter over RDI that it is in linkError state
@@ -187,6 +210,7 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
     linkreset_sb_rdy := false.B
     disabled_sb_rdy := false.B
     linkinit_sb_rdy := false.B
+    parity_negotiation_sb_rdy := false.B
 
     when(link_state_reg === PhyState.reset){
         when(disabled_sb_snd =/= SideBandMessage.NOP){
@@ -218,6 +242,9 @@ class LinkManagementController (val fdiParams: FdiParams, val rdiParams: RdiPara
         }.elsewhen(linkreset_sb_snd =/= SideBandMessage.NOP){
             io.sb_snd := linkreset_sb_snd
             linkreset_sb_rdy := io.sb_rdy
+        }.elsewhen(parity_negotiation_sb_snd =/= SideBandMessage.NOP){
+            io.sb_snd := parity_negotiation_sb_snd
+            parity_negotiation_sb_rdy := io.sb_rdy
         }.otherwise{
             io.sb_snd := SideBandMessage.NOP
         }
