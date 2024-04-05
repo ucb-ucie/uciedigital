@@ -1,8 +1,8 @@
 package edu.berkeley.cs.ucie.digital
 package d2dadapter
 
-import chisel3._
-import chisel3.util._
+// import chisel3._
+// import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 

@@ -2,7 +2,7 @@ package edu.berkeley.cs.ucie.digital
 package d2dadapter
 
 import chisel3._
-import chisel3.util._
+//import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -17,7 +17,7 @@ class LinkManagementControllerTest extends AnyFlatSpec with ChiselScalatestTeste
     it should "init and then link error" in {
         test(new LinkManagementController(fdiParams, rdiParams, sbParams)) { c => 
             //init
-            val cycles_2us = 100
+            val cycles_1us = 100
             c.io.fdi_lp_state_req.poke(PhyStateReq.nop)
             c.io.fdi_lp_linkerror.poke(false.B)
             c.io.rdi_pl_state_sts.poke(PhyState.reset)
@@ -32,7 +32,7 @@ class LinkManagementControllerTest extends AnyFlatSpec with ChiselScalatestTeste
             c.io.linkmgmt_stalldone.poke(false.B)
             // c.io.parity_tx_sw_en.poke(false.B)
             // c.io.parity_rx_sw_en.poke(false.B)
-            // c.io.cycles_2us.poke(cycles_2us.U)
+            c.io.cycles_1us.poke(cycles_1us.U)
             c.clock.step(1)
             for(i <- 0 until 10){
                 // should not give any signal

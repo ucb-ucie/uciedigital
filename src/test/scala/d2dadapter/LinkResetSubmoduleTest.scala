@@ -2,12 +2,12 @@ package edu.berkeley.cs.ucie.digital
 package d2dadapter
 
 import chisel3._
-import chisel3.util._
+//import chisel3.util._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
 import interfaces._
-import sideband._
+//import sideband._
 
     // val fdi_lp_state_req = Input(UInt(D2DAdapterSignalSize.STATE_WIDTH))
     // val linkreset_rdi_lp_state_req = Output(UInt(D2DAdapterSignalSize.STATE_WIDTH))
