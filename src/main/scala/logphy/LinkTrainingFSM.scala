@@ -3,8 +3,8 @@ package logphy
 
 import interfaces._
 import sideband._
-
 import chisel3._
+import chisel3.experimental.AffectsChiselPrefix
 import chisel3.util._
 
 case class LinkTrainingParams(
@@ -58,7 +58,8 @@ class LinkTrainingFSM(
     val mainbandFSMIO = Flipped(new MainbandFSMIO)
     val sidebandFSMIO = Flipped(new SidebandFSMIO(sbParams))
     val rdi = new LinkTrainingRdiIO(rdiParams)
-    val active = Output(Bool())
+    // val active = Output(Bool())
+    val currentState = Output(LinkTrainingState())
   })
 
   val patternGenerator = Module(new PatternGenerator(afeParams, sbParams))
@@ -84,11 +85,12 @@ class LinkTrainingFSM(
 
   private val currentState = RegInit(LinkTrainingState.reset)
   private val nextState = WireInit(currentState)
-  private val resetCounter = Counter(
-    Range(1, 10000), // TODO: value
-    true.B,
-    (nextState === LinkTrainingState.reset && currentState =/= LinkTrainingState.reset), // TODO: does this also reset on implicit reset
-  )
+  // private val resetCounter = Counter(
+  //   Range(1, 10000), // TODO: value
+  //   true.B,
+  /* (nextState === LinkTrainingState.reset && currentState =/=
+   * LinkTrainingState.reset), // TODO: does this also reset on implicit reset */
+  // )
   // io.mbAfe.txZpd := VecInit.fill(afeParams.mbLanes)(0.U)
   // io.mbAfe.txZpu := VecInit.fill(afeParams.mbLanes)(0.U)
   // io.mbAfe.rxZ := VecInit.fill(afeParams.mbLanes)(0.U)
@@ -97,7 +99,9 @@ class LinkTrainingFSM(
     val INIT, FREQ_SEL_CYC_WAIT, FREQ_SEL_LOCK_WAIT = Value
   }
   private val resetSubState = RegInit(ResetSubState.INIT)
-  when(nextState === LinkTrainingState.reset) {
+  when(
+    nextState === LinkTrainingState.reset && currentState =/= LinkTrainingState.reset,
+  ) {
     resetSubState := ResetSubState.INIT
   }
 
@@ -122,7 +126,7 @@ class LinkTrainingFSM(
 
   // TODO: incorporate lpstatereq
   currentState := nextState
-  io.active := currentState === LinkTrainingState.active
+  // io.active := currentState === LinkTrainingState.active
   io.sidebandFSMIO.rxMode := Mux(
     currentState === LinkTrainingState.sbInit &&
       (sbInitSubState === SBInitSubState.SEND_CLOCK ||
@@ -146,19 +150,24 @@ class LinkTrainingFSM(
 
   /** TODO: what is default speed selection? */
   io.mainbandFSMIO.txFreqSel := SpeedMode.speed4
+  io.currentState := currentState
+  val resetFreqCtrValue = WireInit(false.B)
+  resetFreqCtrValue := false.B
 
   switch(currentState) {
     is(LinkTrainingState.reset) {
       io.mainbandFSMIO.rxEn := false.B
       io.sidebandFSMIO.rxEn := true.B
-      val resetFreqCtrValue = WireInit(false.B)
       // io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       // io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       val (freqSelCtrValue, _) = Counter(
-        Range(1, linkTrainingParams.pllWaitTime),
-        true.B,
-        resetFreqCtrValue,
+        (1 until linkTrainingParams.pllWaitTime),
+        reset = resetFreqCtrValue,
       )
+      // val (freqSelCtrValue, _) = Counter(
+      //   resetSubState === ResetSubState.FREQ_SEL_CYC_WAIT,
+      //   linkTrainingParams.pllWaitTime - 1,
+      // )
       switch(resetSubState) {
         is(ResetSubState.INIT) {
           when(io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock) {
@@ -174,9 +183,10 @@ class LinkTrainingFSM(
         }
         is(ResetSubState.FREQ_SEL_LOCK_WAIT) {
           when(
-            io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock && (io.rdi.lpStateReq =/= PhyStateReq.linkReset
-            /** TODO: what happened to reset */
-            ),
+            io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock,
+            /** TODO: what is "Local SoC/Firmware not keeping the Physical Layer
+              * in RESET"
+              */
           ) {
             nextState := LinkTrainingState.sbInit
           }
@@ -263,7 +273,7 @@ class LinkTrainingFSM(
           sbMsgWrapper.io.trainIO.msgReq.bits.msg := SBMessage_factory(
             SBM.SBINIT_DONE_REQ,
             "PHY",
-            false,
+            true,
             "PHY",
           )
           /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
@@ -296,7 +306,7 @@ class LinkTrainingFSM(
           sbMsgWrapper.io.trainIO.msgReq.bits.msg := SBMessage_factory(
             SBM.SBINIT_DONE_RESP,
             "PHY",
-            false,
+            remote = true,
             "PHY",
           )
           /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=

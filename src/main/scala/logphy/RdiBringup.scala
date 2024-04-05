@@ -7,36 +7,28 @@ import sideband.{SBMessage_factory, SBM}
 import interfaces._
 
 class RdiBringupIO extends Bundle {
-  val plInbandPres = Input(Bool())
-  val plError = Input(Bool())
-  val plCorrectableError = Input(Bool())
-  val plNonFatalError = Input(Bool())
-  val plTrainError = Input(Bool())
-  val plPhyInRecenter = Input(Bool())
-  val plStallReq = Input(Bool())
-  val lpStallAck = Output(Bool())
-  val plSpeedMode = Input(SpeedMode())
-  val plLinkWidth = Input(PhyWidth())
+  // Tie to 1 if clock gating not supported.
+  val plClkReq = Output(Bool())
+  val lpClkAck = Input(Bool())
 
   // Tie to 1 if clock gating not supported.
-  val plClkReq = Input(Bool())
-  val lpClkAck = Output(Bool())
+  val lpWakeReq = Input(Bool())
+  val plWakeAck = Output(Bool())
 
-  // Tie to 1 if clock gating not supported.
-  val lpWakeReq = Output(Bool())
-  val plWakeAck = Input(Bool())
-
-  val lpStateReq = Output(PhyStateReq())
+  val lpStateReq = Input(PhyStateReq())
 }
 
 class RdiBringup extends Module {
 
   val io = IO(new Bundle {
-    val rdiIO = Flipped(new RdiBringupIO)
+    val rdiIO = new RdiBringupIO
     val sbTrainIO = Flipped(new SBMsgWrapperTrainIO)
     val transition = Output(Bool())
     val error = Output(Bool())
   })
+
+  io.rdiIO.plClkReq := true.B
+  io.rdiIO.plWakeAck := true.B
 
   private object State extends ChiselEnum {
     val CLK_HANDSHAKE, LP_WAKE_HANDSHAKE, WAIT_LP_STATE_REQ, REQ_ACTIVE_SEND,
@@ -48,6 +40,8 @@ class RdiBringup extends Module {
   io.transition := nextState === State.IDLE || nextState === State.ERR
   io.error := state === State.ERR
   state := nextState
+  io.sbTrainIO.msgReq.noenq()
+  io.sbTrainIO.msgReqStatus.nodeq()
 
   switch(state) {
     is(State.WAIT_LP_STATE_REQ) {

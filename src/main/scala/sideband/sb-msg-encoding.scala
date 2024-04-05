@@ -403,9 +403,9 @@ object SBMessage_factory {
     dst_num = dst_num << 30
     dst_num = dst_num << 26
     msg += dst_num
-    println("SBMessage_factory: " + msg)
+    // println("SBMessage_factory: " + msg)
     val new_msg = Cat(data, (msg.U(64.W) | (msgInfo << (32 + 8).U)))
-    println("SBMessage_factory: " + new_msg)
+    // printf("SBMessage_factory: %x\n", new_msg)
     new_msg
   }
   def apply(
@@ -437,10 +437,10 @@ object SBMessage_factory {
     dst_num = dst_num << 30
     dst_num = dst_num << 26
     msg += dst_num
-    println("SBMessage_factory: " + msg)
+    // println("SIM SBMessage_factory: " + msg)
     msg |= (msgInfo & 0xffff) << (32 + 8)
     val new_msg = (data << 64) | msg
-    println("SBMessage_factory: " + new_msg)
+    // println("SIM SBMessage_factory: " + new_msg)
     new_msg
   }
 }

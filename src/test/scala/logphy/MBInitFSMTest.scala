@@ -19,6 +19,30 @@ class MBInitFSMTest extends AnyFlatSpec with ChiselScalatestTester {
 
   def formParamsReqMsg(
       req: Boolean,
+      linkTrainingParams: LinkTrainingParams,
+  ): UInt = {
+    val data: Int = formMsgReqData(
+      linkTrainingParams.mbTrainingParams.voltageSwing,
+      linkTrainingParams.mbTrainingParams.maximumDataRate,
+      linkTrainingParams.mbTrainingParams.clockMode,
+      linkTrainingParams.mbTrainingParams.clockPhase,
+      linkTrainingParams.mbTrainingParams.moduleId,
+      linkTrainingParams.mbTrainingParams.ucieAx32,
+    )
+    SBMessage_factory(
+      base =
+        if (req) SBM.MBINIT_PARAM_CONFIG_REQ
+        else SBM.MBINIT_PARAM_CONFIG_RESP,
+      src = "PHY",
+      remote = false,
+      dst = "PHY",
+      data = data,
+      msgInfo = 0,
+    ).U
+  }
+
+  def formParamsReqMsg(
+      req: Boolean,
       voltageSwing: Int,
       maxDataRate: Int,
       clockMode: ClockModeParam.Type,
@@ -52,7 +76,7 @@ class MBInitFSMTest extends AnyFlatSpec with ChiselScalatestTester {
     msgReq
   }
 
-  private def formMsgReqData(
+  def formMsgReqData(
       voltageSwing: Int,
       maxDataRate: Int,
       clockMode: ClockModeParam.Type,

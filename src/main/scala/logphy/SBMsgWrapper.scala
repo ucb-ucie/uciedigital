@@ -36,11 +36,13 @@ class SBMsgWrapper(
   private val nextState = WireInit(currentState)
   currentState := nextState
   private val sentMsg = RegInit(false.B)
+  private val receivedMsg = RegInit(false.B)
   when(currentState =/= nextState) {
     // sendSubState := SubState.SEND_OR_RECEIVE_MESSAGE
     // receiveSubState := SubState.SEND_OR_RECEIVE_MESSAGE
     timeoutCounter := 0.U
     sentMsg := false.B
+    receivedMsg := false.B
   }
 
   private val currentReq = RegInit(0.U((new MessageRequest).msg.getWidth.W))
@@ -79,6 +81,10 @@ class SBMsgWrapper(
     }
     is(State.EXCHANGE) {
 
+      /** TODO: incorrect, this logic needs to send message before receiving,
+        * when in reality both just need to happen
+        */
+
       def messageIsEqual(m1: UInt, m2: UInt): Bool = {
 
         /** opcode */
@@ -93,21 +99,24 @@ class SBMsgWrapper(
       io.laneIO.txData.valid := true.B
       io.laneIO.txData.bits := currentReq
       val hasSentMsg = WireInit(io.laneIO.txData.fire || sentMsg)
+      val justReceivedMsg = Wire(Bool())
+      val hasReceivedMsg = Wire(Bool())
       sentMsg := hasSentMsg
 
       /** if receive message, move on */
       io.laneIO.rxData.ready := true.B
-      when(io.laneIO.rxData.fire) {
-        when(
-          messageIsEqual(
-            io.laneIO.rxData.bits(64, 0),
-            currentReq(64, 0),
-          ) && hasSentMsg,
-        ) {
-          dataOut := io.laneIO.rxData.bits(127, 64)
-          currentStatus := MessageRequestStatusType.SUCCESS
-          nextState := State.WAIT_ACK
-        }
+      justReceivedMsg := io.laneIO.rxData.fire &&
+        messageIsEqual(
+          io.laneIO.rxData.bits(64, 0),
+          currentReq(64, 0),
+        )
+      hasReceivedMsg := justReceivedMsg || receivedMsg
+      receivedMsg := hasReceivedMsg
+
+      when(hasReceivedMsg && hasSentMsg) {
+        dataOut := io.laneIO.rxData.bits(127, 64)
+        currentStatus := MessageRequestStatusType.SUCCESS
+        nextState := State.WAIT_ACK
       }
 
       // switch(sendSubState) {
@@ -163,6 +172,7 @@ class SBMsgWrapper(
 
     }
     is(State.WAIT_ACK) {
+      printf("ack\n")
       io.trainIO.msgReqStatus.valid := true.B
       when(io.trainIO.msgReqStatus.fire) {
         nextState := State.IDLE

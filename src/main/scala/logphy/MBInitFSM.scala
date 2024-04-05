@@ -43,7 +43,7 @@ class MBInitFSM(
   private val state = RegInit(State.PARAM)
   private val nextState = WireInit(state)
   private val paramSubState = RegInit(ParamSubState.SEND_REQ)
-  when(nextState === State.PARAM) {
+  when(nextState === State.PARAM && state =/= State.PARAM) {
     paramSubState := ParamSubState.SEND_REQ
   }
 
