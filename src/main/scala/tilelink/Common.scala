@@ -24,8 +24,8 @@ case class TileLinkParams(
   val sourceIDWidth = 8
   val sinkIDWidth = 8
   val addressWidth = 64
-  val maskWidth = dataWidth/8
   val dataWidth = 256
+  val maskWidth = dataWidth/8
   val sizeWidth = log2Ceil(dataWidth/8) // 5 bits if 256
   val deniedWidth = 1
   val corruptWidth = 1
@@ -44,6 +44,6 @@ class TLBundleAUnionD(val tlParams: TileLinkParams) extends Bundle {
   val address = Input(UInt(tlParams.addressWidth.W))
   val mask = Input(UInt(tlParams.maskWidth.W))
   val data = Input(UInt(tlParams.dataWidth.W))
-  val denied = Input(UInt(tlParams.deniedWidth.W))
+  // val denied = Input(UInt(tlParams.deniedWidth.W))
   val corrupt = Input(UInt(tlParams.corruptWidth.W))
 }
