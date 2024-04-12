@@ -3,8 +3,8 @@ package logphy
 
 import interfaces._
 import sideband._
-
 import chisel3._
+import chisel3.util._
 import freechips.rocketchip.util.AsyncQueueParams
 
 class LogicalPhy(
@@ -23,10 +23,58 @@ class LogicalPhy(
   })
 
   val trainingModule = {
-    new LinkTrainingFSM(linkTrainingParams, sbParams, afeParams, rdiParams)
+    Module(
+      new LinkTrainingFSM(linkTrainingParams, sbParams, afeParams, rdiParams),
+    )
   }
-  val lanes = new Lanes(afeParams, laneAsyncQueueParams)
-  val rdiDataMapper = new RdiDataMapper(rdiParams, afeParams)
+
+  /** TODO: check if this is accurate */
+  val plStateStatus = Seq(
+    LinkTrainingState.reset -> PhyState.reset,
+    LinkTrainingState.active -> PhyState.active,
+    LinkTrainingState.sbInit -> PhyState.retrain,
+    LinkTrainingState.mbInit -> PhyState.retrain,
+    LinkTrainingState.linkInit -> PhyState.retrain,
+    LinkTrainingState.linkError -> PhyState.linkError,
+  )
+
+  trainingModule.io.mainbandFSMIO.pllLock <> io.mbAfe.pllLock
+  trainingModule.io.sidebandFSMIO.pllLock <> io.sbAfe.pllLock
+  trainingModule.io.mainbandFSMIO.rxEn <> io.mbAfe.rxEn
+  trainingModule.io.sidebandFSMIO.rxEn <> io.sbAfe.rxEn
+  trainingModule.io.rdi.lpStateReq <> io.rdi.lpStateReq
+
+  /** TODO: this is wrong for plError, plError is abut framing error -- when
+    * would that occur?
+    */
+  io.rdi.plError := trainingModule.io.currentState === LinkTrainingState.linkError
+  io.rdi.plTrainError := trainingModule.io.currentState === LinkTrainingState.linkError
+
+  /** TODO: not sure when would encounter a non fatal or correctable error, or
+    * what that means
+    */
+  io.rdi.plNonFatalError := false.B
+  io.rdi.plCorrectableError := false.B
+
+  /** not a retimer */
+  io.rdi.plRetimerCrd := false.B
+
+  io.rdi.plStateStatus := MuxLookup(
+    trainingModule.io.currentState,
+    PhyState.reset,
+  )(
+    plStateStatus,
+  )
+  io.rdi.plPhyInRecenter := io.rdi.plStateStatus === PhyState.retrain
+  io.rdi.plSpeedMode <> trainingModule.io.mainbandFSMIO.txFreqSel
+  io.mbAfe.txFreqSel <> trainingModule.io.mainbandFSMIO.txFreqSel
+  io.rdi.plLinkWidth := PhyWidth.width16
+
+  /** TODO: is this correct behavior, look at spec */
+  io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.active
+
+  val lanes = Module(new Lanes(afeParams, laneAsyncQueueParams))
+  val rdiDataMapper = Module(new RdiDataMapper(rdiParams, afeParams))
 
   /** Connect internal FIFO to AFE */
   lanes.io.mainbandIo.txData <> io.mbAfe.txData
@@ -46,7 +94,7 @@ class LogicalPhy(
   // }
 
   private val sidebandChannel =
-    new PHYSidebandChannel(myId, sbParams, fdiParams)
+    Module(new PHYSidebandChannel(myId, sbParams, fdiParams))
   assert(
     afeParams.sbSerializerRatio == 1,
     "connecting sideband module directly to training module, sb serializer ratio must be 1!",
@@ -74,8 +122,8 @@ class LogicalPhy(
   sidebandChannel.io.inner.switcherBundle.node_to_layer_above.nodeq()
 
   assert(
-    afeParams.sbWidth == fdiParams.sbWidth,
-    "AFE SB width and FDI SB width must match",
+    afeParams.sbWidth == 1,
+    "AFE SB width must match hardcoded value",
   )
   io.sbAfe.txData <> sidebandChannel.io.to_lower_layer.tx.bits
   io.sbAfe.txClock <> sidebandChannel.io.to_lower_layer.tx.clock

@@ -12,6 +12,7 @@ class RdiBringupTest extends AnyFlatSpec with ChiselScalatestTester {
       c.io.sbTrainIO.msgReq.initSink().setSinkClock(c.clock)
       c.io.sbTrainIO.msgReqStatus.initSource().setSourceClock(c.clock)
 
+
     }
   }
 

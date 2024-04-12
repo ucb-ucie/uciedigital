@@ -68,15 +68,15 @@ class SidebandAfeIo(
     *
     * Output from the async FIFO.
     */
-  val txData = Input(UInt(afeParams.sbWidth.W))
-  val txClock = Input(Bool())
+  val txData = Output(UInt(afeParams.sbWidth.W))
+  val txClock = Output(Bool())
 
   /** Data received on the sideband.
     *
     * Input to the async FIFO.
     */
-  val rxData = Output(UInt(afeParams.sbWidth.W))
-  val rxClock = Output(Bool())
+  val rxData = Input(UInt(afeParams.sbWidth.W))
+  val rxClock = Input(Bool())
 
   /** Enable sideband receivers. */
   val rxEn = Output(Bool())

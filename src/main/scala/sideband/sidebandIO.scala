@@ -64,11 +64,11 @@ class PHYSidebandChannelIO(
   // connect to another sideband node in the layer below (link layer)
   val to_lower_layer = new Bundle {
     val tx = new Bundle {
-      val bits = Output(UInt(fdiParams.sbWidth.W))
+      val bits = Output(UInt(1.W))
       val clock = Output(Bool())
     }
     val rx = new Bundle {
-      val bits = Input(UInt(fdiParams.sbWidth.W))
+      val bits = Input(UInt(1.W))
       val clock = Input(Bool())
     }
   }
@@ -130,11 +130,11 @@ class SidebandLinkNodeOuterIO(
     val fdiParams: FdiParams,
 ) extends Bundle {
   val tx = new Bundle {
-    val bits = Output(UInt(fdiParams.sbWidth.W))
+    val bits = Output(UInt(1.W))
     val clock = Output(Bool())
   }
   val rx = new Bundle {
-    val bits = Input(UInt(fdiParams.sbWidth.W))
+    val bits = Input(UInt(1.W))
     val clock = Input(Bool())
   }
 }
@@ -155,11 +155,11 @@ class SidebandLinkIO(val sbParams: SidebandParams, val fdiParams: FdiParams)
   // connect these to another sideband node
   val outer = new Bundle {
     val tx = new Bundle {
-      val bits = Output(UInt(fdiParams.sbWidth.W))
+      val bits = Output(UInt(1.W))
       val clock = Output(Bool())
     }
     val rx = new Bundle {
-      val bits = Input(UInt(fdiParams.sbWidth.W))
+      val bits = Input(UInt(1.W))
       val clock = Input(Bool())
     }
   }

@@ -239,7 +239,7 @@ class SidebandLinkSerializer(
     val sbParams: SidebandParams,
     val fdiParams: FdiParams,
 ) extends Module {
-  val sb_w = fdiParams.sbWidth
+  val sb_w = 1
   val msg_w = sbParams.sbNodeMsgWidth
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(UInt(msg_w.W)))
@@ -298,7 +298,7 @@ class SidebandLinkDeserializer(
     val sbParams: SidebandParams,
     val fdiParams: FdiParams,
 ) extends Module {
-  val sb_w = fdiParams.sbWidth
+  val sb_w = 1
   val msg_w = sbParams.sbNodeMsgWidth
   val io = IO(new Bundle {
     val in = new Bundle {
