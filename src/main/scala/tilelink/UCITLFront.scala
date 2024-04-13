@@ -28,7 +28,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val beatBytes = tlParams.BEAT_BYTES
 
   // MMIO registers controlled by the sideband module
-  val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
+  // val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
   
   // Manager node to send and acquire traffic to partner die
   val managerNode: TLManagerNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
@@ -67,7 +67,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   // Instantiate the agnostic protocol layer
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
-  io.fdi := protocol.io.fdi
+  io.fdi <> protocol.io.fdi
 
   val (in, managerEdge) = outer.managerNode.in(0)
   val (out, clientEdge) = outer.clientNode.out(0)
@@ -118,7 +118,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txATLPayload.address := in.a.bits.address
       txATLPayload.mask    := in.a.bits.mask
       txATLPayload.data    := in.a.bits.data
-      txATLPayload.denied  := false.B
+      // txATLPayload.denied  := false.B
       txATLPayload.corrupt := false.B
     }
   }.elsewhen(in.a.fire && ~aHasData) { // get rx data from partner die
@@ -131,7 +131,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txATLPayload.address := in.a.bits.address
       txATLPayload.mask    := in.a.bits.mask
       txATLPayload.data    := 0.U
-      txATLPayload.denied  := false.B
+      // txATLPayload.denied  := false.B
       txATLPayload.corrupt := false.B      
     }
   }
@@ -153,7 +153,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txDTLPayload.address := 0.U
       txDTLPayload.mask    := 0.U
       txDTLPayload.data    := out.d.bits.data
-      txDTLPayload.denied  := false.B
+      // txDTLPayload.denied  := false.B
       txDTLPayload.corrupt := false.B
     }
   }
@@ -196,10 +196,31 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val respPacket = Wire(new TLBundleD(tlBundleParams))
 
   when(isRequest && outward.io.deq.fire) { // send the request A channel packet to client
-    reqPacket <> outward.io.deq.bits
+    //this doesn't work bc reqPacket is a TLBundleA and outward queue data bits are TLBundleAUnionD
+    //workaround: manually unpacking the fields here
+    //TODO: is there a better way?
+    //TODO: check if reqPacket and resPacket are properly consumed
+    // reqPacket <> outward.io.deq.bits
+    reqPacket.opcode  := outward.io.deq.bits.opcode
+    reqPacket.param   := outward.io.deq.bits.param
+    reqPacket.size    := outward.io.deq.bits.size
+    reqPacket.source  := outward.io.deq.bits.source
+    reqPacket.address := outward.io.deq.bits.address
+    reqPacket.mask    := outward.io.deq.bits.mask
+    reqPacket.data    := outward.io.deq.bits.data
+    reqPacket.corrupt := outward.io.deq.bits.corrupt
+
     out.a.valid := true.B
   }.elsewhen(isResponse && outward.io.deq.fire) { // send the response D channel packet to manager
-    respPacket <> outward.io.deq.bits
+    // respPacket <> outward.io.deq.bits
+    respPacket.opcode  := outward.io.deq.bits.opcode
+    respPacket.param   := outward.io.deq.bits.param
+    respPacket.size    := outward.io.deq.bits.size
+    respPacket.source  := outward.io.deq.bits.source
+    respPacket.sink    := outward.io.deq.bits.sink
+    respPacket.data    := outward.io.deq.bits.data
+    respPacket.corrupt := outward.io.deq.bits.corrupt
+
     in.d.valid := true.B
   }
 
@@ -210,9 +231,9 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   inward.io.deq.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  protocol.io.fdi.lpData.valid := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.fdi.lpData.irdy := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.fdi.lpData.bits := uciTxPayload // assign uciTXPayload to the FDI lp data signal
+  protocol.io.TLlpData_valid := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_irdy := inward.io.deq.fire & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_bits := uciTxPayload.asUInt // assign uciTXPayload to the FDI lp data signal
 
   // Translation based on the uciPayload formatting from outgoing TL packet
   when(inward.io.deq.fire) {
@@ -230,7 +251,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciTxPayload.header2.source  := inward.io.deq.bits.source
     uciTxPayload.header2.sink    := inward.io.deq.bits.sink
     uciTxPayload.header2.mask    := inward.io.deq.bits.mask
-    uciTxPayload.header2.denied  := inward.io.deq.bits.denied
+    // uciTxPayload.header2.denied  := inward.io.deq.bits.denied
     uciTxPayload.header2.corrupt := inward.io.deq.bits.corrupt
     // data mapping
     // TODO: replace with FP coding
@@ -247,27 +268,27 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
-  protocol.io.fdi.lpData.irdy := outward.io.enq.ready
+  // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
   val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
-  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.fdi.plData.valid
+  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.TLplData_valid
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    uciRxPayload.cmd := protocol.io.fdi.plData.bits(31,0)
+    uciRxPayload.cmd := protocol.io.TLplData_bits(31,0)
     // ucie header 1
-    uciRxPayload.header1 := protocol.io.fdi.plData.bits(95,32)
+    uciRxPayload.header1 := protocol.io.TLplData_bits(95,32)
     // ucie header 2
-    uciRxPayload.header2 := protocol.io.fdi.plData.bits(159,96)
+    uciRxPayload.header2 := protocol.io.TLplData_bits(159,96)
     // ucie data payload
-    uciRxPayload.data := protocol.io.fdi.plData.bits(223,160)
-    uciRxPayload.data := protocol.io.fdi.plData.bits(287,224)
-    uciRxPayload.data := protocol.io.fdi.plData.bits(351,288)
-    uciRxPayload.data := protocol.io.fdi.plData.bits(415,352)
-    uciRxPayload.data := protocol.io.fdi.plData.bits(479,416)
+    uciRxPayload.data := protocol.io.TLplData_bits(223,160)
+    uciRxPayload.data := protocol.io.TLplData_bits(287,224)
+    uciRxPayload.data := protocol.io.TLplData_bits(351,288)
+    uciRxPayload.data := protocol.io.TLplData_bits(415,352)
+    uciRxPayload.data := protocol.io.TLplData_bits(479,416)
     // ucie ecc
-    uciRxPayload.ecc := protocol.io.fdi.plData.bits(511,480)
+    uciRxPayload.ecc := protocol.io.TLplData_bits(511,480)
 
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
@@ -278,7 +299,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     rxTLPayload.source  := uciRxPayload.header2.source
     rxTLPayload.sink    := uciRxPayload.header2.sink
     rxTLPayload.mask    := uciRxPayload.header2.mask
-    rxTLPayload.denied  := uciRxPayload.header2.denied
+    // rxTLPayload.denied  := uciRxPayload.header2.denied
     rxTLPayload.corrupt := uciRxPayload.header2.corrupt
     
     rxTLPayload.data    := uciRxPayload.data

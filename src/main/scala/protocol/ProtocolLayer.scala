@@ -18,7 +18,19 @@ import interfaces._
 class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     val io = IO(new Bundle{
         val fdi = new Fdi(fdiParams)
+        val TLlpData_valid = Input(Bool())
+        val TLlpData_bits = Input(Bool())
+        val TLlpData_irdy = Input(Bits((8 * fdiParams.width).W))
+        val TLplData_bits = Output(Bits((8 * fdiParams.width).W))
+        val TLplData_valid = Output(Bool())
     })
+
+    io.fdi.lpData.bits := io.TLlpData_bits
+    io.fdi.lpData.valid := io.TLlpData_valid
+    io.fdi.lpData.irdy := io.TLlpData_irdy
+
+    io.TLplData_valid := io.fdi.plData.valid
+    io.TLplData_bits := io.fdi.plData.bits
 
     // Constants for the FDI signals not used in v1
     io.fdi.lpRetimerCrd := false.B
