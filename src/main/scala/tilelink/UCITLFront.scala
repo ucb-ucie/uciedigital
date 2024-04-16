@@ -298,12 +298,11 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    uciRxPayload.cmd := protocol.io.TLplData_bits(63,0).asTypeOf(new UCICmdFormat(outer.protoParams))
+    uciRxPayload.cmd := protocol.io.TLplData_bits(63, 0).asTypeOf(new UCICmdFormat(outer.protoParams))
     // ucie header 1
     uciRxPayload.header1 := protocol.io.TLplData_bits(127,64).asTypeOf(new UCIHeader1Format(outer.tlParams))
     // ucie header 2
-    uciRxPayload.header2 := protocol.io.TLplData_bits(191,128).asTypeOf(new UCIHeader2Format(outer.tlParams))
-    // TODO: assign bits!
+    uciRxPayload.header2 := protocol.io.TLplData_bits(191, 128).asTypeOf(new UCIHeader2Format(outer.tlParams))
     // ucie data payload
     uciRxPayload.data(0) := protocol.io.TLplData_bits(255,192)
     uciRxPayload.data(1) := protocol.io.TLplData_bits(319,256)
@@ -321,7 +320,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     rxTLPayload.sink    := uciRxPayload.header2.sink
     rxTLPayload.mask    := uciRxPayload.header2.mask
     // rxTLPayload.denied  := uciRxPayload.header2.denied
-    //rxTLPayload.corrupt := uciRxPayload.header2.corrupt
+    // rxTLPayload.corrupt := uciRxPayload.header2.corrupt
     rxTLPayload.data    := Cat(uciRxPayload.data(0), uciRxPayload.data(1), uciRxPayload.data(2), uciRxPayload.data(3))
     rxTLPayload.msgType := uciRxPayload.cmd.msgType
   }
