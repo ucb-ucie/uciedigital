@@ -19,10 +19,14 @@ case class ProtocolLayerParams() {
 }
 
 object UCIProtoMsgTypes extends ChiselEnum {
-    val TileLink = Value(0x0.U(4.W))
-    val Reserved0 = Value(0x1.U(4.W))
-    val Reserved1 = Value(0x2.U(4.W))
-    val Reserved2 = Value(0x3.U(4.W))
+    val TLA = Value(0x0.U(4.W))
+    val TLB = Value(0x1.U(4.W))
+    val TLC = Value(0x2.U(4.W))
+    val TLD = Value(0x3.U(4.W))
+    val TLE = Value(0x4.U(4.W))
+    val Reserved0 = Value(0x5.U(4.W))
+    val Reserved1 = Value(0x6.U(4.W))
+    val Reserved2 = Value(0x7.U(4.W))
 }
 
 /**
@@ -51,8 +55,8 @@ class UCIHeader2Format(val tl: TileLinkParams) extends Bundle {
     val source = Output(UInt(tl.sourceIDWidth.W))
     val sink = Output(UInt(tl.sinkIDWidth.W))
     val mask = Output(UInt(tl.maskWidth.W))
-    val denied = Output(UInt(tl.deniedWidth.W))
-    val corrupt = Output(UInt(tl.corruptWidth.W))
+    // val denied = Output(UInt(tl.deniedWidth.W))
+    // val corrupt = Output(UInt(tl.corruptWidth.W))
 }
 
 /** UCIe raw 64B format defined as a bundle. The user-defined packet fornat is:

@@ -8,6 +8,14 @@ import scala.math._
 
 // TileLink parameters for connecting the TL nodes to chipyard diplomacy
 
+object TLMsgType extends ChiselEnum {
+    val TLA = Value(0x0.U(3.W))
+    val TLB = Value(0x1.U(3.W))
+    val TLC = Value(0x2.U(3.W))
+    val TLD = Value(0x3.U(3.W))
+    val TLE = Value(0x4.U(3.W))
+}
+
 case class TileLinkParams(
     val address: BigInt,
     val addressRange: BigInt,
@@ -44,6 +52,7 @@ class TLBundleAUnionD(val tlParams: TileLinkParams) extends Bundle {
   val address = Input(UInt(tlParams.addressWidth.W))
   val mask = Input(UInt(tlParams.maskWidth.W))
   val data = Input(UInt(tlParams.dataWidth.W))
+  val msgType = Input(TLMsgType())
   // val denied = Input(UInt(tlParams.deniedWidth.W))
-  val corrupt = Input(UInt(tlParams.corruptWidth.W))
+  //val corrupt = Input(UInt(tlParams.corruptWidth.W))
 }
