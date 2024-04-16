@@ -276,11 +276,22 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    uciRxPayload.cmd := protocol.io.TLplData_bits(31,0)
+    val uciCmd = Wire(new UCICmdFormat(outer.protoParams))
+    uciCmd.msgType   := UCIProtoMsgTypes(protocol.io.TLplData_bits(1,0))
+    uciCmd.hostID    := protocol.io.TLplData_bits(9, 2)
+    uciCmd.partnerID := protocol.io.TLplData_bits(17, 10)
+    // TODO: CHECK BITS!!!
+    uciCmd.reservedCmd := protocol.io.TLplData_bits(31, 18)
+    uciRxPayload.cmd := uciCmd
+    // uciRxPayload.cmd := protocol.io.TLplData_bits(31,0)
     // ucie header 1
-    uciRxPayload.header1 := protocol.io.TLplData_bits(95,32)
+    val uciHeader1 = Wire(new UCIHeader1Format(outer.tlParams))
+    uciHeader1.address := protocol.io.TLplData_bits(95,32)
+    uciRxPayload.header1 := uciHeader1
     // ucie header 2
-    uciRxPayload.header2 := protocol.io.TLplData_bits(159,96)
+    val uciHeader2 = Wire(new UCIHeader1Format(outer.tlParams))
+    // TODO: assign bits!
+    uciRxPayload.header2 := uciHeader2
     // ucie data payload
     uciRxPayload.data := protocol.io.TLplData_bits(223,160)
     uciRxPayload.data := protocol.io.TLplData_bits(287,224)
