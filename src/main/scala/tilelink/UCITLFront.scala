@@ -276,30 +276,18 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    val uciCmd = Wire(new UCICmdFormat(outer.protoParams))
-    uciCmd.msgType   := UCIProtoMsgTypes(protocol.io.TLplData_bits(1,0))
-    uciCmd.hostID    := protocol.io.TLplData_bits(9, 2)
-    uciCmd.partnerID := protocol.io.TLplData_bits(17, 10)
-    // TODO: CHECK BITS!!!
-    uciCmd.reservedCmd := protocol.io.TLplData_bits(31, 18)
-    uciRxPayload.cmd := uciCmd
-    // uciRxPayload.cmd := protocol.io.TLplData_bits(31,0)
+    uciRxPayload.cmd := protocol.io.TLplData_bits(63, 0).asTypeOf(new UCICmdFormat(outer.protoParams))
     // ucie header 1
-    val uciHeader1 = Wire(new UCIHeader1Format(outer.tlParams))
-    uciHeader1.address := protocol.io.TLplData_bits(95,32)
-    uciRxPayload.header1 := uciHeader1
+    uciRxPayload.header1 := protocol.io.TLplData_bits(127,64).asTypeOf(new UCIHeader1Format(outer.tlParams))
     // ucie header 2
-    val uciHeader2 = Wire(new UCIHeader1Format(outer.tlParams))
-    // TODO: assign bits!
-    uciRxPayload.header2 := uciHeader2
+    uciRxPayload.header2 := protocol.io.TLplData_bits(191, 128).asTypeOf(new UCIHeader2Format(outer.tlParams))
     // ucie data payload
-    uciRxPayload.data := protocol.io.TLplData_bits(223,160)
-    uciRxPayload.data := protocol.io.TLplData_bits(287,224)
-    uciRxPayload.data := protocol.io.TLplData_bits(351,288)
-    uciRxPayload.data := protocol.io.TLplData_bits(415,352)
-    uciRxPayload.data := protocol.io.TLplData_bits(479,416)
+    uciRxPayload.data(0) := protocol.io.TLplData_bits(255,192)
+    uciRxPayload.data(1) := protocol.io.TLplData_bits(319,256)
+    uciRxPayload.data(2) := protocol.io.TLplData_bits(383,320)
+    uciRxPayload.data(3) := protocol.io.TLplData_bits(447,384)
     // ucie ecc
-    uciRxPayload.ecc := protocol.io.TLplData_bits(511,480)
+    uciRxPayload.ecc := protocol.io.TLplData_bits(511,448)
 
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
@@ -313,7 +301,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     // rxTLPayload.denied  := uciRxPayload.header2.denied
     rxTLPayload.corrupt := uciRxPayload.header2.corrupt
     
-    rxTLPayload.data    := uciRxPayload.data
+    rxTLPayload.data    := Cat(uciRxPayload.data(0), uciRxPayload.data(1), uciRxPayload.data(2), uciRxPayload.data(3))
   }
 
   // Queue the translated RX TL packet to send to the system
