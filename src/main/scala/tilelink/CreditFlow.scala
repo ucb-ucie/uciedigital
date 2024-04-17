@@ -40,7 +40,7 @@ class CreditedToDecoupledMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) ext
   })
   val creditWidth = log2Ceil(bufferSz)
   require(creditWidth <= flitWidth)
-  val buffer = Module(new Queue(UInt(flitWidth.W), bufferSz))
+  val buffer = Module(new Queue((t), bufferSz))
   val credits = RegInit(0.U((creditWidth+1).W))
   val credit_incr = buffer.io.deq.fire
   val credit_decr = io.credit.fire

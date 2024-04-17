@@ -123,6 +123,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = manager_edge.hasData(manager_tl.a.bits)
+  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.TLplData_valid
+  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+
   /*
   manager_tl.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
@@ -145,7 +149,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txATLPayload.address := manager_tl.a.bits.address
       txATLPayload.mask    := manager_tl.a.bits.mask
       txATLPayload.data    := manager_tl.a.bits.data
-      txATLPayload.msgType := TLMsgType.TLA
+      txATLPayload.msgType := UCIProtoMsgTypes.TLA
       // txATLPayload.denied  := false.B
       // txATLPayload.corrupt := false.B
     }
@@ -159,12 +163,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txATLPayload.address := manager_tl.a.bits.address
       txATLPayload.mask    := manager_tl.a.bits.mask
       txATLPayload.data    := 0.U
-      txATLPayload.msgType := TLMsgType.TLA
+      txATLPayload.msgType := UCIProtoMsgTypes.TLA
       // txATLPayload.denied  := false.B
       // txATLPayload.corrupt := false.B      
     }
   }
-  inwardA.io.enq.bits <> txATLPayload
+  inwardA.io.enq.bits <> txATLPayload.asTypeOf(new TLBundleA(mergedParams))
 
   val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 16, 4))
   inwardA.io.deq.ready := creditedMsgA.io.in.ready
@@ -188,12 +192,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txDTLPayload.address := 0.U
       txDTLPayload.mask    := 0.U
       txDTLPayload.data    := client_tl.d.bits.data
-      txATLPayload.msgType := TLMsgType.TLD
+      txATLPayload.msgType := UCIProtoMsgTypes.TLD
       // txDTLPayload.denied  := false.B
       // txDTLPayload.corrupt := false.B
     }
   }
-  inwardD.io.enq.bits <> txDTLPayload
+  inwardD.io.enq.bits <> txDTLPayload.asTypeOf(new TLBundleD(mergedParams))
 
   val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 16, 4))
   inwardD.io.deq.ready := creditedMsgD.io.in.ready
@@ -205,11 +209,11 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Arbitrate the A and D channels from the credited msgs
   creditedMsgA.io.out.ready := txArbiter.io.in(0).ready
   txArbiter.io.in(0).valid := creditedMsgA.io.out.fire
-  txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits
+  txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits.asTypeOf(new TLBundleAUnionD(outer.tlParams))
 
   creditedMsgD.io.out.ready := txArbiter.io.in(1).ready
   txArbiter.io.in(1).valid := creditedMsgD.io.out.fire
-  txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits
+  txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits.asTypeOf(new TLBundleAUnionD(outer.tlParams))
 
   // ============== Translated TL packet coming out of the outward queue to the system ========
   // dequeue the rx TL packets and orchestrate on the client/manager node
@@ -228,19 +232,17 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // ============ Below code should run on the UCIe clock? ==============
   
   // Dequeue the TX TL packets and translate to UCIe flit
-  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
-
   txArbiter.io.out.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
   protocol.io.TLlpData_valid := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
   protocol.io.TLlpData_irdy := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
   protocol.io.TLlpData_bits := uciTxPayload.asUInt // assign uciTXPayload to the FDI lp data signal
 
-  val creditA = (txArbiter.io.out.bits.msgType === TLMsgType.TLA)
-  val creditB = (txArbiter.io.out.bits.msgType === TLMsgType.TLB)
-  val creditC = (txArbiter.io.out.bits.msgType === TLMsgType.TLC)
-  val creditD = (txArbiter.io.out.bits.msgType === TLMsgType.TLD)
-  val creditE = (txArbiter.io.out.bits.msgType === TLMsgType.TLE)
+  val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
+  val creditB = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLB)
+  val creditC = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLC)
+  val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
+  val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
   outwardA.io.credit.ready := txArbiter.io.out.fire
   outwardD.io.credit.ready := txArbiter.io.out.fire
@@ -284,8 +286,6 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
-  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
-  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.TLplData_valid
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
@@ -320,11 +320,22 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   // Queue the translated RX TL packet to send to the system
   when(rx_fire) {
-    when(uciRxPayload.cmd.msgType === TLMsgType.TLA && outwardA.io.in.ready) {
-      outwardA.io.in.bits <> rxTLPayload
+    when(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLA && outwardA.io.in.ready) {
+      outwardA.io.in.bits.address := rxTLPayload.address
+      outwardA.io.in.bits.opcode  := rxTLPayload.opcode
+      outwardA.io.in.bits.param   := rxTLPayload.param
+      outwardA.io.in.bits.size    := rxTLPayload.size
+      outwardA.io.in.bits.source  := rxTLPayload.source
+      outwardA.io.in.bits.mask    := rxTLPayload.mask
+      outwardA.io.in.bits.data    := rxTLPayload.data
       outwardA.io.in.valid := true.B
-    }.elsewhen(uciRxPayload.cmd.msgType === TLMsgType.TLD && outwardD.io.in.ready ) {
-      outwardD.io.in.bits <> rxTLPayload
+    }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLD && outwardD.io.in.ready ) {
+      outwardD.io.in.bits.opcode  := rxTLPayload.opcode
+      outwardD.io.in.bits.param   := rxTLPayload.param
+      outwardD.io.in.bits.size    := rxTLPayload.size
+      outwardD.io.in.bits.source  := rxTLPayload.source
+      outwardD.io.in.bits.sink    := rxTLPayload.sink
+      outwardD.io.in.bits.data    := rxTLPayload.data
       outwardD.io.in.valid := true.B
     }
   }
