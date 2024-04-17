@@ -102,8 +102,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // inward.io.deq_reset := io.lreset
 
   // Async queue to handle the clock crossing between UCIe stack clock and system bus
-  val outwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
-  val outwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
+  //val outwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
+  //val outwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
+  val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 16, 4))
+  val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 16, 4))
   //val outward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // outward.io.enq_clock := io.lclk
   // outward.io.enq_reset := io.lreset
@@ -164,10 +166,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   }
   inwardA.io.enq.bits <> txATLPayload
 
-  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 16, 5))
+  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 16, 4))
   inwardA.io.deq.ready := creditedMsgA.io.in.ready
   creditedMsgA.io.in.valid := inwardA.io.deq.fire
   creditedMsgA.io.in.bits := inwardA.io.deq.bits
+  creditedMsgA.io.credit.valid := rx_fire
+  creditedMsgA.io.credit.bits := uciRxPayload.cmd.tlACredit
 
   // D response to partner die's A request logic
   client_tl.d.ready := (inwardD.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
@@ -191,10 +195,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   }
   inwardD.io.enq.bits <> txDTLPayload
 
-  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 16, 5))
+  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 16, 4))
   inwardD.io.deq.ready := creditedMsgD.io.in.ready
   creditedMsgD.io.in.valid := inwardD.io.deq.fire
   creditedMsgD.io.in.bits := inwardD.io.deq.bits
+  creditedMsgD.io.credit.valid := rx_fire
+  creditedMsgD.io.credit.bits := uciRxPayload.cmd.tlDCredit
 
   // Arbitrate the A and D channels from the credited msgs
   creditedMsgA.io.out.ready := txArbiter.io.in(0).ready
@@ -210,41 +216,14 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //val isRequest = outwardA.io.deq.bits.msgType
   //val isResponse = outwardD.io.deq.bits.msgType
 
-  outwardA.io.deq.ready := client_tl.a.ready // if A request send to client node
-  outwardD.io.deq.ready := manager_tl.d.ready // if D response send to manager node
+  outwardA.io.out.ready := client_tl.a.ready // if A request send to client node
+  outwardD.io.out.ready := manager_tl.d.ready // if D response send to manager node
 
-  // map the dequeued packets to the client and manager nodes
-  val reqPacket = Wire(new TLBundleA(tlBundleParams))
-  val respPacket = Wire(new TLBundleD(tlBundleParams))
+  client_tl.a.bits <> outwardA.io.out.bits
+  client_tl.a.valid := outwardA.io.out.fire
 
-  when(outwardA.io.deq.fire) { // send the request A channel packet to client
-    //this doesn't work bc reqPacket is a TLBundleA and outward queue data bits are TLBundleAUnionD
-    //workaround: manually unpacking the fields here
-    //TODO: is there a better way?
-    //TODO: check if reqPacket and resPacket are properly consumed
-    client_tl.a.bits <> outwardA.io.deq.bits
-    // reqPacket.opcode  := outward.io.deq.bits.opcode
-    // reqPacket.param   := outward.io.deq.bits.param
-    // reqPacket.size    := outward.io.deq.bits.size
-    // reqPacket.source  := outward.io.deq.bits.source
-    // reqPacket.address := outward.io.deq.bits.address
-    // reqPacket.mask    := outward.io.deq.bits.mask
-    // reqPacket.data    := outward.io.deq.bits.data
-    // reqPacket.corrupt := outward.io.deq.bits.corrupt
-    client_tl.a.valid := true.B
-  }
-  
-  when(outwardD.io.deq.fire) { // send the response D channel packet to manager
-    manager_tl.d.bits <> outwardD.io.deq.bits
-    // respPacket.opcode  := outward.io.deq.bits.opcode
-    // respPacket.param   := outward.io.deq.bits.param
-    // respPacket.size    := outward.io.deq.bits.size
-    // respPacket.source  := outward.io.deq.bits.source
-    // respPacket.sink    := outward.io.deq.bits.sink
-    // respPacket.data    := outward.io.deq.bits.data
-    // respPacket.corrupt := outward.io.deq.bits.corrupt
-    manager_tl.d.valid := true.B
-  }
+  manager_tl.d.bits <> outwardD.io.out.bits
+  manager_tl.d.valid := outwardD.io.out.fire
 
   // ============ Below code should run on the UCIe clock? ==============
   
@@ -257,12 +236,26 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   protocol.io.TLlpData_irdy := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
   protocol.io.TLlpData_bits := uciTxPayload.asUInt // assign uciTXPayload to the FDI lp data signal
 
+  val creditA = (txArbiter.io.out.bits.msgType === TLMsgType.TLA)
+  val creditB = (txArbiter.io.out.bits.msgType === TLMsgType.TLB)
+  val creditC = (txArbiter.io.out.bits.msgType === TLMsgType.TLC)
+  val creditD = (txArbiter.io.out.bits.msgType === TLMsgType.TLD)
+  val creditE = (txArbiter.io.out.bits.msgType === TLMsgType.TLE)
+
+  outwardA.io.credit.ready := txArbiter.io.out.fire
+  outwardD.io.credit.ready := txArbiter.io.out.fire
+
   // Translation based on the uciPayload formatting from outgoing TL packet
   when(txArbiter.io.out.fire) {
     // form the cmd header with TL message type
     uciTxPayload.cmd.msgType := txArbiter.io.out.bits.msgType
     uciTxPayload.cmd.hostID := 0.U
     uciTxPayload.cmd.partnerID := 0.U
+    uciTxPayload.cmd.tlACredit := outwardA.io.credit.bits & outwardA.io.credit.valid & creditA
+    uciTxPayload.cmd.tlBCredit := 0.U //& outwardB.io.credit.valid & creditB
+    uciTxPayload.cmd.tlCCredit := 0.U //& outwardC.io.credit.valid & creditC
+    uciTxPayload.cmd.tlDCredit := outwardD.io.credit.bits & outwardD.io.credit.valid & creditD
+    uciTxPayload.cmd.tlECredit := 0.U //& outwardE.io.credit.valid & creditE
     uciTxPayload.cmd.reservedCmd := 0.U
     // header 1
     uciTxPayload.header1.address := txArbiter.io.out.bits.address
@@ -327,12 +320,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   // Queue the translated RX TL packet to send to the system
   when(rx_fire) {
-    when(uciRxPayload.cmd.msgType === TLMsgType.TLA) {
-      outwardA.io.enq.bits <> rxTLPayload
-      outwardA.io.enq.valid := true.B
-    }.elsewhen(uciRxPayload.cmd.msgType === TLMsgType.TLD) {
-      outwardD.io.enq.bits <> rxTLPayload
-      outwardD.io.enq.valid := true.B
+    when(uciRxPayload.cmd.msgType === TLMsgType.TLA && outwardA.io.in.ready) {
+      outwardA.io.in.bits <> rxTLPayload
+      outwardA.io.in.valid := true.B
+    }.elsewhen(uciRxPayload.cmd.msgType === TLMsgType.TLD && outwardD.io.in.ready ) {
+      outwardD.io.in.bits <> rxTLPayload
+      outwardD.io.in.valid := true.B
     }
   }
 

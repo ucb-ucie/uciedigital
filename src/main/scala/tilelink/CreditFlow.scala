@@ -10,7 +10,7 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
-class DecoupledtoCreditedMsg[T <: Data](t: T, bufferSz: Int, flitWidth: Int) extends Module {
+class DecoupledtoCreditedMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) extends Module {
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(t))
     val out = Decoupled(t)
@@ -30,4 +30,31 @@ class DecoupledtoCreditedMsg[T <: Data](t: T, bufferSz: Int, flitWidth: Int) ext
   io.in.ready := io.out.ready && credits < bufferSz.U
 
   io.credit.ready := true.B
+}
+
+class CreditedToDecoupledMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) extends Module {
+  val io = IO(new Bundle {
+    val in = Flipped(Decoupled(t))
+    val out = Decoupled(t)
+    val credit = Decoupled(UInt(flitWidth.W))
+  })
+  val creditWidth = log2Ceil(bufferSz)
+  require(creditWidth <= flitWidth)
+  val buffer = Module(new Queue(UInt(flitWidth.W), bufferSz))
+  val credits = RegInit(0.U((creditWidth+1).W))
+  val credit_incr = buffer.io.deq.fire
+  val credit_decr = io.credit.fire
+  when (credit_incr || credit_decr) {
+    credits := credit_incr + Mux(credit_decr, 0.U, credits)
+  }
+
+  buffer.io.enq.valid := io.in.valid
+  buffer.io.enq.bits := io.in.bits
+  io.in.ready := true.B
+  when (io.in.valid) { assert(buffer.io.enq.ready) }
+
+  io.out <> buffer.io.deq
+
+  io.credit.valid := credits =/= 0.U
+  io.credit.bits := credits - 1.U
 }
