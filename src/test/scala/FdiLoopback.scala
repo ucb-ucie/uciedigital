@@ -56,6 +56,7 @@ class FdiLoopback(val fdiParams: FdiParams) (implicit p: Parameters) extends Laz
     // pl* are all outputs
     io.fdi1.plData.valid := io.fdi1.lpData.valid
     io.fdi1.plData.bits := io.fdi1.lpData.bits
+    io.fdi1.lpData.ready := true.B
     // io.fdi1.plData.valid := pipe.io.out.valid
     // io.fdi1.plData.bits := pipe.io.out.bits
 
