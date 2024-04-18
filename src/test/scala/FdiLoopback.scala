@@ -49,13 +49,15 @@ class FdiLoopback(val fdiParams: FdiParams) (implicit p: Parameters) extends Laz
           val fdi1 = Flipped(new Fdi(fdiParams))
       })
 
-    val latency = 2
-    val pipe = Module(new LatencyPipe(chiselTypeOf(io.fdi1.lpData.bits), latency))
-    pipe.io.in <> io.fdi1.lpData
-    pipe.io.out.ready := true.B
+    // val latency = 2
+    // val pipe = Module(new LatencyPipe(chiselTypeOf(io.fdi1.lpData.bits), latency))
+    // pipe.io.in <> io.fdi1.lpData
+    // pipe.io.out.ready := true.B
     // pl* are all outputs
-    io.fdi1.plData.valid := pipe.io.out.valid
-    io.fdi1.plData.bits := pipe.io.out.bits
+    io.fdi1.plData.valid := io.fdi1.lpData.valid
+    io.fdi1.plData.bits := io.fdi1.lpData.bits
+    // io.fdi1.plData.valid := pipe.io.out.valid
+    // io.fdi1.plData.bits := pipe.io.out.bits
 
     // Tieoffs
     io.fdi1.plRetimerCrd := false.B //optional signal

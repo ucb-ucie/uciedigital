@@ -69,7 +69,8 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         tlUcieDie1.module.io.fdi.plConfig            := fdiLoopback.module.io.fdi1.plConfig
         tlUcieDie1.module.io.fdi.plConfigCredit      := fdiLoopback.module.io.fdi1.plConfigCredit
 
-        fdiLoopback.module.io.fdi1.lpData          := tlUcieDie1.module.io.fdi.lpData
+        fdiLoopback.module.io.fdi1.lpData.valid          := tlUcieDie1.module.io.fdi.lpData.valid
+        fdiLoopback.module.io.fdi1.lpData.bits          := tlUcieDie1.module.io.fdi.lpData.bits
         fdiLoopback.module.io.fdi1.lpRetimerCrd    := tlUcieDie1.module.io.fdi.lpRetimerCrd
         fdiLoopback.module.io.fdi1.lpCorruptCrc    := tlUcieDie1.module.io.fdi.lpCorruptCrc
         fdiLoopback.module.io.fdi1.lpDllp          := tlUcieDie1.module.io.fdi.lpDllp
