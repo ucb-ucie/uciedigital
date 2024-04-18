@@ -39,6 +39,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         io.finished := fuzz.module.io.finished
 
         // inputs to tlUcieDie1
+        tlUcieDie1.module.io.fdi.lpData.ready        := fdiLoopback.module.io.fdi1.lpData.ready
         tlUcieDie1.module.io.fdi.plData              := fdiLoopback.module.io.fdi1.plData
         tlUcieDie1.module.io.fdi.plRetimerCrd        := fdiLoopback.module.io.fdi1.plRetimerCrd
         // why split valid and bits for dllp
@@ -69,8 +70,9 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         tlUcieDie1.module.io.fdi.plConfig            := fdiLoopback.module.io.fdi1.plConfig
         tlUcieDie1.module.io.fdi.plConfigCredit      := fdiLoopback.module.io.fdi1.plConfigCredit
 
-        fdiLoopback.module.io.fdi1.lpData.valid          := tlUcieDie1.module.io.fdi.lpData.valid
-        fdiLoopback.module.io.fdi1.lpData.bits          := tlUcieDie1.module.io.fdi.lpData.bits
+        fdiLoopback.module.io.fdi1.lpData.valid    := tlUcieDie1.module.io.fdi.lpData.valid
+        fdiLoopback.module.io.fdi1.lpData.bits     := tlUcieDie1.module.io.fdi.lpData.bits
+        fdiLoopback.module.io.fdi1.lpData.irdy     := true.B // TODO: check a better way of doing this
         fdiLoopback.module.io.fdi1.lpRetimerCrd    := tlUcieDie1.module.io.fdi.lpRetimerCrd
         fdiLoopback.module.io.fdi1.lpCorruptCrc    := tlUcieDie1.module.io.fdi.lpCorruptCrc
         fdiLoopback.module.io.fdi1.lpDllp          := tlUcieDie1.module.io.fdi.lpDllp
