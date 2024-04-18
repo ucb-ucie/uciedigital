@@ -79,7 +79,7 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
 
     // TODO: lpLinkError should be asserted when there is an error detected by protocol layer
     // should be done as a ECC check in UCIe flit
-    // io.fdi.lpLinkError
+    io.fdi.lpLinkError := false.B
 
     // Refer to section 8.3.2
     // Whent he lpStallAck is asserted the TL A channel is stalled and the lp irdy and valid
@@ -89,6 +89,9 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     io.fdi.lpStallAck := lp_stall_reg
 
     // TODO: these are SB messaging signals
+    io.fdi.lpConfig.bits := 0.asUInt(fdiParams.sbWidth.W)
+    io.fdi.lpConfig.valid := false.B
+    io.fdi.lpConfigCredit := false.B
     //io.fdi.lpConfig
     //io.fdi.lpConfigCredit
 }
