@@ -4,7 +4,6 @@ package logphy
 import chisel3._
 import chisel3.experimental.VecLiterals.AddObjectLiteralConstructor
 import chiseltest._
-import freechips.rocketchip.util.AsyncQueueParams
 import org.scalatest.flatspec.AnyFlatSpec
 import interfaces._
 

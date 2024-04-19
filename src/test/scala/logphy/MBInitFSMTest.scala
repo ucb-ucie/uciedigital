@@ -3,7 +3,6 @@ package logphy
 
 import chisel3._
 import chisel3.experimental.BundleLiterals.AddBundleLiteralConstructor
-import chisel3.util.Cat
 import chiseltest._
 import interfaces.{AfeParams, RdiParams}
 import sideband.{SBM, SBMessage_factory, SidebandParams}
