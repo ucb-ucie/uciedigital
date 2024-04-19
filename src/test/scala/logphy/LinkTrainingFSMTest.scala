@@ -20,7 +20,6 @@ class LinkTrainingFSMTest extends AnyFlatSpec with ChiselScalatestTester {
         linkTrainingParams = linkTrainingParams,
         sbParams = sbParams,
         afeParams = afeParams,
-        rdiParams = rdiParams,
       ),
     ) { c =>
       initPorts(c)

@@ -16,6 +16,7 @@ class LogicalPhy(
     sbParams: SidebandParams,
     laneAsyncQueueParams: AsyncQueueParams,
 ) extends Module {
+
   val io = IO(new Bundle {
     val rdi = Flipped(new Rdi(rdiParams))
     val mbAfe = new MainbandAfeIo(afeParams)
@@ -24,25 +25,15 @@ class LogicalPhy(
 
   val trainingModule = {
     Module(
-      new LinkTrainingFSM(linkTrainingParams, sbParams, afeParams, rdiParams),
+      new LinkTrainingFSM(linkTrainingParams, sbParams, afeParams),
     )
   }
-
-  /** TODO: check if this is accurate */
-  val plStateStatus = Seq(
-    LinkTrainingState.reset -> PhyState.reset,
-    LinkTrainingState.active -> PhyState.active,
-    LinkTrainingState.sbInit -> PhyState.retrain,
-    LinkTrainingState.mbInit -> PhyState.retrain,
-    LinkTrainingState.linkInit -> PhyState.retrain,
-    LinkTrainingState.linkError -> PhyState.linkError,
-  )
 
   trainingModule.io.mainbandFSMIO.pllLock <> io.mbAfe.pllLock
   trainingModule.io.sidebandFSMIO.pllLock <> io.sbAfe.pllLock
   trainingModule.io.mainbandFSMIO.rxEn <> io.mbAfe.rxEn
   trainingModule.io.sidebandFSMIO.rxEn <> io.sbAfe.rxEn
-  trainingModule.io.rdi.lpStateReq <> io.rdi.lpStateReq
+  trainingModule.io.rdi.rdiBringupIO.lpStateReq <> io.rdi.lpStateReq
 
   /** TODO: this is wrong for plError, plError is abut framing error -- when
     * would that occur?
@@ -59,39 +50,35 @@ class LogicalPhy(
   /** not a retimer */
   io.rdi.plRetimerCrd := false.B
 
-  io.rdi.plStateStatus := MuxLookup(
-    trainingModule.io.currentState,
-    PhyState.reset,
-  )(
-    plStateStatus,
-  )
   io.rdi.plPhyInRecenter := io.rdi.plStateStatus === PhyState.retrain
   io.rdi.plSpeedMode <> trainingModule.io.mainbandFSMIO.txFreqSel
   io.mbAfe.txFreqSel <> trainingModule.io.mainbandFSMIO.txFreqSel
   io.rdi.plLinkWidth := PhyWidth.width16
+  io.rdi.plClkReq <> trainingModule.io.rdi.rdiBringupIO.plClkReq
+  io.rdi.plWakeAck <> trainingModule.io.rdi.rdiBringupIO.plWakeAck
+  io.rdi.lpClkAck <> trainingModule.io.rdi.rdiBringupIO.lpClkAck
+  io.rdi.lpWakeReq <> trainingModule.io.rdi.rdiBringupIO.lpWakeReq
+  io.rdi.plStallReq <> trainingModule.io.rdi.rdiBringupIO.plStallReq
+  io.rdi.lpStallAck <> trainingModule.io.rdi.rdiBringupIO.lpStallAck
+  io.rdi.plStateStatus <> trainingModule.io.rdi.rdiBringupIO.plStateStatus
+  io.rdi.lpLinkError <> trainingModule.io.rdi.rdiBringupIO.lpLinkError
 
   /** TODO: is this correct behavior, look at spec */
   io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.active
 
-  val lanes = Module(new Lanes(afeParams, laneAsyncQueueParams))
   val rdiDataMapper = Module(new RdiDataMapper(rdiParams, afeParams))
+
+  val lanes = Module(new Lanes(afeParams, laneAsyncQueueParams))
 
   /** Connect internal FIFO to AFE */
   lanes.io.mainbandIo.txData <> io.mbAfe.txData
   lanes.io.mainbandIo.rxData <> io.mbAfe.rxData
   lanes.io.mainbandIo.fifoParams <> io.mbAfe.fifoParams
-  // lanes.io.sidebandIo.txData <> io.sbAfe.txData
-  // lanes.io.sidebandIo.rxData <> io.sbAfe.rxData
-  // lanes.io.sidebandIo.fifoParams <> io.sbAfe.fifoParams
+  rdiDataMapper.io.mainbandLaneIO <> lanes.io.mainbandLaneIO
 
-  // when(trainingModule.io.active) {
   /** Connect RDI to Mainband IO */
   rdiDataMapper.io.rdi.lpData <> io.rdi.lpData
   io.rdi.plData <> rdiDataMapper.io.rdi.plData
-  rdiDataMapper.io.mainbandLaneIO <> lanes.io.mainbandLaneIO
-  // }.otherwise {
-  //   lanes.io.mainbandLaneIO <> trainingModule.io.mainbandLaneIO
-  // }
 
   private val sidebandChannel =
     Module(new PHYSidebandChannel(myId, sbParams, fdiParams))

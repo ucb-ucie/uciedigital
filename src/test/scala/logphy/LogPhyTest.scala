@@ -15,6 +15,10 @@ class LogPhyTest extends AnyFlatSpec with ChiselScalatestTester {
   val sbParams = SidebandParams()
   val laneAsyncQueueParams = AsyncQueueParams()
 
+  /** This test only exists to check for FIRRTL compilation errors. Cannot do an
+    * actual top-level test because Chiseltest does not support multiple clock
+    * domains.
+    */
   behavior of "logical phy"
   it should "" in {
     test(
@@ -28,6 +32,5 @@ class LogPhyTest extends AnyFlatSpec with ChiselScalatestTester {
         laneAsyncQueueParams = laneAsyncQueueParams,
       ),
     ) { c => }
-
   }
 }

@@ -7,6 +7,12 @@ import chisel3._
 import chisel3.experimental.AffectsChiselPrefix
 import chisel3.util._
 
+/** Implementation TODOs:
+  *   - investigate multiple message source issue
+  *   - implement plStallReq
+  *   - implement lpStateReq
+  */
+
 case class LinkTrainingParams(
     /** The amount of cycles to wait after driving the PLL frequency */
     pllWaitTime: Int = 100,
@@ -14,12 +20,6 @@ case class LinkTrainingParams(
     mbTrainingParams: MBTrainingParams = MBTrainingParams(),
     sbClockFreqAnalog: Int = 800_000_000,
 )
-
-class LinkTrainingRdiIO(
-    rdiParams: RdiParams,
-) extends Bundle {
-  val lpStateReq = Input(PhyStateReq())
-}
 
 class SidebandFSMIO(
     sbParams: SidebandParams,
@@ -48,7 +48,6 @@ class LinkTrainingFSM(
     linkTrainingParams: LinkTrainingParams,
     sbParams: SidebandParams,
     afeParams: AfeParams,
-    rdiParams: RdiParams,
 ) extends Module {
 
   val sbClockFreq =
@@ -57,8 +56,9 @@ class LinkTrainingFSM(
   val io = IO(new Bundle {
     val mainbandFSMIO = Flipped(new MainbandFSMIO)
     val sidebandFSMIO = Flipped(new SidebandFSMIO(sbParams))
-    val rdi = new LinkTrainingRdiIO(rdiParams)
-    // val active = Output(Bool())
+    val rdi = new Bundle {
+      val rdiBringupIO = new RdiBringupIO
+    }
     val currentState = Output(LinkTrainingState())
   })
 
@@ -85,15 +85,6 @@ class LinkTrainingFSM(
 
   private val currentState = RegInit(LinkTrainingState.reset)
   private val nextState = WireInit(currentState)
-  // private val resetCounter = Counter(
-  //   Range(1, 10000), // TODO: value
-  //   true.B,
-  /* (nextState === LinkTrainingState.reset && currentState =/=
-   * LinkTrainingState.reset), // TODO: does this also reset on implicit reset */
-  // )
-  // io.mbAfe.txZpd := VecInit.fill(afeParams.mbLanes)(0.U)
-  // io.mbAfe.txZpu := VecInit.fill(afeParams.mbLanes)(0.U)
-  // io.mbAfe.rxZ := VecInit.fill(afeParams.mbLanes)(0.U)
 
   private object ResetSubState extends ChiselEnum {
     val INIT, FREQ_SEL_CYC_WAIT, FREQ_SEL_LOCK_WAIT = Value
@@ -122,11 +113,15 @@ class LinkTrainingFSM(
       afeParams,
     ),
   )
-  mbInit.reset := (nextState === LinkTrainingState.mbInit) && (currentState =/= LinkTrainingState.mbInit)
+  mbInit.reset := ((nextState === LinkTrainingState.mbInit) && (currentState =/= LinkTrainingState.mbInit)) || reset.asBool
+
+  private val rdiBringup = Module(new RdiBringup)
+  rdiBringup.io.rdiIO <> io.rdi.rdiBringupIO
+  rdiBringup.io.sbTrainIO.msgReq.nodeq()
+  rdiBringup.io.sbTrainIO.msgReqStatus.noenq()
 
   // TODO: incorporate lpstatereq
   currentState := nextState
-  // io.active := currentState === LinkTrainingState.active
   io.sidebandFSMIO.rxMode := Mux(
     currentState === LinkTrainingState.sbInit &&
       (sbInitSubState === SBInitSubState.SEND_CLOCK ||
@@ -154,20 +149,26 @@ class LinkTrainingFSM(
   val resetFreqCtrValue = WireInit(false.B)
   resetFreqCtrValue := false.B
 
+  rdiBringup.io.internalError := currentState === LinkTrainingState.linkError
+
+  private object ActiveSubState extends ChiselEnum {
+    val IDLE = Value
+  }
+  private val activeSubState = RegInit(ActiveSubState.IDLE)
+  when(
+    currentState =/= LinkTrainingState.active && nextState === LinkTrainingState.active,
+  ) {
+    activeSubState := ActiveSubState.IDLE
+  }
+
   switch(currentState) {
     is(LinkTrainingState.reset) {
       io.mainbandFSMIO.rxEn := false.B
       io.sidebandFSMIO.rxEn := true.B
-      // io.mbAfe.txZpd := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
-      // io.mbAfe.txZpu := VecInit(Seq.fill(afeParams.mbLanes)(0.U))
       val (freqSelCtrValue, _) = Counter(
         (1 until linkTrainingParams.pllWaitTime),
         reset = resetFreqCtrValue,
       )
-      // val (freqSelCtrValue, _) = Counter(
-      //   resetSubState === ResetSubState.FREQ_SEL_CYC_WAIT,
-      //   linkTrainingParams.pllWaitTime - 1,
-      // )
       switch(resetSubState) {
         is(ResetSubState.INIT) {
           when(io.mainbandFSMIO.pllLock && io.sidebandFSMIO.pllLock) {
@@ -338,6 +339,8 @@ class LinkTrainingFSM(
       }
     }
     is(LinkTrainingState.mbInit) {
+
+      /** TODO: can't use two message sources at the same time */
       mbInit.io.sbTrainIO <> sbMsgWrapper.io.trainIO
       mbInit.io.patternGeneratorIO <> patternGenerator.io.patternGeneratorIO
       msgSource := MsgSource.SB_MSG_WRAPPER
@@ -349,11 +352,20 @@ class LinkTrainingFSM(
         )
       }
     }
-    is(LinkTrainingState.linkInit) {}
+    is(LinkTrainingState.linkInit) {
+      rdiBringup.io.sbTrainIO <> sbMsgWrapper.io.trainIO
+      msgSource := MsgSource.SB_MSG_WRAPPER
+      when(rdiBringup.io.active) {
+        nextState := LinkTrainingState.active
+      }
+    }
     is(LinkTrainingState.active) {
+      switch(activeSubState) {
+        is(ActiveSubState.IDLE) {
+          when(nextState =/= LinkTrainingState.active) {}
+        }
+      }
 
-      /** Active state = do nothing, not currently in training.
-        */
     }
     is(LinkTrainingState.linkError) {
       // TODO: What to do when I receive an error?
