@@ -34,11 +34,11 @@ class MBInitFSM(
     val SEND_REQ, WAIT_REQ, SEND_RESP, WAIT_RESP = Value
   }
 
-  private object RepairClkSubState extends ChiselEnum {
-    val SEND_INIT_REQ, WAIT_INIT_REQ, SEND_INIT_RESP, WAIT_INIT_RESP,
-        SEND_CLOCK, WAIT_CLOCK, SEND_RESULT_REQ, WAIT_RESULT_REQ,
-        SEND_RESULT_RESP, WAIT_RESULT_RESP = Value
-  }
+  // private object RepairClkSubState extends ChiselEnum {
+  //   val SEND_INIT_REQ, WAIT_INIT_REQ, SEND_INIT_RESP, WAIT_INIT_RESP,
+  //       SEND_CLOCK, WAIT_CLOCK, SEND_RESULT_REQ, WAIT_RESULT_REQ,
+  //       SEND_RESULT_RESP, WAIT_RESULT_RESP = Value
+  // }
 
   private val state = RegInit(State.PARAM)
   private val nextState = WireInit(state)

@@ -6,8 +6,6 @@ import chisel3.util._
 import sideband.{SBM, SBMessage_factory}
 import interfaces._
 
-import java.lang.foreign.SegmentAllocator
-
 class RdiBringupIO extends Bundle {
   // Tie to 1 if clock gating not supported.
   val plClkReq = Output(Bool())

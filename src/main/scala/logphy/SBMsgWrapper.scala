@@ -4,7 +4,6 @@ package logphy
 import chisel3._
 import chisel3.util._
 import sideband.SidebandParams
-import interfaces._
 
 class SBMsgWrapperTrainIO(
 ) extends Bundle {

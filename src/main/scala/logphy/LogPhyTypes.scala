@@ -1,7 +1,6 @@
 package edu.berkeley.cs.ucie.digital
 package logphy
 
-import scala.math._
 import chisel3._
 import chisel3.util._
 import sideband.SidebandParams
