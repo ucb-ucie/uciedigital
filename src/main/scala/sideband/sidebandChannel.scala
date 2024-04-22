@@ -50,9 +50,16 @@ class PHYSidebandChannel(
   // Connect two sidebandNodes and switcher
   upper_node.io.inner.layer_to_node <> switcher.io.outer.layer_to_node_above
   upper_node.io.inner.node_to_layer <> switcher.io.outer.node_to_layer_above
-  lower_node.io.inner.layer_to_node <> switcher.io.outer.layer_to_node_below
+  when(io.inner.inputMode === RXTXMode.PACKET) {
+    io.inner.rawInput.nodeq()
+    lower_node.io.inner.layer_to_node <> switcher.io.outer.layer_to_node_below
+  }.otherwise {
+    switcher.io.outer.layer_to_node_below.nodeq()
+    lower_node.io.inner.layer_to_node <> io.inner.rawInput
+  }
   lower_node.io.inner.node_to_layer <> switcher.io.outer.node_to_layer_below
+  lower_node.io.rxMode := io.inner.rxMode
 
   // Connect inner signals
-  io.inner <> switcher.io.inner
+  io.inner.switcherBundle <> switcher.io.inner
 }

@@ -4,6 +4,11 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
+class FifoParams extends Bundle {
+  val clk = Clock()
+  val reset = Bool()
+}
+
 /** The mainband pins exposed by a standard package UCIe module in one
   * direction.
   */
@@ -41,6 +46,7 @@ class StandardPackageIo(lanes: Int = 16) extends Bundle {
 
 case class AfeParams(
     sbSerializerRatio: Int = 1,
+    sbWidth: Int = 1,
     mbSerializerRatio: Int = 16,
     mbLanes: Int = 16,
 )
@@ -56,17 +62,21 @@ class SidebandAfeIo(
     afeParams: AfeParams,
 ) extends Bundle {
 
+  val fifoParams = Input(new FifoParams())
+
   /** Data to transmit on the sideband.
     *
     * Output from the async FIFO.
     */
-  val txData = Decoupled(Bits(afeParams.sbSerializerRatio.W))
+  val txData = Output(UInt(afeParams.sbWidth.W))
+  val txClock = Output(Bool())
 
   /** Data received on the sideband.
     *
     * Input to the async FIFO.
     */
-  val rxData = Flipped(Decoupled(Bits(afeParams.sbSerializerRatio.W)))
+  val rxData = Input(UInt(afeParams.sbWidth.W))
+  val rxClock = Input(Bool())
 
   /** Enable sideband receivers. */
   val rxEn = Output(Bool())
@@ -75,7 +85,7 @@ class SidebandAfeIo(
     *
     * Indicates whether the sideband clock is stable.
     */
-  val pllLock = Output(Bool())
+  val pllLock = Input(Bool())
 }
 
 /** The mainband analog front-end (AFE) interface, from the perspective of the
@@ -88,135 +98,32 @@ class SidebandAfeIo(
   * With half-rate clocking (1 data bit transmitted per UI; 1 UI = 0.5 clock
   * cycles), the PLL clock may be 2, 4, 6, 8, 12, or 16 GHz. With a serializer
   * ratio of 16, this results in a 0.125-1 GHz AFE digital clock.
-  *
-  * @groupname data Data signals
-  * @groupprio data 50
-  * @groupname impedance Impedance control signals
-  * @groupprio impedance 100
-  * @groupname phase Phase control signals
-  * @groupprio phase 101
-  * @groupname receiver Receiver control signals
-  * @groupprio receiver 102
-  * @groupname freq Frequency control signals
-  * @groupprio freq 103
-  * @groupname clock Clock control signals
-  * @groupprio clock 104
   */
 class MainbandAfeIo(
     afeParams: AfeParams,
 ) extends Bundle {
 
-  /** Data to transmit on the mainband.
-    *
-    * Output from the async FIFO.
-    *
-    * @group data
+  val fifoParams = Input(new FifoParams())
+
+  /** Data to transmit on the mainband. Output from the async FIFO.
     */
   val txData = Decoupled(
     Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W)),
   )
 
-  /** Data received on the mainband.
-    *
-    * Input to the async FIFO.
-    *
-    * @group data
+  /** Data received on the mainband. Input to the async FIFO.
     */
   val rxData = Flipped(
     Decoupled(Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W))),
   )
 
-  /////////////////////
-  // impedance control
-  //
-  // Setting txZpu = txZpd = 0 sets drivers to hi-z.
-  /////////////////////
-
-  /** TX pull up impedance control.
-    *
-    * @group impedance
-    */
-  val txZpu = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /** TX pull down impedance control.
-    *
-    * @group impedance
-    */
-  val txZpd = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /** RX impedance control.
-    *
-    * @group impedance
-    */
-  val rxZ = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /////////////////////
-  // phase control
-  /////////////////////
-
-  /** Global (per-module) phase control.
-    *
-    * @group phase
-    */
-  val txGlobalPhaseSel = Output(UInt(4.W))
-
-  /** Per-lane phase control.
-    *
-    * @group phase
-    */
-  val txLaneDeskew = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /** Per-lane phase control.
-    *
-    * @group phase
-    */
-  val rxLaneDeskew = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /////////////////////
-  // frequency control
-  /////////////////////
-  /** @group freq */
   val txFreqSel = Output(SpeedMode())
 
-  /////////////////////
-  // receiver control
-  /////////////////////
   /** Mainband receiver enable.
-    *
-    * @group receiver
     */
   val rxEn = Output(Bool())
 
-  /** Per-lane vref/offset cancellation control.
-    *
-    * @group receiver
+  /** Mainband PLL Lock. Indicates whether the mainband clock is stable.
     */
-  val rxVref = Output(Vec(afeParams.mbLanes, UInt(4.W)))
-
-  /////////////////////
-  // clock control
-  /////////////////////
-  /** Clock gating control.
-    *
-    * @group clock
-    */
-  val txClockEn = Output(Bool())
-
-  /** Clock parking level.
-    *
-    * Per the UCIe spec, must alternate between high and low on subsequent clock
-    * gating events. If the link is using free running clock mode, this signal
-    * has no effect.
-    *
-    * @group clock
-    */
-  val txClockPark = Output(Bool())
-
-  /** Mainband PLL Lock.
-    *
-    * Indicates whether the mainband clock is stable.
-    *
-    * @group clock
-    */
-  val pllLock = Output(Bool())
+  val pllLock = Input(Bool())
 }

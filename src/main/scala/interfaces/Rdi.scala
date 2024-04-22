@@ -4,7 +4,7 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
-case class RdiParams(width: Int, sbWidth: Int)
+case class RdiParams(width: Int = 64, sbWidth: Int = 32)
 
 /** The raw D2D interface (RDI), from the perspective of the D2D Adapter. */
 class Rdi(rdiParams: RdiParams) extends Bundle {

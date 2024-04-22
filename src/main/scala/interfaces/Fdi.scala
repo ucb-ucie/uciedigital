@@ -4,7 +4,7 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
-case class FdiParams(width: Int, dllpWidth: Int, sbWidth: Int)
+case class FdiParams(width: Int = 64, dllpWidth: Int = 128, sbWidth: Int = 128)
 
 /** The flit-aware die-to-die interface (FDI), from the perspective of the
   * protocol layer.
