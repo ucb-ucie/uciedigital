@@ -39,11 +39,12 @@ case class TileLinkParams(
   val sizeWidth = log2Ceil(dataWidth/8) // 5 bits if 256
   val deniedWidth = 1
   val corruptWidth = 1
+  val reservedH2Width = 5 // width of the reserved bits in header 2
 }
 
 /**
   * Class to pack A and D channels into one single bundle
-  * Total 381 bits
+  * Total 383 bits
   */
 class TLBundleAUnionD(val tlParams: TileLinkParams) extends Bundle {
   val opcode = Input(UInt(tlParams.opcodeWidth.W))

@@ -294,6 +294,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciTxPayload.header2.source  := txArbiter.io.out.bits.source
     uciTxPayload.header2.sink    := txArbiter.io.out.bits.sink
     uciTxPayload.header2.mask    := txArbiter.io.out.bits.mask
+    uciTxPayload.header2.reservedh2 := 0.U
     // uciTxPayload.header2.denied  := txArbiter.io.out.bits.denied
     // uciTxPayload.header2.corrupt := txArbiter.io.out.bits.corrupt
     // data mapping

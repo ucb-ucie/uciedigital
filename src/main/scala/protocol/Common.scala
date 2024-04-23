@@ -34,7 +34,7 @@ object UCIProtoMsgTypes extends ChiselEnum {
   * MsgType defines the protocol and msg type, for now its only TL, could be extended to
   * AXI, other Protocols, debug, discovery, etc.
   * The reservedCmd part should be extended to add functionality like QoS, security, etc.
-  * DISCLAMER: Make sure these adds up to 32 bits
+  * DISCLAMER: Make sure these adds up to 64 bits
   */ 
 class UCICmdFormat(val proto: ProtocolLayerParams) extends Bundle {
     val msgType = Output(UCIProtoMsgTypes())
@@ -61,6 +61,7 @@ class UCIHeader2Format(val tl: TileLinkParams) extends Bundle {
     val source = Output(UInt(tl.sourceIDWidth.W))
     val sink = Output(UInt(tl.sinkIDWidth.W))
     val mask = Output(UInt(tl.maskWidth.W))
+    val reservedh2 = Output(UInt(tl.reservedH2Width.W))
     // val denied = Output(UInt(tl.deniedWidth.W))
     // val corrupt = Output(UInt(tl.corruptWidth.W))
 }
