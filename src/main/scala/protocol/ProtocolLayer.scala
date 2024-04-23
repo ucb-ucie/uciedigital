@@ -19,8 +19,8 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     val io = IO(new Bundle{
         val fdi = new Fdi(fdiParams)
         val TLlpData_valid = Input(Bool())
-        val TLlpData_bits = Input(Bool())
-        val TLlpData_irdy = Input(Bits((8 * fdiParams.width).W))
+        val TLlpData_bits = Input(Bits((8 * fdiParams.width).W)) 
+        val TLlpData_irdy = Input(Bool())
         val TLplData_bits = Output(Bits((8 * fdiParams.width).W))
         val TLplData_valid = Output(Bool())
     })

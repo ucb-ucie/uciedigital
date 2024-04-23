@@ -31,31 +31,30 @@ object LatencyPipe {
 }
 
 // @instantiable
-class FdiLoopback(val fdiParams: FdiParams) (implicit p: Parameters) extends LazyModule {
-    // val io = IO(new Bundle {
-    //     // val fdi2 = Flipped(new Fdi(fdiParams))
-    // })
-    //fdi2's input data comes from fdi1
-    // might be problematic
-
-  // val model = LazyModule(new TLRAMModel("TLRAM"))
-  // @public 
-  val ram = LazyModule(new TLRAM(AddressSet(0x800, 0x7ff)))
-
-  lazy val module = new Impl
-  class Impl extends LazyModuleImp(this) {
+class FdiLoopback(val fdiParams: FdiParams) extends Module {
       val io = IO(new Bundle {
           // val finished = Output(Bool())
           val fdi1 = Flipped(new Fdi(fdiParams))
       })
+    //fdi2's input data comes from fdi1
+    // might be problematic
 
-    // val latency = 2
-    // val pipe = Module(new LatencyPipe(chiselTypeOf(io.fdi1.lpData.bits), latency))
-    // pipe.io.in <> io.fdi1.lpData
-    // pipe.io.out.ready := true.B
+  // val ram = LazyModule(new TLRAM(AddressSet(0x0, 0xffffff), beatBytes=32))
+
+  // lazy val module = new Impl
+  // class Impl extends LazyModuleImp(this) {
+  //     val io = IO(new Bundle {
+  //         // val finished = Output(Bool())
+  //         val fdi1 = Flipped(new Fdi(fdiParams))
+  //     })
+
+    val latency = 2
+    val delayer = Module(new Pipe(chiselTypeOf(io.fdi1.lpData.bits), latency))
+    delayer.io.enq.valid := io.fdi1.lpData.valid
+    delayer.io.enq.bits := io.fdi1.lpData.bits
+    io.fdi1.plData.bits := delayer.io.deq.bits
+    io.fdi1.plData.valid := delayer.io.deq.valid
     // pl* are all outputs
-    io.fdi1.plData.valid := io.fdi1.lpData.valid
-    io.fdi1.plData.bits := io.fdi1.lpData.bits
     io.fdi1.lpData.ready := true.B
     // io.fdi1.plData.valid := pipe.io.out.valid
     // io.fdi1.plData.bits := pipe.io.out.bits
@@ -96,4 +95,4 @@ class FdiLoopback(val fdiParams: FdiParams) (implicit p: Parameters) extends Laz
     io.fdi1.plConfig.bits := 0.U
     io.fdi1.plConfigCredit := false.B //need to handle sideband packets
   }
-  }
+  
