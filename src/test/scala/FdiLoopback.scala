@@ -7,6 +7,7 @@ import org.chipsalliance.cde.config.{Field, Parameters, Config}
 import chisel3.experimental.hierarchy.{Definition, Instance, instantiable, public}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
+import freechips.rocketchip.devices.tilelink.{TLTestRAM}
 
 // LatencyPipe from rocket-chip
 // https://github.com/chipsalliance/rocket-chip/blob/master/src/main/scala/util/LatencyPipe.scala
@@ -40,7 +41,7 @@ class FdiLoopback(val fdiParams: FdiParams) (implicit p: Parameters) extends Laz
 
   // val model = LazyModule(new TLRAMModel("TLRAM"))
   // @public 
-  val ram = LazyModule(new TLRAM(AddressSet(0x800, 0x7ff)))
+  //val ram = LazyModule(new TLTestRAM(AddressSet(0x800, 0x7ff)))
 
   lazy val module = new Impl
   class Impl extends LazyModuleImp(this) {

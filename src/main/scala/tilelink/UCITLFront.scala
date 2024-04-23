@@ -44,14 +44,13 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
     beatBytes = beatBytes)))
 
   // Client node to reply to send and acquire traffic from partner die
-  val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v2(
+  val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
       sourceId = IdRange(0, 4),
       requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
-    )),
-    channelBytes = TLChannelBeatBytes(beatBytes))))
+    )))))
 
   lazy val module = new UCITLFrontImp(this)
 }

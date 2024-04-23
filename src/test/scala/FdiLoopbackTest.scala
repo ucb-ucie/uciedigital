@@ -14,9 +14,9 @@ import tilelink._
 import protocol._
 
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
-    val fdiParams = FdiParams(width=128, dllpWidth=128, sbWidth=64)
+    val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
     val protoParams = ProtocolLayerParams()
-    val tlParams = TileLinkParams(address=0x0, addressRange=0xffffff, configAddress=0x0, inwardQueueDepth=8, outwardQueueDepth=8)
+    val tlParams = TileLinkParams(address=0x00000, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
     val txns = 100
 
@@ -25,11 +25,11 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
                                 protoParams=protoParams, fdiParams=fdiParams))
     val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
-    // val ram = LazyModule(new TLRAM(AddressSet(0x800, 0x7ff)))
+    val ram = LazyModule(new TLRAM(AddressSet(0x00000, 0xffff)))
 
     // connect nodes
-    tlUcieDie1.managerNode := fuzz.node
-    fdiLoopback.ram.node := tlUcieDie1.clientNode
+    tlUcieDie1.managerNode := TLBuffer() := fuzz.node
+    ram.node := TLBuffer() := tlUcieDie1.clientNode
     lazy val module = new Impl
     class Impl extends LazyModuleImp(this) {
         val io = IO(new Bundle {
