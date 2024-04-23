@@ -9,6 +9,7 @@ import org.chipsalliance.cde.config._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
+import freechips.rocketchip.util._
 
 import protocol._
 import interfaces._
@@ -132,26 +133,6 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   txATLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
   txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
 
-  outwardA.io.in.bits.address := 0.U
-  outwardA.io.in.bits.opcode  := 0.U
-  outwardA.io.in.bits.param   := 0.U
-  outwardA.io.in.bits.size    := 0.U
-  outwardA.io.in.bits.source  := 0.U
-  outwardA.io.in.bits.mask    := 0.U
-  outwardA.io.in.bits.data    := 0.U
-  outwardA.io.in.bits.corrupt := 0.U
-  outwardA.io.in.valid        := false.B
-
-  outwardD.io.in.bits.opcode  := 0.U
-  outwardD.io.in.bits.param   := 0.U
-  outwardD.io.in.bits.size    := 0.U
-  outwardD.io.in.bits.source  := 0.U
-  outwardD.io.in.bits.sink    := 0.U
-  outwardD.io.in.bits.data    := 0.U
-  outwardD.io.in.bits.denied  := 0.U
-  outwardD.io.in.bits.corrupt := 0.U
-  outwardD.io.in.valid        := false.B
-
   /*
   manager_tl.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
@@ -217,7 +198,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       txDTLPayload.address := 0.U
       txDTLPayload.mask    := 0.U
       txDTLPayload.data    := client_tl.d.bits.data
-      txATLPayload.msgType := UCIProtoMsgTypes.TLD
+      txDTLPayload.msgType := UCIProtoMsgTypes.TLD
       // txDTLPayload.denied  := false.B
       // txDTLPayload.corrupt := false.B
     }
@@ -310,7 +291,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-
+  dontTouch(rxTLPayload)
   // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
@@ -344,24 +325,31 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     rxTLPayload.msgType := uciRxPayload.cmd.msgType
   }
 
+  outwardA.io.in.bits.address := rxTLPayload.address
+  outwardA.io.in.bits.opcode  := rxTLPayload.opcode
+  outwardA.io.in.bits.param   := rxTLPayload.param
+  outwardA.io.in.bits.size    := rxTLPayload.size
+  outwardA.io.in.bits.source  := rxTLPayload.source
+  outwardA.io.in.bits.mask    := rxTLPayload.mask
+  outwardA.io.in.bits.data    := rxTLPayload.data
+  outwardA.io.in.bits.corrupt := false.B
+  outwardA.io.in.valid        := false.B
+
+  outwardD.io.in.bits.opcode  := rxTLPayload.opcode
+  outwardD.io.in.bits.param   := rxTLPayload.param
+  outwardD.io.in.bits.size    := rxTLPayload.size
+  outwardD.io.in.bits.source  := rxTLPayload.source
+  outwardD.io.in.bits.sink    := rxTLPayload.sink
+  outwardD.io.in.bits.data    := rxTLPayload.data
+  outwardD.io.in.bits.denied  := false.B
+  outwardD.io.in.bits.corrupt := false.B
+  outwardD.io.in.valid        := false.B
+
   // Queue the translated RX TL packet to send to the system
   when(rx_fire) {
     when(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLA && outwardA.io.in.ready) {
-      outwardA.io.in.bits.address := rxTLPayload.address
-      outwardA.io.in.bits.opcode  := rxTLPayload.opcode
-      outwardA.io.in.bits.param   := rxTLPayload.param
-      outwardA.io.in.bits.size    := rxTLPayload.size
-      outwardA.io.in.bits.source  := rxTLPayload.source
-      outwardA.io.in.bits.mask    := rxTLPayload.mask
-      outwardA.io.in.bits.data    := rxTLPayload.data
       outwardA.io.in.valid        := true.B
     }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLD && outwardD.io.in.ready ) {
-      outwardD.io.in.bits.opcode  := rxTLPayload.opcode
-      outwardD.io.in.bits.param   := rxTLPayload.param
-      outwardD.io.in.bits.size    := rxTLPayload.size
-      outwardD.io.in.bits.source  := rxTLPayload.source
-      outwardD.io.in.bits.sink    := rxTLPayload.sink
-      outwardD.io.in.bits.data    := rxTLPayload.data
       outwardD.io.in.valid        := true.B
     }
   }

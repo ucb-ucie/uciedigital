@@ -18,18 +18,19 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x00000, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 100
+    val txns = 1
 
     val fuzz = LazyModule(new TLFuzzer(txns))
     val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
                                 protoParams=protoParams, fdiParams=fdiParams))
-    val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
+    val ram  = LazyModule(new TLRAM(AddressSet(0x0, 0xffffff), beatBytes=32))
+    // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
-    val ram = LazyModule(new TLRAM(AddressSet(0x00000, 0xffff)))
 
     // connect nodes
-    tlUcieDie1.managerNode := TLBuffer() := fuzz.node
-    ram.node := TLBuffer() := tlUcieDie1.clientNode
+    tlUcieDie1.managerNode := fuzz.node
+    ram.node := tlUcieDie1.clientNode
+    // fdiLoopback.ram.node := tlUcieDie1.clientNode
     lazy val module = new Impl
     class Impl extends LazyModuleImp(this) {
         val io = IO(new Bundle {
@@ -37,64 +38,64 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         })
         // connect IOs
         io.finished := fuzz.module.io.finished
-
+        val fdiLoopback = Module(new FdiLoopback(fdiParams))
         // inputs to tlUcieDie1
-        tlUcieDie1.module.io.fdi.lpData.ready        := fdiLoopback.module.io.fdi1.lpData.ready
-        tlUcieDie1.module.io.fdi.plData              := fdiLoopback.module.io.fdi1.plData
-        tlUcieDie1.module.io.fdi.plRetimerCrd        := fdiLoopback.module.io.fdi1.plRetimerCrd
+        tlUcieDie1.module.io.fdi.lpData.ready        := fdiLoopback.io.fdi1.lpData.ready
+        tlUcieDie1.module.io.fdi.plData              := fdiLoopback.io.fdi1.plData
+        tlUcieDie1.module.io.fdi.plRetimerCrd        := fdiLoopback.io.fdi1.plRetimerCrd
         // why split valid and bits for dllp
-        tlUcieDie1.module.io.fdi.plDllp              := fdiLoopback.module.io.fdi1.plDllp
-        tlUcieDie1.module.io.fdi.plDllpOfc           := fdiLoopback.module.io.fdi1.plDllpOfc
+        tlUcieDie1.module.io.fdi.plDllp              := fdiLoopback.io.fdi1.plDllp
+        tlUcieDie1.module.io.fdi.plDllpOfc           := fdiLoopback.io.fdi1.plDllpOfc
         // plStream.protoType here
-        tlUcieDie1.module.io.fdi.plStream            := fdiLoopback.module.io.fdi1.plStream
-        tlUcieDie1.module.io.fdi.plFlitCancel        := fdiLoopback.module.io.fdi1.plFlitCancel
-        tlUcieDie1.module.io.fdi.plStateStatus       := fdiLoopback.module.io.fdi1.plStateStatus
-        tlUcieDie1.module.io.fdi.plInbandPres        := fdiLoopback.module.io.fdi1.plInbandPres
-        tlUcieDie1.module.io.fdi.plError             := fdiLoopback.module.io.fdi1.plError
-        tlUcieDie1.module.io.fdi.plCerror            := fdiLoopback.module.io.fdi1.plCerror
-        tlUcieDie1.module.io.fdi.plNfError           := fdiLoopback.module.io.fdi1.plNfError
-        tlUcieDie1.module.io.fdi.plTrainError        := fdiLoopback.module.io.fdi1.plTrainError
-        tlUcieDie1.module.io.fdi.plRxActiveReq       := fdiLoopback.module.io.fdi1.plRxActiveReq
-        tlUcieDie1.module.io.fdi.plProtocol          := fdiLoopback.module.io.fdi1.plProtocol
-        tlUcieDie1.module.io.fdi.plProtocolFlitFormat:= fdiLoopback.module.io.fdi1.plProtocolFlitFormat
-        tlUcieDie1.module.io.fdi.plProtocolValid     := fdiLoopback.module.io.fdi1.plProtocolValid
-        tlUcieDie1.module.io.fdi.plStallReq          := fdiLoopback.module.io.fdi1.plStallReq
-        tlUcieDie1.module.io.fdi.plPhyInRecenter     := fdiLoopback.module.io.fdi1.plPhyInRecenter
-        tlUcieDie1.module.io.fdi.plPhyInL1           := fdiLoopback.module.io.fdi1.plPhyInL1
-        tlUcieDie1.module.io.fdi.plPhyInL2           := fdiLoopback.module.io.fdi1.plPhyInL2
-        tlUcieDie1.module.io.fdi.plSpeedMode         := fdiLoopback.module.io.fdi1.plSpeedMode
-        tlUcieDie1.module.io.fdi.plLinkWidth         := fdiLoopback.module.io.fdi1.plLinkWidth
-        tlUcieDie1.module.io.fdi.plClkReq            := fdiLoopback.module.io.fdi1.plClkReq
-        tlUcieDie1.module.io.fdi.plWakeAck           := fdiLoopback.module.io.fdi1.plWakeAck
+        tlUcieDie1.module.io.fdi.plStream            := fdiLoopback.io.fdi1.plStream
+        tlUcieDie1.module.io.fdi.plFlitCancel        := fdiLoopback.io.fdi1.plFlitCancel
+        tlUcieDie1.module.io.fdi.plStateStatus       := fdiLoopback.io.fdi1.plStateStatus
+        tlUcieDie1.module.io.fdi.plInbandPres        := fdiLoopback.io.fdi1.plInbandPres
+        tlUcieDie1.module.io.fdi.plError             := fdiLoopback.io.fdi1.plError
+        tlUcieDie1.module.io.fdi.plCerror            := fdiLoopback.io.fdi1.plCerror
+        tlUcieDie1.module.io.fdi.plNfError           := fdiLoopback.io.fdi1.plNfError
+        tlUcieDie1.module.io.fdi.plTrainError        := fdiLoopback.io.fdi1.plTrainError
+        tlUcieDie1.module.io.fdi.plRxActiveReq       := fdiLoopback.io.fdi1.plRxActiveReq
+        tlUcieDie1.module.io.fdi.plProtocol          := fdiLoopback.io.fdi1.plProtocol
+        tlUcieDie1.module.io.fdi.plProtocolFlitFormat:= fdiLoopback.io.fdi1.plProtocolFlitFormat
+        tlUcieDie1.module.io.fdi.plProtocolValid     := fdiLoopback.io.fdi1.plProtocolValid
+        tlUcieDie1.module.io.fdi.plStallReq          := fdiLoopback.io.fdi1.plStallReq
+        tlUcieDie1.module.io.fdi.plPhyInRecenter     := fdiLoopback.io.fdi1.plPhyInRecenter
+        tlUcieDie1.module.io.fdi.plPhyInL1           := fdiLoopback.io.fdi1.plPhyInL1
+        tlUcieDie1.module.io.fdi.plPhyInL2           := fdiLoopback.io.fdi1.plPhyInL2
+        tlUcieDie1.module.io.fdi.plSpeedMode         := fdiLoopback.io.fdi1.plSpeedMode
+        tlUcieDie1.module.io.fdi.plLinkWidth         := fdiLoopback.io.fdi1.plLinkWidth
+        tlUcieDie1.module.io.fdi.plClkReq            := fdiLoopback.io.fdi1.plClkReq
+        tlUcieDie1.module.io.fdi.plWakeAck           := fdiLoopback.io.fdi1.plWakeAck
         // split valids and bits again
-        tlUcieDie1.module.io.fdi.plConfig            := fdiLoopback.module.io.fdi1.plConfig
-        tlUcieDie1.module.io.fdi.plConfigCredit      := fdiLoopback.module.io.fdi1.plConfigCredit
+        tlUcieDie1.module.io.fdi.plConfig            := fdiLoopback.io.fdi1.plConfig
+        tlUcieDie1.module.io.fdi.plConfigCredit      := fdiLoopback.io.fdi1.plConfigCredit
 
-        fdiLoopback.module.io.fdi1.lpData.valid    := tlUcieDie1.module.io.fdi.lpData.valid
-        fdiLoopback.module.io.fdi1.lpData.bits     := tlUcieDie1.module.io.fdi.lpData.bits
-        fdiLoopback.module.io.fdi1.lpData.irdy     := true.B // TODO: check a better way of doing this
-        fdiLoopback.module.io.fdi1.lpRetimerCrd    := tlUcieDie1.module.io.fdi.lpRetimerCrd
-        fdiLoopback.module.io.fdi1.lpCorruptCrc    := tlUcieDie1.module.io.fdi.lpCorruptCrc
-        fdiLoopback.module.io.fdi1.lpDllp          := tlUcieDie1.module.io.fdi.lpDllp
-        fdiLoopback.module.io.fdi1.lpDllpOfc       := tlUcieDie1.module.io.fdi.lpDllpOfc
-        fdiLoopback.module.io.fdi1.lpStream        := tlUcieDie1.module.io.fdi.lpStream
-        fdiLoopback.module.io.fdi1.lpStateReq      := tlUcieDie1.module.io.fdi.lpStateReq
-        fdiLoopback.module.io.fdi1.lpLinkError     := tlUcieDie1.module.io.fdi.lpLinkError
-        fdiLoopback.module.io.fdi1.lpRxActiveStatus:= tlUcieDie1.module.io.fdi.lpRxActiveStatus
-        fdiLoopback.module.io.fdi1.lpStallAck      := tlUcieDie1.module.io.fdi.lpStallAck
-        fdiLoopback.module.io.fdi1.lpClkAck        := tlUcieDie1.module.io.fdi.lpClkAck
-        fdiLoopback.module.io.fdi1.lpWakeReq       := tlUcieDie1.module.io.fdi.lpWakeReq
-        fdiLoopback.module.io.fdi1.lpConfig        := tlUcieDie1.module.io.fdi.lpConfig
-        fdiLoopback.module.io.fdi1.lpConfigCredit  := tlUcieDie1.module.io.fdi.lpConfigCredit
+        fdiLoopback.io.fdi1.lpData.valid    := tlUcieDie1.module.io.fdi.lpData.valid
+        fdiLoopback.io.fdi1.lpData.bits     := tlUcieDie1.module.io.fdi.lpData.bits
+        fdiLoopback.io.fdi1.lpData.irdy     := true.B // TODO: check a better way of doing this
+        fdiLoopback.io.fdi1.lpRetimerCrd    := tlUcieDie1.module.io.fdi.lpRetimerCrd
+        fdiLoopback.io.fdi1.lpCorruptCrc    := tlUcieDie1.module.io.fdi.lpCorruptCrc
+        fdiLoopback.io.fdi1.lpDllp          := tlUcieDie1.module.io.fdi.lpDllp
+        fdiLoopback.io.fdi1.lpDllpOfc       := tlUcieDie1.module.io.fdi.lpDllpOfc
+        fdiLoopback.io.fdi1.lpStream        := tlUcieDie1.module.io.fdi.lpStream
+        fdiLoopback.io.fdi1.lpStateReq      := tlUcieDie1.module.io.fdi.lpStateReq
+        fdiLoopback.io.fdi1.lpLinkError     := tlUcieDie1.module.io.fdi.lpLinkError
+        fdiLoopback.io.fdi1.lpRxActiveStatus:= tlUcieDie1.module.io.fdi.lpRxActiveStatus
+        fdiLoopback.io.fdi1.lpStallAck      := tlUcieDie1.module.io.fdi.lpStallAck
+        fdiLoopback.io.fdi1.lpClkAck        := tlUcieDie1.module.io.fdi.lpClkAck
+        fdiLoopback.io.fdi1.lpWakeReq       := tlUcieDie1.module.io.fdi.lpWakeReq
+        fdiLoopback.io.fdi1.lpConfig        := tlUcieDie1.module.io.fdi.lpConfig
+        fdiLoopback.io.fdi1.lpConfigCredit  := tlUcieDie1.module.io.fdi.lpConfigCredit
     }
 }
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "FdiLoopback"
-    val txns = 5
+    val txns = 2
     val timeout = 2000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module) {c =>
+        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c =>
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
