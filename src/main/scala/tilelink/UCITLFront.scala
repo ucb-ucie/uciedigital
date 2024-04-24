@@ -95,6 +95,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Async queue to handle the clock crossing between system bus and UCIe stack clock
   val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 16, pipe=true, flow=true))
   val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 16, pipe=true, flow=true))
+
   //val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // inward.io.enq_clock := io.sbus_clk
   // inward.io.enq_reset := io.sbus_reset

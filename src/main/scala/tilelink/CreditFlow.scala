@@ -18,7 +18,8 @@ class DecoupledtoCreditedMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) ext
   })
   val creditWidth = log2Ceil(bufferSz)
   require(creditWidth <= flitWidth)
-  val credits = RegInit(0.U((creditWidth).W))
+
+  val credits = RegInit(0.U(creditWidth.W))
   val credit_incr = io.out.fire
   val credit_decr = io.credit.fire
   when (credit_incr || credit_decr) {
@@ -41,7 +42,8 @@ class CreditedToDecoupledMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) ext
   val creditWidth = log2Ceil(bufferSz)
   require(creditWidth <= flitWidth)
   val buffer = Module(new Queue((t), bufferSz))
-  val credits = RegInit(0.U((creditWidth).W))
+
+  val credits = RegInit(0.U(creditWidth.W))
   val credit_incr = buffer.io.deq.fire
   val credit_decr = io.credit.fire
   when (credit_incr || credit_decr) {
@@ -51,7 +53,7 @@ class CreditedToDecoupledMsg[T <: Data](t: T, flitWidth: Int, bufferSz: Int) ext
   buffer.io.enq.valid := io.in.valid
   buffer.io.enq.bits := io.in.bits
   io.in.ready := true.B
-  //when (io.in.valid) { assert(buffer.io.enq.ready) }
+  // when (io.in.valid) { assert(buffer.io.enq.ready) }
 
   io.out <> buffer.io.deq
 
