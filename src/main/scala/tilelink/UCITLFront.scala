@@ -48,7 +48,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
-      sourceId = IdRange(0, 4),
+      sourceId = IdRange(0, 16),
       requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )))))
@@ -123,7 +123,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = manager_edge.hasData(manager_tl.a.bits)
-  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.TLplData_valid
+  val rx_fire = protocol.io.TLplData_valid
   val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
   val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
 

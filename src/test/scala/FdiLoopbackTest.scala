@@ -16,14 +16,14 @@ import protocol._
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
     val protoParams = ProtocolLayerParams()
-    val tlParams = TileLinkParams(address=0x00000, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
+    val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 5
+    val txns = 10
 
     val fuzz = LazyModule(new TLFuzzer(txns))
     val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
                                 protoParams=protoParams, fdiParams=fdiParams))
-    val ram  = LazyModule(new TLRAM(AddressSet(0x0, 0xffffff), beatBytes=32))
+    val ram  = LazyModule(new TLRAM(AddressSet(tlParams.ADDRESS, tlParams.addressRange), beatBytes=tlParams.BEAT_BYTES))
     // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
 
