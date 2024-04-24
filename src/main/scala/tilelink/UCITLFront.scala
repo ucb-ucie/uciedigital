@@ -48,7 +48,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
-      sourceId = IdRange(0, 4),
+      sourceId = IdRange(0, 32),
       requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )))))
@@ -93,8 +93,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   require(mergedParams == tlBundleParams, s"UCIe is misconfigured, the combined inwards/outwards parameters cannot be serialized using the provided bundle params\n$mergedParams > $tlBundleParams")
 
   // Async queue to handle the clock crossing between system bus and UCIe stack clock
-  val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
-  val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
+  val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 16, pipe=true, flow=true))
+  val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 16, pipe=true, flow=true))
   //val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // inward.io.enq_clock := io.sbus_clk
   // inward.io.enq_reset := io.sbus_reset
@@ -104,8 +104,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Async queue to handle the clock crossing between UCIe stack clock and system bus
   //val outwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
   //val outwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
-  val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 16, 4))
-  val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 16, 4))
+  val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 4, 16))
+  val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 4, 16))
   //val outward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // outward.io.enq_clock := io.lclk
   // outward.io.enq_reset := io.lreset
@@ -123,7 +123,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = manager_edge.hasData(manager_tl.a.bits)
-  val rx_fire = protocol.io.fdi.lpData.irdy && protocol.io.TLplData_valid
+  val rx_fire = protocol.io.TLplData_valid
   val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
   val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
 
@@ -177,7 +177,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //inwardA.io.enq.bits <> txATLPayload.asTypeOf(new TLBundleA(mergedParams))
   inwardA.io.enq.bits <> manager_tl.a.bits
 
-  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 16, 4))
+  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 4, 16))
   inwardA.io.deq.ready := creditedMsgA.io.in.ready
   creditedMsgA.io.in.valid := inwardA.io.deq.fire
   creditedMsgA.io.in.bits := inwardA.io.deq.bits
@@ -207,7 +207,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //inwardD.io.enq.bits <> txDTLPayload.asTypeOf(new TLBundleD(mergedParams))
   inwardD.io.enq.bits <> client_tl.d.bits
 
-  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 16, 4))
+  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 4, 16))
   inwardD.io.deq.ready := creditedMsgD.io.in.ready
   creditedMsgD.io.in.valid := inwardD.io.deq.fire
   creditedMsgD.io.in.bits := inwardD.io.deq.bits
@@ -273,16 +273,25 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   outwardA.io.credit.ready := txArbiter.io.out.fire
   outwardD.io.credit.ready := txArbiter.io.out.fire
 
+  val txACredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
+  val txDCredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
+  
+  when(outwardA.io.credit.valid && creditA){
+    txACredit := outwardA.io.credit.bits
+  }.elsewhen(outwardD.io.credit.valid && creditD){
+    txDCredit := outwardD.io.credit.bits
+  }
+
   // Translation based on the uciPayload formatting from outgoing TL packet
   when(txArbiter.io.out.fire) {
     // form the cmd header with TL message type
     uciTxPayload.cmd.msgType := txArbiter.io.out.bits.msgType
     uciTxPayload.cmd.hostID := 0.U
     uciTxPayload.cmd.partnerID := 0.U
-    uciTxPayload.cmd.tlACredit := outwardA.io.credit.bits & outwardA.io.credit.valid & creditA
+    uciTxPayload.cmd.tlACredit := txACredit
     uciTxPayload.cmd.tlBCredit := 0.U //& outwardB.io.credit.valid & creditB
     uciTxPayload.cmd.tlCCredit := 0.U //& outwardC.io.credit.valid & creditC
-    uciTxPayload.cmd.tlDCredit := outwardD.io.credit.bits & outwardD.io.credit.valid & creditD
+    uciTxPayload.cmd.tlDCredit := txDCredit 
     uciTxPayload.cmd.tlECredit := 0.U //& outwardE.io.credit.valid & creditE
     uciTxPayload.cmd.reservedCmd := 0.U
     // header 1
@@ -326,10 +335,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     // ucie header 2
     uciRxPayload.header2 := protocol.io.TLplData_bits(383, 320).asTypeOf(new UCIHeader2Format(outer.tlParams))
     // ucie data payload
-    uciRxPayload.data(0) := protocol.io.TLplData_bits(319,256)
-    uciRxPayload.data(1) := protocol.io.TLplData_bits(255,192)
-    uciRxPayload.data(2) := protocol.io.TLplData_bits(191,128)
-    uciRxPayload.data(3) := protocol.io.TLplData_bits(127,64)
+    uciRxPayload.data(3) := protocol.io.TLplData_bits(319,256)
+    uciRxPayload.data(2) := protocol.io.TLplData_bits(255,192)
+    uciRxPayload.data(1) := protocol.io.TLplData_bits(191,128)
+    uciRxPayload.data(0) := protocol.io.TLplData_bits(127,64)
     // ucie ecc
     uciRxPayload.ecc := protocol.io.TLplData_bits(63,0)
 

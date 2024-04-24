@@ -18,12 +18,12 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x00000, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 5
+    val txns = 100
 
     val fuzz = LazyModule(new TLFuzzer(txns))
     val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
                                 protoParams=protoParams, fdiParams=fdiParams))
-    val ram  = LazyModule(new TLRAM(AddressSet(0x0, 0xffffff), beatBytes=32))
+    val ram  = LazyModule(new TLRAM(AddressSet(0x0, 0xffff), beatBytes=32))
     // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
 
@@ -73,7 +73,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
 
         fdiLoopback.io.fdi1.lpData.valid    := tlUcieDie1.module.io.fdi.lpData.valid
         fdiLoopback.io.fdi1.lpData.bits     := tlUcieDie1.module.io.fdi.lpData.bits
-        fdiLoopback.io.fdi1.lpData.irdy     := true.B // TODO: check a better way of doing this
+        fdiLoopback.io.fdi1.lpData.irdy     := tlUcieDie1.module.io.fdi.lpData.irdy //true.B // TODO: check a better way of doing this
         fdiLoopback.io.fdi1.lpRetimerCrd    := tlUcieDie1.module.io.fdi.lpRetimerCrd
         fdiLoopback.io.fdi1.lpCorruptCrc    := tlUcieDie1.module.io.fdi.lpCorruptCrc
         fdiLoopback.io.fdi1.lpDllp          := tlUcieDie1.module.io.fdi.lpDllp
@@ -92,7 +92,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "FdiLoopback"
     val txns = 2
-    val timeout = 2000
+    val timeout = 10000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
         test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c =>
