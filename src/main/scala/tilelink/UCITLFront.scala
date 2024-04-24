@@ -48,7 +48,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
-      sourceId = IdRange(0, 16),
+      sourceId = IdRange(0, 32),
       requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )))))
@@ -93,8 +93,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   require(mergedParams == tlBundleParams, s"UCIe is misconfigured, the combined inwards/outwards parameters cannot be serialized using the provided bundle params\n$mergedParams > $tlBundleParams")
 
   // Async queue to handle the clock crossing between system bus and UCIe stack clock
-  val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
-  val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
+  val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 16, pipe=true, flow=false))
+  val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 16, pipe=true, flow=false))
   //val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // inward.io.enq_clock := io.sbus_clk
   // inward.io.enq_reset := io.sbus_reset
@@ -104,8 +104,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Async queue to handle the clock crossing between UCIe stack clock and system bus
   //val outwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
   //val outwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
-  val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 16, 4))
-  val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 16, 4))
+  val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 4, 16))
+  val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 4, 16))
   //val outward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
   // outward.io.enq_clock := io.lclk
   // outward.io.enq_reset := io.lreset
@@ -177,7 +177,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //inwardA.io.enq.bits <> txATLPayload.asTypeOf(new TLBundleA(mergedParams))
   inwardA.io.enq.bits <> manager_tl.a.bits
 
-  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 16, 4))
+  val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 4 , 16))
   inwardA.io.deq.ready := creditedMsgA.io.in.ready
   creditedMsgA.io.in.valid := inwardA.io.deq.fire
   creditedMsgA.io.in.bits := inwardA.io.deq.bits
@@ -207,7 +207,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //inwardD.io.enq.bits <> txDTLPayload.asTypeOf(new TLBundleD(mergedParams))
   inwardD.io.enq.bits <> client_tl.d.bits
 
-  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 16, 4))
+  val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 4, 16))
   inwardD.io.deq.ready := creditedMsgD.io.in.ready
   creditedMsgD.io.in.valid := inwardD.io.deq.fire
   creditedMsgD.io.in.bits := inwardD.io.deq.bits

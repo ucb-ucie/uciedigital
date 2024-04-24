@@ -18,7 +18,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 10
+    val txns = 70
 
     val fuzz = LazyModule(new TLFuzzer(txns))
     val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
