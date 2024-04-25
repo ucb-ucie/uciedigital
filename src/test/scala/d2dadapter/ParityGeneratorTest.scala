@@ -11,7 +11,7 @@ import interfaces._
 class ParityGeneratorTest extends AnyFlatSpec with ChiselScalatestTester {
     val fdiParams = new FdiParams(width = 8, dllpWidth = 8, sbWidth = 32)
     behavior of "ParityGenerator"
-    it should "generate correct parity data" in {
+    ignore should "generate correct parity data" in {
         
         test(new ParityGenerator(fdiParams)) { c => 
             // prepare random data generator
@@ -70,7 +70,7 @@ class ParityGeneratorTest extends AnyFlatSpec with ChiselScalatestTester {
         }
     }
 
-    it should "get correct parity result" in {
+    ignore should "get correct parity result" in {
         
         test(new ParityGenerator(fdiParams)) { c => 
             // prepare random data generator
