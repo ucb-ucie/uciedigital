@@ -4,7 +4,7 @@ package interfaces
 import chisel3._
 import chisel3.util._
 
-case class FdiParams(width: Int, dllpWidth: Int, sbWidth: Int)
+case class FdiParams(width: Int = 64, dllpWidth: Int = 128, sbWidth: Int = 128)
 
 /** The flit-aware die-to-die interface (FDI), from the perspective of the
   * protocol layer.
@@ -384,7 +384,7 @@ class Fdi(params: FdiParams) extends Bundle {
     * as the sideband packets to ensure that no credit returns are dropped by
     * the receiver of the credit returns.
     */
-  val plConfigCredit = Input(Bool())
+  val plConfigCredit = Output(Bool())
 
   /** This is the sideband interface from Protocol Layer to the Adapter. See
     * Chapter 6.0 for details. NC is the width of the interface. Supported
@@ -405,5 +405,5 @@ class Fdi(params: FdiParams) extends Bundle {
     * as the sideband packets to ensure that no credit returns are dropped by
     * the receiver of the credit returns.
     */
-  val lpConfigCredit = Output(Bool())
+  val lpConfigCredit = Input(Bool())
 }
