@@ -72,7 +72,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         tlUcieDie1.module.io.fdi.plWakeAck           := fdiLoopback.io.fdi1.plWakeAck
         // split valids and bits again
         tlUcieDie1.module.io.fdi.plConfig            := fdiLoopback.io.fdi1.plConfig
-        tlUcieDie1.module.io.fdi.plConfigCredit      := fdiLoopback.io.fdi1.plConfigCredit
+        fdiLoopback.io.fdi1.plConfigCredit           := tlUcieDie1.module.io.fdi.plConfigCredit
 
         fdiLoopback.io.fdi1.lpData.valid    := tlUcieDie1.module.io.fdi.lpData.valid
         fdiLoopback.io.fdi1.lpData.bits     := tlUcieDie1.module.io.fdi.lpData.bits
@@ -89,7 +89,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         fdiLoopback.io.fdi1.lpClkAck        := tlUcieDie1.module.io.fdi.lpClkAck
         fdiLoopback.io.fdi1.lpWakeReq       := tlUcieDie1.module.io.fdi.lpWakeReq
         fdiLoopback.io.fdi1.lpConfig        := tlUcieDie1.module.io.fdi.lpConfig
-        fdiLoopback.io.fdi1.lpConfigCredit  := tlUcieDie1.module.io.fdi.lpConfigCredit
+        tlUcieDie1.module.io.fdi.lpConfigCredit := fdiLoopback.io.fdi1.lpConfigCredit  
     }
 }
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {

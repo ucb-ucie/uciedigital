@@ -94,6 +94,7 @@ class FdiLoopback(val fdiParams: FdiParams) extends Module {
 
     io.fdi1.plConfig.valid := false.B
     io.fdi1.plConfig.bits := 0.U
-    io.fdi1.plConfigCredit := false.B //need to handle sideband packets
+    
+    io.fdi1.lpConfigCredit := false.B //need to handle sideband packets
   }
   

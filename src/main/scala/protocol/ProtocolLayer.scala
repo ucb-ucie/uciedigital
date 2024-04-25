@@ -91,7 +91,7 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     // TODO: these are SB messaging signals
     io.fdi.lpConfig.bits := 0.asUInt(fdiParams.sbWidth.W)
     io.fdi.lpConfig.valid := false.B
-    io.fdi.lpConfigCredit := false.B
+    //io.fdi.lpConfigCredit := false.B
     //io.fdi.lpConfig
-    //io.fdi.lpConfigCredit
+    io.fdi.plConfigCredit := false.B
 }
