@@ -76,4 +76,3 @@ Test / testGrouping := (Test / testGrouping).value.flatMap { group =>
 }
 
 concurrentRestrictions := Seq(Tags.limit(Tags.ForkedTestGroup, 72))
-
