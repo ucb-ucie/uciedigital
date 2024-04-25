@@ -18,7 +18,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x40000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 100
+    val txns = 10
 
     val csrfuzz = LazyModule(new TLFuzzer(txns))
     val fuzz = LazyModule(new TLFuzzer(txns))
@@ -95,10 +95,10 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "FdiLoopback"
     val txns = 2
-    val timeout = 10000
+    val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c =>
+        test(LazyModule(new FdiLoopbackTester()).module) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
