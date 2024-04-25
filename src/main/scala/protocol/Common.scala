@@ -81,3 +81,42 @@ class UCIRawPayloadFormat(val tl: TileLinkParams, val proto: ProtocolLayerParams
     val data = Output(Vec(proto.ucieFlitSize, UInt(proto.ucieFlitWidth.W)))
     val ecc = Output(UInt(proto.ucieEccWidth.W))
 }
+
+// Sideband memory mapped registers
+
+class d2dConfig() extends Bundle {
+    // d2d Control Status Registers
+    val d2d_cycles_1us = Output(UInt(32.W))
+    val d2d_uncorrectable_error_csr = Output(UInt(32.W))
+    val d2d_uncorrectable_error_mask_csr = Output(UInt(32.W))
+    val d2d_uncorrectable_error_severity_csr = Output(UInt(32.W))
+    val d2d_correctable_error_csr = Output(UInt(32.W))
+    val d2d_correctable_error_mask_csr = Output(UInt(32.W))
+    val d2d_header_log_1_csr = Output(UInt(64.W))
+    val d2d_header_log_2_csr = Output(UInt(64.W))
+    val d2d_error_and_link_testing_parity_log0 = Output(UInt(64.W))
+    val d2d_error_and_link_testing_parity_log1 = Output(UInt(64.W))
+    val d2d_error_and_link_testing_parity_log2 = Output(UInt(64.W))
+    val d2d_error_and_link_testing_parity_log3 = Output(UInt(64.W))
+    val advertised_adapter_capability = Output(UInt(64.W))
+    val d2d_stack_num = Output(UInt(1.W))
+    val d2d_state_can_reset = Output(UInt(1.W))
+    val d2d_flush_and_reset = Output(UInt(1.W))
+}
+
+class sbConfig() extends Bundle {
+    // SideBand Control Status Registers
+    val sideband_mailbox_index_low = Output(UInt(32.W))
+    val sideband_mailbox_index_high = Output(UInt(32.W))
+    val sideband_mailbox_data_low = Output(UInt(32.W))
+    val sideband_mailbox_data_high = Output(UInt(32.W))
+    val sideband_mailbox_ready = Output(UInt(1.W))
+    val sideband_mailbox_valid = Output(UInt(1.W))
+
+    val sideband_mailbox_sw_to_node_index_low = Output(UInt(32.W))
+    val sidebank_mailbox_sw_to_node_index_high = Output(UInt(32.W))
+    val sideband_mailbox_sw_to_node_data_low = Output(UInt(32.W))
+    val sideband_mailbox_sw_to_node_data_high = Output(UInt(32.W))
+    val sideband_mailbox_sw_ready = Output(UInt(1.W))
+    val sideband_mailbox_sw_valid = Output(UInt(1.W))
+}

@@ -13,6 +13,7 @@ import freechips.rocketchip.util._
 
 import protocol._
 import interfaces._
+//import sideband._
 
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
@@ -29,7 +30,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val beatBytes = tlParams.BEAT_BYTES
 
   // MMIO registers controlled by the sideband module
-  // val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
+  val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.CONFIG_BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
   
   // Manager node to send and acquire traffic to partner die
   val managerNode: TLManagerNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
@@ -69,6 +70,21 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
   io.fdi <> protocol.io.fdi
 
+  // Sideband node for protocol layer
+  //val protocol_sb_node = Module(new SidebandNode(new SidebandParams))
+
+  // protocol_sb_node.io.inner.layer_to_node.bits := Cat(sideband_mailbox_sw_to_node_data_high.q, sideband_mailbox_sw_to_node_data_low.q,
+  //                                                   sidebank_mailbox_sw_to_node_index_high.q, sideband_mailbox_sw_to_node_index_low.q)
+  // protocol_sb_node.io.inner.layer_to_node.valid := sideband_mailbox_sw_valid.q
+                                                  
+
+  // sideband_mailbox_index_low.d := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
+  // sideband_mailbox_index_high.d := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
+  // sideband_mailbox_data_low.d := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
+  // sideband_mailbox_data_high.d := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
+  // sideband_mailbox_ready.d := protocol_sb_node.io.inner.node_to_layer.ready
+  // sideband_mailbox_valid.d := protocol_sb_node.io.inner.node_to_layer.valid
+
   val tlBundleParams = new TLBundleParameters(addressBits = outer.tlParams.addressWidth,
                                             dataBits = outer.tlParams.dataWidth,
                                             sourceBits = outer.tlParams.sourceIDWidth,
@@ -92,26 +108,11 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   require(mergedParams.responseFields.isEmpty, "UCIe does not support TileLink with response fields")
   require(mergedParams == tlBundleParams, s"UCIe is misconfigured, the combined inwards/outwards parameters cannot be serialized using the provided bundle params\n$mergedParams > $tlBundleParams")
 
-  // Async queue to handle the clock crossing between system bus and UCIe stack clock
   val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 16, pipe=true, flow=true))
   val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 16, pipe=true, flow=true))
 
-  //val inward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.inwardQueueDepth, sync = 3, safe = true, narrow = false)))
-  // inward.io.enq_clock := io.sbus_clk
-  // inward.io.enq_reset := io.sbus_reset
-  // inward.io.deq_clock := io.lclk
-  // inward.io.deq_reset := io.lreset
-
-  // Async queue to handle the clock crossing between UCIe stack clock and system bus
-  //val outwardA = Module(new Queue((new TLBundleA(mergedParams)), 2, pipe=true, flow=true))
-  //val outwardD = Module(new Queue((new TLBundleD(mergedParams)), 2, pipe=true, flow=true))
   val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 4, 16))
   val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 4, 16))
-  //val outward = Module(new AsyncQueue(new TLBundleAUnionD(outer.tlParams), new AsyncQueueParams(depth = outer.tlParams.outwardQueueDepth, sync = 3, safe = true, narrow = false)))
-  // outward.io.enq_clock := io.lclk
-  // outward.io.enq_reset := io.lreset
-  // outward.io.deq_clock := io.sbus_clk
-  // outward.io.deq_reset := io.sbus_reset
 
   // =======================
   // TL TX packets from System to the UCIe stack, push on the inward queue.
@@ -145,37 +146,6 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   manager_tl.a.ready := (inwardA.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
   inwardA.io.enq.valid := manager_tl.a.fire
-
-  // when(manager_tl.a.fire && aHasData) { // put tx towards partner die
-  //   when (manager_edge.last(manager_tl.a)) { // wait for all the beats to arrive
-  //     inwardA.io.enq.bits.opcode  := manager_tl.a.bits.opcode
-  //     inwardA.io.enq.bits.param   := manager_tl.a.bits.param
-  //     inwardA.io.enq.bits.size    := manager_tl.a.bits.size
-  //     inwardA.io.enq.bits.source  := manager_tl.a.bits.source
-  //     //inwardA.io.enq.bits.sink    := 0.U
-  //     inwardA.io.enq.bits.address := manager_tl.a.bits.address
-  //     inwardA.io.enq.bits.mask    := manager_tl.a.bits.mask
-  //     inwardA.io.enq.bits.data    := manager_tl.a.bits.data
-  //     //inwardA.io.enq.bits.msgType := UCIProtoMsgTypes.TLA
-  //     // inwardA.io.enq.bits.denied  := false.B
-  //     // inwardA.io.enq.bits.corrupt := false.B
-  //   }
-  // }.elsewhen(manager_tl.a.fire && ~aHasData) { // get rx data from partner die
-  //   when (manager_edge.last(manager_tl.a)) { // wait for all the beats to arrive
-  //     inwardA.io.enq.bits.opcode  := manager_tl.a.bits.opcode
-  //     inwardA.io.enq.bits.param   := manager_tl.a.bits.param
-  //     inwardA.io.enq.bits.size    := manager_tl.a.bits.size
-  //     inwardA.io.enq.bits.source  := manager_tl.a.bits.source
-  //     //inwardA.io.enq.bits.sink    := 0.U
-  //     inwardA.io.enq.bits.address := manager_tl.a.bits.address
-  //     inwardA.io.enq.bits.mask    := manager_tl.a.bits.mask
-  //     inwardA.io.enq.bits.data    := 0.U
-  //     //inwardA.io.enq.bits.msgType := UCIProtoMsgTypes.TLA
-  //     // inwardA.io.enq.bits.denied  := false.B
-  //     // inwardA.io.enq.bits.corrupt := false.B      
-  //   }
-  // }
-  //inwardA.io.enq.bits <> txATLPayload.asTypeOf(new TLBundleA(mergedParams))
   inwardA.io.enq.bits <> manager_tl.a.bits
 
   val creditedMsgA = Module(new DecoupledtoCreditedMsg(new TLBundleA(mergedParams), 4, 16))
@@ -189,23 +159,6 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   client_tl.d.ready := (inwardD.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
                 (protocol.io.fdi.plStateStatus === PhyState.active))
   inwardD.io.enq.valid := client_tl.d.fire
-
-  // when(client_tl.d.fire) {
-  //   when (client_edge.last(client_tl.d)) { // wait for all the beats to arrive
-  //     inwardD.io.enq.bits.opcode  := client_tl.d.bits.opcode
-  //     inwardD.io.enq.bits.param   := client_tl.d.bits.param
-  //     inwardD.io.enq.bits.size    := client_tl.d.bits.size
-  //     inwardD.io.enq.bits.source  := client_tl.d.bits.source
-  //     inwardD.io.enq.bits.sink    := client_tl.d.bits.sink
-  //     //inwardD.io.enq.bits.address := 0.U
-  //     //inwardD.io.enq.bits.mask    := 0.U
-  //     inwardD.io.enq.bits.data    := client_tl.d.bits.data
-  //     //inwardD.io.enq.bits.msgType := UCIProtoMsgTypes.TLD
-  //     // inwardD.io.enq.bits.denied  := false.B
-  //     // inwardD.io.enq.bits.corrupt := false.B
-  //   }
-  // }
-  //inwardD.io.enq.bits <> txDTLPayload.asTypeOf(new TLBundleD(mergedParams))
   inwardD.io.enq.bits <> client_tl.d.bits
 
   val creditedMsgD = Module(new DecoupledtoCreditedMsg(new TLBundleD(mergedParams), 4, 16))
@@ -271,15 +224,15 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
-  outwardA.io.credit.ready := txArbiter.io.out.fire
-  outwardD.io.credit.ready := txArbiter.io.out.fire
+  outwardA.io.credit.ready := txArbiter.io.out.fire && creditA
+  outwardD.io.credit.ready := txArbiter.io.out.fire && creditD
 
   val txACredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
   
-  when(outwardA.io.credit.valid && creditA){
+  when(outwardA.io.credit.valid){
     txACredit := outwardA.io.credit.bits
-  }.elsewhen(outwardD.io.credit.valid && creditD){
+  }.elsewhen(outwardD.io.credit.valid){
     txDCredit := outwardD.io.credit.bits
   }
 

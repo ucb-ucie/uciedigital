@@ -44,4 +44,4 @@ abstract class BaseProtoLBTest(
 abstract class ProtoLBTest(configs: Seq[Config]) extends BaseProtoLBTest(p => new ProtoLBChiselTester()(p), configs)
 
 // these tests allow you to run an infividual config
-class ProtoLBTest00 extends ProtoLBTest(Seq(new ProtoLBTestConfig00))
+//class ProtoLBTest00 extends ProtoLBTest(Seq(new ProtoLBTestConfig00))

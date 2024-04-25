@@ -16,10 +16,11 @@ import protocol._
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
     val protoParams = ProtocolLayerParams()
-    val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x4000, inwardQueueDepth=8, outwardQueueDepth=8)
+    val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x40000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
     val txns = 100
 
+    val csrfuzz = LazyModule(new TLFuzzer(txns))
     val fuzz = LazyModule(new TLFuzzer(txns))
     val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
                                 protoParams=protoParams, fdiParams=fdiParams))
@@ -27,7 +28,9 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
 
-    // connect nodes
+    // CSR node
+    tlUcieDie1.regNode.node := csrfuzz.node
+    // connect data nodes
     tlUcieDie1.managerNode := fuzz.node
     ram.node := tlUcieDie1.clientNode
     // fdiLoopback.ram.node := tlUcieDie1.clientNode
