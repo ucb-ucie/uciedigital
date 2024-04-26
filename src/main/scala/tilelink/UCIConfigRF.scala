@@ -110,17 +110,17 @@ class UCIConfigRF(val beatBytes: Int, val address: BigInt)(implicit p: Parameter
     io.d2d_csrs.d2d_state_can_reset := d2d_state_can_reset
     io.d2d_csrs.d2d_flush_and_reset := d2d_flush_and_reset
 
-   io.sb_csrs.sideband_mailbox_index_low := sideband_mailbox_index_low
-   io.sb_csrs.sideband_mailbox_index_high := sideband_mailbox_index_high
-   io.sb_csrs.sideband_mailbox_data_low := sideband_mailbox_data_low
-   io.sb_csrs.sideband_mailbox_data_high := sideband_mailbox_data_high
-   io.sb_csrs.sideband_mailbox_ready := sideband_mailbox_ready
-   io.sb_csrs.sideband_mailbox_valid := sideband_mailbox_valid
-   io.sb_csrs.sideband_mailbox_sw_to_node_index_low := sideband_mailbox_sw_to_node_index_low
-   io.sb_csrs.sidebank_mailbox_sw_to_node_index_high := sidebank_mailbox_sw_to_node_index_high
-   io.sb_csrs.sideband_mailbox_sw_to_node_data_low := sideband_mailbox_sw_to_node_data_low
-   io.sb_csrs.sideband_mailbox_sw_to_node_data_high := sideband_mailbox_sw_to_node_data_high
-   io.sb_csrs.sideband_mailbox_sw_ready := sideband_mailbox_sw_ready
-   io.sb_csrs.sideband_mailbox_sw_valid := sideband_mailbox_sw_valid
+    sideband_mailbox_index_low := io.sb_csrs.sideband_mailbox_index_low
+    sideband_mailbox_index_high := io.sb_csrs.sideband_mailbox_index_high
+    sideband_mailbox_data_low := io.sb_csrs.sideband_mailbox_data_low
+    sideband_mailbox_data_high := io.sb_csrs.sideband_mailbox_data_high
+    io.sb_csrs.sideband_mailbox_ready := sideband_mailbox_ready
+    sideband_mailbox_valid := io.sb_csrs.sideband_mailbox_valid
+    io.sb_csrs.sideband_mailbox_sw_to_node_index_low := sideband_mailbox_sw_to_node_index_low
+    io.sb_csrs.sidebank_mailbox_sw_to_node_index_high := sidebank_mailbox_sw_to_node_index_high
+    io.sb_csrs.sideband_mailbox_sw_to_node_data_low := sideband_mailbox_sw_to_node_data_low
+    io.sb_csrs.sideband_mailbox_sw_to_node_data_high := sideband_mailbox_sw_to_node_data_high
+    io.sb_csrs.sideband_mailbox_sw_ready := sideband_mailbox_sw_ready
+    io.sb_csrs.sideband_mailbox_sw_valid := sideband_mailbox_sw_valid
   }
 }

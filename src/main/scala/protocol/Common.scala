@@ -106,12 +106,12 @@ class d2dConfig() extends Bundle {
 
 class sbConfig() extends Bundle {
     // SideBand Control Status Registers
-    val sideband_mailbox_index_low = Output(UInt(32.W))
-    val sideband_mailbox_index_high = Output(UInt(32.W))
-    val sideband_mailbox_data_low = Output(UInt(32.W))
-    val sideband_mailbox_data_high = Output(UInt(32.W))
+    val sideband_mailbox_index_low = Input(UInt(32.W))
+    val sideband_mailbox_index_high = Input(UInt(32.W))
+    val sideband_mailbox_data_low = Input(UInt(32.W))
+    val sideband_mailbox_data_high = Input(UInt(32.W))
     val sideband_mailbox_ready = Output(UInt(1.W))
-    val sideband_mailbox_valid = Output(UInt(1.W))
+    val sideband_mailbox_valid = Input(UInt(1.W))
 
     val sideband_mailbox_sw_to_node_index_low = Output(UInt(32.W))
     val sidebank_mailbox_sw_to_node_index_high = Output(UInt(32.W))

@@ -13,7 +13,7 @@ import freechips.rocketchip.util._
 
 import protocol._
 import interfaces._
-//import sideband._
+import sideband._
 
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
@@ -66,24 +66,36 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     val fdi = new Fdi(outer.fdiParams)
   })
 
+  val fault = RegInit(false.B) // if fault in ecc code
+
   // Instantiate the agnostic protocol layer
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
   io.fdi <> protocol.io.fdi
+  protocol.io.fault := fault
 
-  // Sideband node for protocol layer
-  //val protocol_sb_node = Module(new SidebandNode(new SidebandParams))
+  //Sideband node for protocol layer
+  val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
 
-  // protocol_sb_node.io.inner.layer_to_node.bits := Cat(sideband_mailbox_sw_to_node_data_high.q, sideband_mailbox_sw_to_node_data_low.q,
-  //                                                   sidebank_mailbox_sw_to_node_index_high.q, sideband_mailbox_sw_to_node_index_low.q)
-  // protocol_sb_node.io.inner.layer_to_node.valid := sideband_mailbox_sw_valid.q
+  protocol_sb_node.io.outer.rx.bits  := protocol.io.fdi.lpConfig.bits
+  protocol_sb_node.io.outer.rx.valid := protocol.io.fdi.lpConfig.valid
+  protocol.io.fdi.lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
+
+  protocol.io.fdi.plConfig.bits       := protocol_sb_node.io.outer.tx.bits
+  protocol.io.fdi.plConfig.valid      := protocol_sb_node.io.outer.tx.valid
+  protocol_sb_node.io.outer.tx.credit := protocol.io.fdi.plConfigCredit
+
+  protocol_sb_node.io.inner.layer_to_node.bits := Cat(outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
+                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
+                                                      outer.regNode.module.io.sb_csrs.sidebank_mailbox_sw_to_node_index_high,
+                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_index_low)
+  protocol_sb_node.io.inner.layer_to_node.valid := outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_valid
                                                   
-
-  // sideband_mailbox_index_low.d := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
-  // sideband_mailbox_index_high.d := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
-  // sideband_mailbox_data_low.d := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
-  // sideband_mailbox_data_high.d := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
-  // sideband_mailbox_ready.d := protocol_sb_node.io.inner.node_to_layer.ready
-  // sideband_mailbox_valid.d := protocol_sb_node.io.inner.node_to_layer.valid
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_low := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_high := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_low := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_high := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
+  protocol_sb_node.io.inner.node_to_layer.ready := outer.regNode.module.io.sb_csrs.sideband_mailbox_ready
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_valid := protocol_sb_node.io.inner.node_to_layer.valid
 
   val tlBundleParams = new TLBundleParameters(addressBits = outer.tlParams.addressWidth,
                                             dataBits = outer.tlParams.dataWidth,
@@ -338,4 +350,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       outwardD.io.in.valid        := true.B
     }
   }
+  // when the RX queues are ready to get data
+  val TLready_to_rcv = outwardA.io.in.ready || outwardD.io.in.ready
+  protocol.io.TLready_to_rcv := TLready_to_rcv
+
+  // soft resets: can be reset or flush and reset, in flush and reset, the packets are
+  // sent out before triggering reset
+  protocol.io.soft_reset := (outer.regNode.module.io.d2d_csrs.d2d_state_can_reset | 
+                            outer.regNode.module.io.d2d_csrs.d2d_flush_and_reset)
 }
