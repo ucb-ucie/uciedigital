@@ -99,7 +99,7 @@ class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+        test(LazyModule(new FdiLoopbackTester()).module) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
