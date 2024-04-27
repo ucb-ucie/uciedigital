@@ -73,6 +73,14 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   io.fdi <> protocol.io.fdi
   protocol.io.fault := fault
 
+  // Hamming encode and decode
+  val hammingEncoder = Module(new HammingEncode(outer.protoParams))
+  val hammingDecoder = Module(new HammingDecode(outer.protoParams))
+  // Defaults
+  hammingEncoder.io.data := 0.U
+  hammingDecoder.io.data := 0.U
+  hammingDecoder.io.checksum := 0.U
+
   //Sideband node for protocol layer
   val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
 
@@ -222,13 +230,18 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   manager_tl.d.valid := outwardD.io.out.fire
 
   // ============ Below code should run on the UCIe clock? ==============
+  val checksum_reg = RegInit(0.U(64.W))
+  checksum_reg := hammingEncoder.io.checksum
   
+  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams), 1))
+  tx_pipe.io.enq.bits := uciTxPayload
+  tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
   txArbiter.io.out.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  protocol.io.TLlpData_valid := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_irdy := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_bits := uciTxPayload.asUInt // assign uciTXPayload to the FDI lp data signa
+  protocol.io.TLlpData_valid := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
   val creditB = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLB)
@@ -236,8 +249,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
-  outwardA.io.credit.ready := txArbiter.io.out.fire && creditA
-  outwardD.io.credit.ready := txArbiter.io.out.fire && creditD
+  outwardA.io.credit.ready := tx_pipe.io.deq.valid && creditA
+  outwardD.io.credit.ready := tx_pipe.io.deq.valid && creditD
 
   val txACredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
@@ -279,16 +292,16 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciTxPayload.data(2) := txArbiter.io.out.bits.data(191,128)
     uciTxPayload.data(3) := txArbiter.io.out.bits.data(255,192)
     // TODO: add ECC/checksum functionality, for now tieing to 0
+    hammingEncoder.io.data := uciTxPayload.asUInt(511,64)
     uciTxPayload.ecc := 0.U
   }
- 
+
+
   // =======================
   // TL RX packets coming from the UCIe stack to the System, push on the outward queue
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-  dontTouch(rxTLPayload)
-  dontTouch(uciRxPayload)
   // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
@@ -307,7 +320,9 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciRxPayload.data(0) := protocol.io.TLplData_bits(127,64)
     // ucie ecc
     uciRxPayload.ecc := protocol.io.TLplData_bits(63,0)
-
+    hammingDecoder.io.data := protocol.io.TLplData_bits(511,64)
+    hammingDecoder.io.checksum := protocol.io.TLplData_bits(63,0)
+    
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
     rxTLPayload.opcode  := uciRxPayload.header2.opcode
@@ -321,6 +336,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     rxTLPayload.data    := Cat(uciRxPayload.data(0), uciRxPayload.data(1), uciRxPayload.data(2), uciRxPayload.data(3))
     rxTLPayload.msgType := uciRxPayload.cmd.msgType
   }
+  fault := ~(hammingDecoder.io.matches)
 
   outwardA.io.in.bits.address := rxTLPayload.address
   outwardA.io.in.bits.opcode  := rxTLPayload.opcode

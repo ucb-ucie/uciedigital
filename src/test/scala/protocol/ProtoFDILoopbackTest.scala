@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package protocol
 
 import chiseltest._
 import org.scalatest.freespec.AnyFreeSpec

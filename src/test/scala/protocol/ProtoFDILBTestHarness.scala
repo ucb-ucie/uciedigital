@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package protocol
 
 import chisel3._
 import chisel3.util._

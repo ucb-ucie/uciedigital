@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package protocol
 
 import chisel3._
 import chisel3.util._
@@ -11,7 +12,7 @@ import freechips.rocketchip.diplomacy._
 import edu.berkeley.cs.ucie.digital.interfaces.FdiParams
 import org.scalatest.flatspec.AnyFlatSpec
 import tilelink._
-import protocol._
+//import protocol._
 
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
@@ -98,7 +99,7 @@ class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
