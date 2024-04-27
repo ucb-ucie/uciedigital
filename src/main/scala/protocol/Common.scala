@@ -12,6 +12,7 @@ import tilelink._
 case class ProtocolLayerParams() {
   val ucieFlitWidth = 64 // flit width
   val ucieFlitSize = 4 // number of ucie flits
+  val ucieNonEccWidth = 448 // width of the actual data bits
   val ucieEccWidth = 64 // width of the ECC bits
   val hostIDWidth = 8 // hostID of the initiator chiplet
   val partnerIDWidth = 8 // partnerID of the consumer chiplet
@@ -28,6 +29,7 @@ object UCIProtoMsgTypes extends ChiselEnum {
     val Reserved0 = Value(0x5.U(4.W))
     val Reserved1 = Value(0x6.U(4.W))
     val Reserved2 = Value(0x7.U(4.W))
+    val Reserved3 = Value(0x8.U(4.W))
 }
 
 /**
@@ -106,12 +108,12 @@ class d2dConfig() extends Bundle {
 
 class sbConfig() extends Bundle {
     // SideBand Control Status Registers
-    val sideband_mailbox_index_low = Output(UInt(32.W))
-    val sideband_mailbox_index_high = Output(UInt(32.W))
-    val sideband_mailbox_data_low = Output(UInt(32.W))
-    val sideband_mailbox_data_high = Output(UInt(32.W))
+    val sideband_mailbox_index_low = Input(UInt(32.W))
+    val sideband_mailbox_index_high = Input(UInt(32.W))
+    val sideband_mailbox_data_low = Input(UInt(32.W))
+    val sideband_mailbox_data_high = Input(UInt(32.W))
     val sideband_mailbox_ready = Output(UInt(1.W))
-    val sideband_mailbox_valid = Output(UInt(1.W))
+    val sideband_mailbox_valid = Input(UInt(1.W))
 
     val sideband_mailbox_sw_to_node_index_low = Output(UInt(32.W))
     val sidebank_mailbox_sw_to_node_index_high = Output(UInt(32.W))

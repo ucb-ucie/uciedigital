@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 
 import interfaces._
+import javax.swing.InputMap
 
 /**
   * Class to handle the FDI signalling between the D2D adapter and protocol layer. The class
@@ -23,6 +24,9 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
         val TLlpData_irdy = Input(Bool())
         val TLplData_bits = Output(Bits((8 * fdiParams.width).W))
         val TLplData_valid = Output(Bool())
+        val TLready_to_rcv = Input(Bool())
+        val fault = Input(Bool())
+        val soft_reset = Input(Bool())
     })
 
     io.fdi.lpData.bits := io.TLlpData_bits
@@ -39,8 +43,8 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     io.fdi.lpDllp.bits := 0.U
     io.fdi.lpDllpOfc := false.B
     // Dynamic clock gating feature not supported in v1
-    io.fdi.lpClkAck := false.B
-    io.fdi.lpWakeReq := false.B
+    io.fdi.lpClkAck := true.B
+    io.fdi.lpWakeReq := true.B
 
     // Tie lpStream to streaming protocol on stack 0
     val streaming = Wire(new ProtoStream())
@@ -48,16 +52,17 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     streaming.protoType := ProtoStreamType.Stream
     io.fdi.lpStream <> streaming
 
-    val sb_linkReset_req = RegInit(false.B)
+    val sb_linkReset_req = io.soft_reset
 
     // Refer to section 8.2.7 for rx_active_req/sts handshake
     val lp_rx_active_sts_reg = RegInit(false.B)
     // lpRxActiveStatus can change before the plStateStatus becomes Active
-    val lp_rx_active_pl_state = (io.fdi.plStateStatus === PhyState.reset ||
-                                 io.fdi.plStateStatus === PhyState.retrain ||
-                                 io.fdi.plStateStatus === PhyState.active)
+    // val lp_rx_active_pl_state = (io.fdi.plStateStatus === PhyState.reset ||
+    //                              io.fdi.plStateStatus === PhyState.retrain ||
+    //                              io.fdi.plStateStatus === PhyState.active)
+    val lp_rx_active_pl_state = (io.fdi.plStateStatus === PhyState.active)
 
-    when(io.fdi.plRxActiveReq && io.fdi.lpData.irdy && lp_rx_active_pl_state) {
+    when(io.fdi.plRxActiveReq && io.TLready_to_rcv && lp_rx_active_pl_state) {
         lp_rx_active_sts_reg := true.B
     }
     io.fdi.lpRxActiveStatus := lp_rx_active_sts_reg
@@ -65,21 +70,21 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     // Refer to section 8.2.8 for FDI bringup and state req logic
     val lp_state_req_reg = RegInit(PhyStateReq.nop)
 
-    val reqActive = (io.fdi.plStateStatus === PhyState.reset &
+    val reqActive = ((io.fdi.plStateStatus === PhyState.reset &
                     lp_state_req_reg === PhyStateReq.nop &
-                    io.fdi.plInbandPres)
+                    io.fdi.plInbandPres) || io.fdi.plStateStatus === PhyState.linkReset)
 
     when(reqActive) {
         lp_state_req_reg := PhyStateReq.active
-    }.elsewhen(sb_linkReset_req) {// TODO: SB register to initiate LinkReset
+    }.elsewhen(~reqActive && sb_linkReset_req) {// TODO: SB register to initiate LinkReset
         lp_state_req_reg := PhyStateReq.linkReset
     }.otherwise { lp_state_req_reg := PhyStateReq.nop }
 
     io.fdi.lpStateReq := lp_state_req_reg
 
-    // TODO: lpLinkError should be asserted when there is an error detected by protocol layer
+    // lpLinkError should be asserted when there is an error detected by protocol layer
     // should be done as a ECC check in UCIe flit
-    io.fdi.lpLinkError := false.B
+    io.fdi.lpLinkError := io.fault
 
     // Refer to section 8.3.2
     // Whent he lpStallAck is asserted the TL A channel is stalled and the lp irdy and valid
@@ -87,6 +92,18 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     val lp_stall_reg = RegInit(false.B)
     lp_stall_reg := io.fdi.plStallReq
     io.fdi.lpStallAck := lp_stall_reg
+
+    /** pl_protocol
+      * saves pl_protocol and flitfmt, resets and negotiates if protocol/flitfmt is not raw
+      * Expects ProtocolID.STREAM and ProtocolFlitFmt.RAW if implemented
+      * WARNING: HAS NOT IMPLEMENTED RENEGOTIATION LOGIC, the d2d ties these to raw
+      */
+    val pl_protocol_reg = RegInit(0.U(3.W))
+    val pl_protocol_flitfmt_reg = RegInit(0.U(4.W))
+    when (io.fdi.plProtocolValid) {
+      pl_protocol_reg := io.fdi.plProtocol.asUInt
+      pl_protocol_flitfmt_reg := io.fdi.plProtocolFlitFormat.asUInt
+    }
 
     // TODO: these are SB messaging signals
     io.fdi.lpConfig.bits := 0.asUInt(fdiParams.sbWidth.W)

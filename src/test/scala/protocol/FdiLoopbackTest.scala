@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package protocol
 
 import chisel3._
 import chisel3.util._
@@ -11,7 +12,7 @@ import freechips.rocketchip.diplomacy._
 import edu.berkeley.cs.ucie.digital.interfaces.FdiParams
 import org.scalatest.flatspec.AnyFlatSpec
 import tilelink._
-import protocol._
+//import protocol._
 
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)

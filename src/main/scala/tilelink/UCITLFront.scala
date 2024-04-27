@@ -13,7 +13,7 @@ import freechips.rocketchip.util._
 
 import protocol._
 import interfaces._
-//import sideband._
+import sideband._
 
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
@@ -66,24 +66,44 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     val fdi = new Fdi(outer.fdiParams)
   })
 
+  val fault = RegInit(false.B) // if fault in ecc code
+
   // Instantiate the agnostic protocol layer
   val protocol = Module(new ProtocolLayer(outer.fdiParams))
   io.fdi <> protocol.io.fdi
+  protocol.io.fault := fault
 
-  // Sideband node for protocol layer
-  //val protocol_sb_node = Module(new SidebandNode(new SidebandParams))
+  // Hamming encode and decode
+  val hammingEncoder = Module(new HammingEncode(outer.protoParams))
+  val hammingDecoder = Module(new HammingDecode(outer.protoParams))
+  // Defaults
+  hammingEncoder.io.data := 0.U
+  hammingDecoder.io.data := 0.U
+  hammingDecoder.io.checksum := 0.U
 
-  // protocol_sb_node.io.inner.layer_to_node.bits := Cat(sideband_mailbox_sw_to_node_data_high.q, sideband_mailbox_sw_to_node_data_low.q,
-  //                                                   sidebank_mailbox_sw_to_node_index_high.q, sideband_mailbox_sw_to_node_index_low.q)
-  // protocol_sb_node.io.inner.layer_to_node.valid := sideband_mailbox_sw_valid.q
+  //Sideband node for protocol layer
+  val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
+
+  protocol_sb_node.io.outer.rx.bits  := protocol.io.fdi.lpConfig.bits
+  protocol_sb_node.io.outer.rx.valid := protocol.io.fdi.lpConfig.valid
+  protocol.io.fdi.lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
+
+  protocol.io.fdi.plConfig.bits       := protocol_sb_node.io.outer.tx.bits
+  protocol.io.fdi.plConfig.valid      := protocol_sb_node.io.outer.tx.valid
+  protocol_sb_node.io.outer.tx.credit := protocol.io.fdi.plConfigCredit
+
+  protocol_sb_node.io.inner.layer_to_node.bits := Cat(outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
+                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
+                                                      outer.regNode.module.io.sb_csrs.sidebank_mailbox_sw_to_node_index_high,
+                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_index_low)
+  protocol_sb_node.io.inner.layer_to_node.valid := outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_valid
                                                   
-
-  // sideband_mailbox_index_low.d := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
-  // sideband_mailbox_index_high.d := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
-  // sideband_mailbox_data_low.d := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
-  // sideband_mailbox_data_high.d := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
-  // sideband_mailbox_ready.d := protocol_sb_node.io.inner.node_to_layer.ready
-  // sideband_mailbox_valid.d := protocol_sb_node.io.inner.node_to_layer.valid
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_low := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_high := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_low := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_high := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
+  protocol_sb_node.io.inner.node_to_layer.ready := outer.regNode.module.io.sb_csrs.sideband_mailbox_ready
+  outer.regNode.module.io.sb_csrs.sideband_mailbox_valid := protocol_sb_node.io.inner.node_to_layer.valid
 
   val tlBundleParams = new TLBundleParameters(addressBits = outer.tlParams.addressWidth,
                                             dataBits = outer.tlParams.dataWidth,
@@ -210,13 +230,18 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   manager_tl.d.valid := outwardD.io.out.fire
 
   // ============ Below code should run on the UCIe clock? ==============
+  val checksum_reg = RegInit(0.U(64.W))
+  checksum_reg := hammingEncoder.io.checksum
   
+  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams), 1))
+  tx_pipe.io.enq.bits := uciTxPayload
+  tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
   txArbiter.io.out.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  protocol.io.TLlpData_valid := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_irdy := txArbiter.io.out.fire & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_bits := uciTxPayload.asUInt // assign uciTXPayload to the FDI lp data signa
+  protocol.io.TLlpData_valid := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
+  protocol.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
   val creditB = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLB)
@@ -224,8 +249,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
-  outwardA.io.credit.ready := txArbiter.io.out.fire && creditA
-  outwardD.io.credit.ready := txArbiter.io.out.fire && creditD
+  outwardA.io.credit.ready := tx_pipe.io.deq.valid && creditA
+  outwardD.io.credit.ready := tx_pipe.io.deq.valid && creditD
 
   val txACredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
@@ -267,16 +292,16 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciTxPayload.data(2) := txArbiter.io.out.bits.data(191,128)
     uciTxPayload.data(3) := txArbiter.io.out.bits.data(255,192)
     // TODO: add ECC/checksum functionality, for now tieing to 0
+    hammingEncoder.io.data := uciTxPayload.asUInt(511,64)
     uciTxPayload.ecc := 0.U
   }
- 
+
+
   // =======================
   // TL RX packets coming from the UCIe stack to the System, push on the outward queue
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-  dontTouch(rxTLPayload)
-  dontTouch(uciRxPayload)
   // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
@@ -295,7 +320,9 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     uciRxPayload.data(0) := protocol.io.TLplData_bits(127,64)
     // ucie ecc
     uciRxPayload.ecc := protocol.io.TLplData_bits(63,0)
-
+    hammingDecoder.io.data := protocol.io.TLplData_bits(511,64)
+    hammingDecoder.io.checksum := protocol.io.TLplData_bits(63,0)
+    
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
     rxTLPayload.opcode  := uciRxPayload.header2.opcode
@@ -309,6 +336,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
     rxTLPayload.data    := Cat(uciRxPayload.data(0), uciRxPayload.data(1), uciRxPayload.data(2), uciRxPayload.data(3))
     rxTLPayload.msgType := uciRxPayload.cmd.msgType
   }
+  fault := ~(hammingDecoder.io.matches)
 
   outwardA.io.in.bits.address := rxTLPayload.address
   outwardA.io.in.bits.opcode  := rxTLPayload.opcode
@@ -338,4 +366,12 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
       outwardD.io.in.valid        := true.B
     }
   }
+  // when the RX queues are ready to get data
+  val TLready_to_rcv = outwardA.io.in.ready || outwardD.io.in.ready
+  protocol.io.TLready_to_rcv := TLready_to_rcv
+
+  // soft resets: can be reset or flush and reset, in flush and reset, the packets are
+  // sent out before triggering reset
+  protocol.io.soft_reset := (outer.regNode.module.io.d2d_csrs.d2d_state_can_reset | 
+                            outer.regNode.module.io.d2d_csrs.d2d_flush_and_reset)
 }

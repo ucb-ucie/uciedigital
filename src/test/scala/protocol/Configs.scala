@@ -1,4 +1,5 @@
 package edu.berkeley.cs.ucie.digital
+package protocol
 
 import org.chipsalliance.cde.config.{Field, Parameters, Config}
 import scala.collection.immutable.ListMap
