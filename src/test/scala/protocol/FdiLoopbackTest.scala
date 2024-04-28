@@ -8,23 +8,38 @@ import org.chipsalliance.cde.config.{Field, Parameters, Config}
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
 import freechips.rocketchip.diplomacy._
+import chisel3.experimental.BundleLiterals._
+
 // import freechips.rocketchip.unittest._
-import edu.berkeley.cs.ucie.digital.interfaces.FdiParams
 import org.scalatest.flatspec.AnyFlatSpec
 import tilelink._
-//import protocol._
+import sideband.{SidebandParams}
+import logphy.{LinkTrainingParams}
+import interfaces._
 
 class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
-    val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x40000, inwardQueueDepth=8, outwardQueueDepth=8)
+    val fdiParams = FdiParams(width=64, dllpWidth=64, sbWidth=32)
+    val rdiParams = RdiParams(width=64, sbWidth=32)
+    val sbParams = SidebandParams()
+    val myId = 1
+    val linkTrainingParams = LinkTrainingParams()
+    val afeParams = AfeParams()
+    val laneAsyncQueueParams = AsyncQueueParams()
     val delay = 0.0
     val txns = 10
 
     val csrfuzz = LazyModule(new TLFuzzer(txns))
     val fuzz = LazyModule(new TLFuzzer(txns))
-    val tlUcieDie1 = LazyModule(new UCITLFront(tlParams=tlParams,
-                                protoParams=protoParams, fdiParams=fdiParams))
+    val tlUcieDie1 = LazyModule(new UCITLFrontFDI(tlParams=tlParams,
+                                protoParams=protoParams, fdiParams=fdiParams,
+                                rdiParams = rdiParams,
+                                sbParams = sbParams,
+                                myId = myId,
+                                linkTrainingParams = linkTrainingParams,
+                                afeParams = afeParams,
+                                laneAsyncQueueParams = laneAsyncQueueParams))
     val ram  = LazyModule(new TLRAM(AddressSet(tlParams.ADDRESS, tlParams.addressRange), beatBytes=tlParams.BEAT_BYTES))
     // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
@@ -90,7 +105,8 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         fdiLoopback.io.fdi1.lpClkAck        := tlUcieDie1.module.io.fdi.lpClkAck
         fdiLoopback.io.fdi1.lpWakeReq       := tlUcieDie1.module.io.fdi.lpWakeReq
         fdiLoopback.io.fdi1.lpConfig        := tlUcieDie1.module.io.fdi.lpConfig
-        tlUcieDie1.module.io.fdi.lpConfigCredit := fdiLoopback.io.fdi1.lpConfigCredit  
+        tlUcieDie1.module.io.fdi.lpConfigCredit := fdiLoopback.io.fdi1.lpConfigCredit
+
     }
 }
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
@@ -99,7 +115,7 @@ class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)

@@ -11,9 +11,11 @@ import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.util._
 
+import e2e._
 import protocol._
 import interfaces._
 import sideband._
+import logphy.{LinkTrainingParams}
 
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
@@ -22,7 +24,11 @@ import sideband._
   * an agnostic interface to generate FDI signalling.
   */
 class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams,
-                 val fdiParams: FdiParams)
+                 val fdiParams: FdiParams, val rdiParams: RdiParams,
+                 val sbParams: SidebandParams, val myId: BigInt,
+                 val linkTrainingParams: LinkTrainingParams,
+                 val afeParams: AfeParams, 
+                 val laneAsyncQueueParams: AsyncQueueParams)
                 (implicit p: Parameters) extends LazyModule {
 
   val device = new SimpleDevice("ucie-front", Seq("ucie,ucie0"))
@@ -59,19 +65,25 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
 
 class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val io = IO(new Bundle {
-    // val sbus_clk = Input(Clock()) // System bus clock
-    // val sbus_reset = Input(Bool()) // System bus reset
-    // val lclk = Input(Clock()) // lclk is the FDI signalling clock
-    // val lreset = Input(Bool()) // should the UCIe modules have its own reset?
-    val fdi = new Fdi(outer.fdiParams)
+     // FDI interface for testing purposes only
+     val fdi = new Fdi(outer.fdiParams)
+     // IOs for connecting to the AFE
+     val mbAfe = new MainbandAfeIo(outer.afeParams)
+     val sbAfe = new SidebandAfeIo(outer.afeParams)
   })
 
   val fault = RegInit(false.B) // if fault in ecc code
 
   // Instantiate the agnostic protocol layer
-  val protocol = Module(new ProtocolLayer(outer.fdiParams))
-  io.fdi <> protocol.io.fdi
-  protocol.io.fault := fault
+  //val protocol = Module(new ProtocolLayer(outer.fdiParams))
+  val ucietop = Module(new UCITop(outer.fdiParams, outer.rdiParams,
+                                  outer.sbParams, outer.myId,
+                                  outer.linkTrainingParams,
+                                  outer.afeParams, outer.laneAsyncQueueParams))
+  io.fdi <> ucietop.io.fdi
+  ucietop.io.fault := fault
+  io.mbAfe <> ucietop.io.mbAfe
+  io.sbAfe <> ucietop.io.sbAfe
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(outer.protoParams))
@@ -84,13 +96,13 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //Sideband node for protocol layer
   val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
 
-  protocol_sb_node.io.outer.rx.bits  := protocol.io.fdi.lpConfig.bits
-  protocol_sb_node.io.outer.rx.valid := protocol.io.fdi.lpConfig.valid
-  protocol.io.fdi.lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
+  protocol_sb_node.io.outer.rx.bits  := ucietop.io.fdi.lpConfig.bits
+  protocol_sb_node.io.outer.rx.valid := ucietop.io.fdi.lpConfig.valid
+  ucietop.io.fdi.lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
 
-  protocol.io.fdi.plConfig.bits       := protocol_sb_node.io.outer.tx.bits
-  protocol.io.fdi.plConfig.valid      := protocol_sb_node.io.outer.tx.valid
-  protocol_sb_node.io.outer.tx.credit := protocol.io.fdi.plConfigCredit
+  ucietop.io.fdi.plConfig.bits       := protocol_sb_node.io.outer.tx.bits
+  ucietop.io.fdi.plConfig.valid      := protocol_sb_node.io.outer.tx.valid
+  protocol_sb_node.io.outer.tx.credit := ucietop.io.fdi.plConfigCredit
 
   protocol_sb_node.io.inner.layer_to_node.bits := Cat(outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
                                                       outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
@@ -145,7 +157,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
 
   val aHasData = manager_edge.hasData(manager_tl.a.bits)
-  val rx_fire = protocol.io.TLplData_valid
+  val rx_fire = ucietop.io.TLplData_valid
   val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
   val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
 
@@ -156,15 +168,15 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
 
   /*
-  manager_tl.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+  manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
+                (ucietop.io.fdi.plStateStatus === PhyState.active))
   inward.io.enq.valid := manager_tl.a.fire
   */
 
   // A request to partner die logic
   // enqueue on the A channel queue
-  manager_tl.a.ready := (inwardA.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+  manager_tl.a.ready := (inwardA.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
+                (ucietop.io.fdi.plStateStatus === PhyState.active))
   inwardA.io.enq.valid := manager_tl.a.fire
   inwardA.io.enq.bits <> manager_tl.a.bits
 
@@ -176,8 +188,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   creditedMsgA.io.credit.bits := uciRxPayload.cmd.tlACredit
 
   // D response to partner die's A request logic
-  client_tl.d.ready := (inwardD.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+  client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
+                (ucietop.io.fdi.plStateStatus === PhyState.active))
   inwardD.io.enq.valid := client_tl.d.fire
   inwardD.io.enq.bits <> client_tl.d.bits
 
@@ -237,11 +249,11 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
-  txArbiter.io.out.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
+  txArbiter.io.out.ready := ucietop.io.fdi.lpData.ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  protocol.io.TLlpData_valid := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
-  protocol.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
+  ucietop.io.TLlpData_valid := tx_pipe.io.deq.valid & (~ucietop.io.fdi.lpStallAck)
+  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~ucietop.io.fdi.lpStallAck)
+  ucietop.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
   val creditB = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLB)
@@ -302,26 +314,26 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-  // protocol.io.fdi.lpData.irdy := outward.io.enq.ready
+  // ucietop.io.fdi.lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    uciRxPayload.cmd := protocol.io.TLplData_bits(511, 448).asTypeOf(new UCICmdFormat(outer.protoParams))
+    uciRxPayload.cmd := ucietop.io.TLplData_bits(511, 448).asTypeOf(new UCICmdFormat(outer.protoParams))
     // ucie header 1
-    uciRxPayload.header1 := protocol.io.TLplData_bits(447,384).asTypeOf(new UCIHeader1Format(outer.tlParams))
+    uciRxPayload.header1 := ucietop.io.TLplData_bits(447,384).asTypeOf(new UCIHeader1Format(outer.tlParams))
     // ucie header 2
-    uciRxPayload.header2 := protocol.io.TLplData_bits(383, 320).asTypeOf(new UCIHeader2Format(outer.tlParams))
+    uciRxPayload.header2 := ucietop.io.TLplData_bits(383, 320).asTypeOf(new UCIHeader2Format(outer.tlParams))
     // ucie data payload
-    uciRxPayload.data(3) := protocol.io.TLplData_bits(319,256)
-    uciRxPayload.data(2) := protocol.io.TLplData_bits(255,192)
-    uciRxPayload.data(1) := protocol.io.TLplData_bits(191,128)
-    uciRxPayload.data(0) := protocol.io.TLplData_bits(127,64)
+    uciRxPayload.data(3) := ucietop.io.TLplData_bits(319,256)
+    uciRxPayload.data(2) := ucietop.io.TLplData_bits(255,192)
+    uciRxPayload.data(1) := ucietop.io.TLplData_bits(191,128)
+    uciRxPayload.data(0) := ucietop.io.TLplData_bits(127,64)
     // ucie ecc
-    uciRxPayload.ecc := protocol.io.TLplData_bits(63,0)
-    hammingDecoder.io.data := protocol.io.TLplData_bits(511,64)
-    hammingDecoder.io.checksum := protocol.io.TLplData_bits(63,0)
+    uciRxPayload.ecc := ucietop.io.TLplData_bits(63,0)
+    hammingDecoder.io.data := ucietop.io.TLplData_bits(511,64)
+    hammingDecoder.io.checksum := ucietop.io.TLplData_bits(63,0)
     
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
@@ -368,10 +380,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   }
   // when the RX queues are ready to get data
   val TLready_to_rcv = outwardA.io.in.ready || outwardD.io.in.ready
-  protocol.io.TLready_to_rcv := TLready_to_rcv
+  ucietop.io.TLready_to_rcv := TLready_to_rcv
 
   // soft resets: can be reset or flush and reset, in flush and reset, the packets are
   // sent out before triggering reset
-  protocol.io.soft_reset := (outer.regNode.module.io.d2d_csrs.d2d_state_can_reset | 
+  ucietop.io.soft_reset := (outer.regNode.module.io.d2d_csrs.d2d_state_can_reset | 
                             outer.regNode.module.io.d2d_csrs.d2d_flush_and_reset)
 }
