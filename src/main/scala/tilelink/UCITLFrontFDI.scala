@@ -160,14 +160,14 @@ class UCITLFrontFDIImp(outer: UCITLFrontFDI) extends LazyModuleImp(outer) {
 
   /*
   manager_tl.a.ready = (inward.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+                (protocol.io.TLplStateStatus === PhyState.active))
   inward.io.enq.valid := manager_tl.a.fire
   */
 
   // A request to partner die logic
   // enqueue on the A channel queue
   manager_tl.a.ready := (inwardA.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+                (protocol.io.TLplStateStatus === PhyState.active))
   inwardA.io.enq.valid := manager_tl.a.fire
   inwardA.io.enq.bits <> manager_tl.a.bits
 
@@ -180,7 +180,7 @@ class UCITLFrontFDIImp(outer: UCITLFrontFDI) extends LazyModuleImp(outer) {
 
   // D response to partner die's A request logic
   client_tl.d.ready := (inwardD.io.enq.ready & ~protocol.io.fdi.lpStallAck & 
-                (protocol.io.fdi.plStateStatus === PhyState.active))
+                (protocol.io.TLplStateStatus === PhyState.active))
   inwardD.io.enq.valid := client_tl.d.fire
   inwardD.io.enq.bits <> client_tl.d.bits
 
@@ -240,7 +240,7 @@ class UCITLFrontFDIImp(outer: UCITLFrontFDI) extends LazyModuleImp(outer) {
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
-  txArbiter.io.out.ready := protocol.io.fdi.lpData.ready // if pl_trdy is asserted
+  txArbiter.io.out.ready := protocol.io.TLlpData_ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
   protocol.io.TLlpData_valid := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)
   protocol.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~protocol.io.fdi.lpStallAck)

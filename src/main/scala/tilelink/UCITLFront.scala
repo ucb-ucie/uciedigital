@@ -66,7 +66,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
 class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val io = IO(new Bundle {
      // FDI interface for testing purposes only
-     val fdi = new Fdi(outer.fdiParams)
+     //val fdi = new Fdi(outer.fdiParams)
      // IOs for connecting to the AFE
      val mbAfe = new MainbandAfeIo(outer.afeParams)
      val sbAfe = new SidebandAfeIo(outer.afeParams)
@@ -80,7 +80,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
                                   outer.sbParams, outer.myId,
                                   outer.linkTrainingParams,
                                   outer.afeParams, outer.laneAsyncQueueParams))
-  io.fdi <> ucietop.io.fdi
+  //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
   io.mbAfe <> ucietop.io.mbAfe
   io.sbAfe <> ucietop.io.sbAfe
@@ -96,13 +96,13 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   //Sideband node for protocol layer
   val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
 
-  protocol_sb_node.io.outer.rx.bits  := ucietop.io.fdi.lpConfig.bits
-  protocol_sb_node.io.outer.rx.valid := ucietop.io.fdi.lpConfig.valid
-  ucietop.io.fdi.lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
+  protocol_sb_node.io.outer.rx.bits  := ucietop.io.fdi_lpConfig.bits
+  protocol_sb_node.io.outer.rx.valid := ucietop.io.fdi_lpConfig.valid
+  ucietop.io.fdi_lpConfigCredit     := protocol_sb_node.io.outer.rx.credit
 
-  ucietop.io.fdi.plConfig.bits       := protocol_sb_node.io.outer.tx.bits
-  ucietop.io.fdi.plConfig.valid      := protocol_sb_node.io.outer.tx.valid
-  protocol_sb_node.io.outer.tx.credit := ucietop.io.fdi.plConfigCredit
+  ucietop.io.fdi_plConfig.bits       := protocol_sb_node.io.outer.tx.bits
+  ucietop.io.fdi_plConfig.valid      := protocol_sb_node.io.outer.tx.valid
+  protocol_sb_node.io.outer.tx.credit := ucietop.io.fdi_plConfigCredit
 
   protocol_sb_node.io.inner.layer_to_node.bits := Cat(outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
                                                       outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
@@ -168,15 +168,15 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
 
   /*
-  manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
-                (ucietop.io.fdi.plStateStatus === PhyState.active))
+  manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+                (ucietop.io.TLplStateStatus === PhyState.active))
   inward.io.enq.valid := manager_tl.a.fire
   */
 
   // A request to partner die logic
   // enqueue on the A channel queue
-  manager_tl.a.ready := (inwardA.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
-                (ucietop.io.fdi.plStateStatus === PhyState.active))
+  manager_tl.a.ready := (inwardA.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+                (ucietop.io.TLplStateStatus === PhyState.active))
   inwardA.io.enq.valid := manager_tl.a.fire
   inwardA.io.enq.bits <> manager_tl.a.bits
 
@@ -188,8 +188,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   creditedMsgA.io.credit.bits := uciRxPayload.cmd.tlACredit
 
   // D response to partner die's A request logic
-  client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi.lpStallAck & 
-                (ucietop.io.fdi.plStateStatus === PhyState.active))
+  client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+                (ucietop.io.TLplStateStatus === PhyState.active))
   inwardD.io.enq.valid := client_tl.d.fire
   inwardD.io.enq.bits <> client_tl.d.bits
 
@@ -249,10 +249,10 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
-  txArbiter.io.out.ready := ucietop.io.fdi.lpData.ready // if pl_trdy is asserted
+  txArbiter.io.out.ready := ucietop.io.TLlpData_ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  ucietop.io.TLlpData_valid := tx_pipe.io.deq.valid & (~ucietop.io.fdi.lpStallAck)
-  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~ucietop.io.fdi.lpStallAck)
+  ucietop.io.TLlpData_valid := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
+  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
   ucietop.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
@@ -314,7 +314,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-  // ucietop.io.fdi.lpData.irdy := outward.io.enq.ready
+  // ucietop.io.fdi_lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
