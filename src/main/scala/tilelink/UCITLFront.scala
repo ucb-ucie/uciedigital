@@ -29,7 +29,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
                  val linkTrainingParams: LinkTrainingParams,
                  val afeParams: AfeParams, 
                  val laneAsyncQueueParams: AsyncQueueParams)
-                (implicit p: Parameters) extends LazyModule {
+                (implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
 
   val device = new SimpleDevice("ucie-front", Seq("ucie,ucie0"))
 
@@ -55,46 +55,47 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
     Seq(TLMasterParameters.v1(
       name = "ucie-client",
-      sourceId = IdRange(0, 32),
+      sourceId = IdRange(0, 1 << tlParams.sourceIDWidth),
       requestFifo = true,
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )))))
 
-  lazy val module = new UCITLFrontImp(this)
-}
+  override lazy val module = new UCITLFrontImp
 
-class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
+class UCITLFrontImp extends Impl {
   val io = IO(new Bundle {
      // FDI interface for testing purposes only
-     //val fdi = new Fdi(outer.fdiParams)
+     //val fdi = new Fdi(fdiParams)
      // IOs for connecting to the AFE
-     val mbAfe = new MainbandAfeIo(outer.afeParams)
-     val sbAfe = new SidebandAfeIo(outer.afeParams)
+     val mbAfe = new MainbandAfeIo(afeParams)
+     val sbAfe = new SidebandAfeIo(afeParams)
   })
+
+  withClockAndReset(clock, reset) {
 
   val fault = RegInit(false.B) // if fault in ecc code
 
   // Instantiate the agnostic protocol layer
-  //val protocol = Module(new ProtocolLayer(outer.fdiParams))
-  val ucietop = Module(new UCITop(outer.fdiParams, outer.rdiParams,
-                                  outer.sbParams, outer.myId,
-                                  outer.linkTrainingParams,
-                                  outer.afeParams, outer.laneAsyncQueueParams))
+  //val protocol = Module(new ProtocolLayer(fdiParams))
+  val ucietop = Module(new UCITop(fdiParams, rdiParams,
+                                  sbParams, myId,
+                                  linkTrainingParams,
+                                  afeParams, laneAsyncQueueParams))
   //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
   io.mbAfe <> ucietop.io.mbAfe
   io.sbAfe <> ucietop.io.sbAfe
 
   // Hamming encode and decode
-  val hammingEncoder = Module(new HammingEncode(outer.protoParams))
-  val hammingDecoder = Module(new HammingDecode(outer.protoParams))
+  val hammingEncoder = Module(new HammingEncode(protoParams))
+  val hammingDecoder = Module(new HammingDecode(protoParams))
   // Defaults
   hammingEncoder.io.data := 0.U
   hammingDecoder.io.data := 0.U
   hammingDecoder.io.checksum := 0.U
 
   //Sideband node for protocol layer
-  val protocol_sb_node = Module(new SidebandNode((new SidebandParams), outer.fdiParams))
+  val protocol_sb_node = Module(new SidebandNode((new SidebandParams), fdiParams))
 
   protocol_sb_node.io.outer.rx.bits  := ucietop.io.fdi_lpConfig.bits
   protocol_sb_node.io.outer.rx.valid := ucietop.io.fdi_lpConfig.valid
@@ -104,33 +105,33 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   ucietop.io.fdi_plConfig.valid      := protocol_sb_node.io.outer.tx.valid
   protocol_sb_node.io.outer.tx.credit := ucietop.io.fdi_plConfigCredit
 
-  protocol_sb_node.io.inner.layer_to_node.bits := Cat(outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
-                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
-                                                      outer.regNode.module.io.sb_csrs.sidebank_mailbox_sw_to_node_index_high,
-                                                      outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_index_low)
-  protocol_sb_node.io.inner.layer_to_node.valid := outer.regNode.module.io.sb_csrs.sideband_mailbox_sw_valid
+  protocol_sb_node.io.inner.layer_to_node.bits := Cat(regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
+                                                      regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
+                                                      regNode.module.io.sb_csrs.sidebank_mailbox_sw_to_node_index_high,
+                                                      regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_index_low)
+  protocol_sb_node.io.inner.layer_to_node.valid := regNode.module.io.sb_csrs.sideband_mailbox_sw_valid
                                                   
-  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_low := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
-  outer.regNode.module.io.sb_csrs.sideband_mailbox_index_high := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
-  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_low := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
-  outer.regNode.module.io.sb_csrs.sideband_mailbox_data_high := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
-  protocol_sb_node.io.inner.node_to_layer.ready := outer.regNode.module.io.sb_csrs.sideband_mailbox_ready
-  outer.regNode.module.io.sb_csrs.sideband_mailbox_valid := protocol_sb_node.io.inner.node_to_layer.valid
+  regNode.module.io.sb_csrs.sideband_mailbox_index_low := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
+  regNode.module.io.sb_csrs.sideband_mailbox_index_high := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
+  regNode.module.io.sb_csrs.sideband_mailbox_data_low := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
+  regNode.module.io.sb_csrs.sideband_mailbox_data_high := protocol_sb_node.io.inner.node_to_layer.bits(127, 96)
+  protocol_sb_node.io.inner.node_to_layer.ready := regNode.module.io.sb_csrs.sideband_mailbox_ready
+  regNode.module.io.sb_csrs.sideband_mailbox_valid := protocol_sb_node.io.inner.node_to_layer.valid
 
-  val tlBundleParams = new TLBundleParameters(addressBits = outer.tlParams.addressWidth,
-                                            dataBits = outer.tlParams.dataWidth,
-                                            sourceBits = outer.tlParams.sourceIDWidth,
-                                            sinkBits = outer.tlParams.sinkIDWidth,
-                                            sizeBits = outer.tlParams.sizeWidth, 
+  val tlBundleParams = new TLBundleParameters(addressBits = tlParams.addressWidth,
+                                            dataBits = tlParams.dataWidth,
+                                            sourceBits = tlParams.sourceIDWidth,
+                                            sinkBits = tlParams.sinkIDWidth,
+                                            sizeBits = tlParams.sizeWidth, 
                                             echoFields = Nil, 
                                             requestFields = Nil,
                                             responseFields = Nil,
                                             hasBCE = false)
 
-  val client_tl = outer.clientNode.out(0)._1
-  val client_edge = outer.clientNode.out(0)._2
-  val manager_tl = outer.managerNode.in(0)._1
-  val manager_edge = outer.managerNode.in(0)._2
+  val client_tl = clientNode.out(0)._1
+  val client_edge = clientNode.out(0)._2
+  val manager_tl = managerNode.in(0)._1
+  val manager_edge = managerNode.in(0)._2
 
   val clientParams = client_edge.bundle
   val managerParams = manager_edge.bundle
@@ -151,21 +152,21 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // The TX packets can be A request from manager node or D response from
   // the client node. This needs to be arbitrated to be sent to partner die.
   // =======================
-  val txArbiter = Module(new Arbiter(new TLBundleAUnionD(outer.tlParams), 2))
-  val txATLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
-  val txDTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
-  //val txTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
+  val txArbiter = Module(new Arbiter(new TLBundleAUnionD(tlParams), 2))
+  val txATLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val txDTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  //val txTLPayload = Wire(new TLBundleAUnionD(tlParams))
 
   val aHasData = manager_edge.hasData(manager_tl.a.bits)
   val rx_fire = ucietop.io.TLplData_valid
-  val uciRxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
-  val uciTxPayload = Wire(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams)) // User-defined UCIe flit for streaming
+  val uciRxPayload = Wire(new UCIRawPayloadFormat(tlParams, protoParams)) // User-defined UCIe flit for streaming
+  val uciTxPayload = Wire(new UCIRawPayloadFormat(tlParams, protoParams)) // User-defined UCIe flit for streaming
 
   // defaults
-  uciRxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams))
-  uciTxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams))
-  txATLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
-  txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
+  uciRxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(tlParams, protoParams))
+  uciTxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(tlParams, protoParams))
+  txATLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
+  txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
 
   /*
   manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
@@ -203,7 +204,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // Arbitrate the A and D channels from the credited msgs
   creditedMsgA.io.out.ready := txArbiter.io.in(0).ready
   txArbiter.io.in(0).valid := creditedMsgA.io.out.fire
-  //txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits.asTypeOf(new TLBundleAUnionD(outer.tlParams))
+  //txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
   txArbiter.io.in(0).bits.opcode  := creditedMsgA.io.out.bits.opcode
   txArbiter.io.in(0).bits.param   := creditedMsgA.io.out.bits.param
   txArbiter.io.in(0).bits.size    := creditedMsgA.io.out.bits.size
@@ -216,7 +217,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   creditedMsgD.io.out.ready := txArbiter.io.in(1).ready
   txArbiter.io.in(1).valid := creditedMsgD.io.out.fire
-  //txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits.asTypeOf(new TLBundleAUnionD(outer.tlParams))
+  //txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
   txArbiter.io.in(1).bits.opcode  := creditedMsgD.io.out.bits.opcode
   txArbiter.io.in(1).bits.param   := creditedMsgD.io.out.bits.param
   txArbiter.io.in(1).bits.size    := creditedMsgD.io.out.bits.size
@@ -245,7 +246,7 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   val checksum_reg = RegInit(0.U(64.W))
   checksum_reg := hammingEncoder.io.checksum
   
-  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(outer.tlParams, outer.protoParams), 1))
+  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(tlParams, protoParams), 1))
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
@@ -264,8 +265,8 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   outwardA.io.credit.ready := tx_pipe.io.deq.valid && creditA
   outwardD.io.credit.ready := tx_pipe.io.deq.valid && creditD
 
-  val txACredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
-  val txDCredit = WireDefault(0.U(outer.protoParams.creditWidth.W))
+  val txACredit = WireDefault(0.U(protoParams.creditWidth.W))
+  val txDCredit = WireDefault(0.U(protoParams.creditWidth.W))
   
   when(outwardA.io.credit.valid){
     txACredit := outwardA.io.credit.bits
@@ -312,19 +313,19 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
   // =======================
   // TL RX packets coming from the UCIe stack to the System, push on the outward queue
   // =======================
-  val rxTLPayload = Wire(new TLBundleAUnionD(outer.tlParams))
-  rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(outer.tlParams))
+  val rxTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
   // ucietop.io.fdi_lpData.irdy := outward.io.enq.ready
 
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
     // ucie cmd
-    uciRxPayload.cmd := ucietop.io.TLplData_bits(511, 448).asTypeOf(new UCICmdFormat(outer.protoParams))
+    uciRxPayload.cmd := ucietop.io.TLplData_bits(511, 448).asTypeOf(new UCICmdFormat(protoParams))
     // ucie header 1
-    uciRxPayload.header1 := ucietop.io.TLplData_bits(447,384).asTypeOf(new UCIHeader1Format(outer.tlParams))
+    uciRxPayload.header1 := ucietop.io.TLplData_bits(447,384).asTypeOf(new UCIHeader1Format(tlParams))
     // ucie header 2
-    uciRxPayload.header2 := ucietop.io.TLplData_bits(383, 320).asTypeOf(new UCIHeader2Format(outer.tlParams))
+    uciRxPayload.header2 := ucietop.io.TLplData_bits(383, 320).asTypeOf(new UCIHeader2Format(tlParams))
     // ucie data payload
     uciRxPayload.data(3) := ucietop.io.TLplData_bits(319,256)
     uciRxPayload.data(2) := ucietop.io.TLplData_bits(255,192)
@@ -384,6 +385,6 @@ class UCITLFrontImp(outer: UCITLFront) extends LazyModuleImp(outer) {
 
   // soft resets: can be reset or flush and reset, in flush and reset, the packets are
   // sent out before triggering reset
-  ucietop.io.soft_reset := (outer.regNode.module.io.d2d_csrs.d2d_state_can_reset | 
-                            outer.regNode.module.io.d2d_csrs.d2d_flush_and_reset)
-}
+  ucietop.io.soft_reset := (regNode.module.io.d2d_csrs.d2d_state_can_reset | 
+                            regNode.module.io.d2d_csrs.d2d_flush_and_reset)
+}}}

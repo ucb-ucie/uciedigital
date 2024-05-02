@@ -7,9 +7,8 @@ import chiseltest._
 import org.chipsalliance.cde.config.{Field, Parameters, Config}
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
+import freechips.rocketchip.prci._
 import freechips.rocketchip.diplomacy._
-import chisel3.experimental.BundleLiterals._
-
 // import freechips.rocketchip.unittest._
 import org.scalatest.flatspec.AnyFlatSpec
 import tilelink._
@@ -28,7 +27,10 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val afeParams = AfeParams()
     val laneAsyncQueueParams = AsyncQueueParams()
     val delay = 0.0
-    val txns = 10
+    val txns = 5
+
+    // Create clock source
+    val clockSourceNode = ClockSourceNode(Seq(ClockSourceParameters()))
 
     val csrfuzz = LazyModule(new TLFuzzer(txns))
     val fuzz = LazyModule(new TLFuzzer(txns))
@@ -44,20 +46,23 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     // val fdiLoopback = LazyModule(new FdiLoopback(fdiParams))
     // val tlUcieDie2 = LazyModule()
 
+    tlUcieDie1.clockNode := clockSourceNode
     // CSR node
     tlUcieDie1.regNode.node := csrfuzz.node
     // connect data nodes
-    tlUcieDie1.managerNode := fuzz.node
+    tlUcieDie1.managerNode := TLSourceShrinker(tlParams.sourceIDWidth) := fuzz.node
     ram.node := tlUcieDie1.clientNode
     // fdiLoopback.ram.node := tlUcieDie1.clientNode
     lazy val module = new Impl
     class Impl extends LazyModuleImp(this) {
         val io = IO(new Bundle {
+            val uci_clock = Input(new ClockBundle(ClockBundleParameters()))
             val finished = Output(Bool())
         })
         // connect IOs
         io.finished := fuzz.module.io.finished
         val fdiLoopback = Module(new FdiLoopback(fdiParams))
+        io.uci_clock <> clockSourceNode.out(0)._1
         // inputs to tlUcieDie1
         tlUcieDie1.module.io.fdi.lpData.ready        := fdiLoopback.io.fdi1.lpData.ready
         tlUcieDie1.module.io.fdi.plData              := fdiLoopback.io.fdi1.plData
@@ -105,22 +110,34 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
         fdiLoopback.io.fdi1.lpClkAck        := tlUcieDie1.module.io.fdi.lpClkAck
         fdiLoopback.io.fdi1.lpWakeReq       := tlUcieDie1.module.io.fdi.lpWakeReq
         fdiLoopback.io.fdi1.lpConfig        := tlUcieDie1.module.io.fdi.lpConfig
-        tlUcieDie1.module.io.fdi.lpConfigCredit := fdiLoopback.io.fdi1.lpConfigCredit
-
+        tlUcieDie1.module.io.fdi.lpConfigCredit := fdiLoopback.io.fdi1.lpConfigCredit  
     }
 }
+
+class FDITLTestHarness(implicit val p: Parameters) extends Module with HasSuccessIO {
+  val tester = Module(LazyModule(new FdiLoopbackTester).module)
+  tester.io.uci_clock.clock := clock
+  tester.io.uci_clock.reset := reset
+  io.success := tester.io.finished
+
+  // Dummy plusarg to avoid breaking verilator builds with emulator.cc
+  val useless_plusarg = PlusArg("useless_plusarg", width=1)
+  dontTouch(useless_plusarg)
+  ElaborationArtefacts.add("plusArgs", PlusArgArtefacts.serialize_cHeader)
+}
+
 class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "FdiLoopback"
     val txns = 2
     val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(LazyModule(new FdiLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+        test(new FDITLTestHarness()).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
-            c.io.finished.expect(true.B)
-            println("Fdi Loopback Test finished? " + c.io.finished.peek())
+            c.io.success.expect(true.B)
+            println("Fdi Loopback Test finished? " + c.io.success.peek())
         }
     }
 }

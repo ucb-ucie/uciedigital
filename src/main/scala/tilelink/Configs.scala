@@ -43,10 +43,12 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
       afeParams   = params.afeParams,
       laneAsyncQueueParams = params.laneAsyncQueueParams
     ))
+    uciTL.clockNode := bus.fixedClockNode
     bus.coupleTo(s"ucie_tl_man_port") { 
-        uciTL.managerNode :*= TLWidthWidget(bus.beatBytes) :*= TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) :*= _ 
+        uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLSourceShrinker(params.tlParams.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
     } //manager node because SBUS is making request?
-    bus.coupleFrom(s"ucie_tl_cl_port") { _ :*= TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) :*= TLWidthWidget(bus.beatBytes) :*= uciTL.clientNode }
+    bus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(bus.beatBytes) := uciTL.clientNode }
+    bus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(bus.beatBytes) := TLFragmenter(bus.beatBytes, bus.blockBytes) := _ }
   }
 }
 
