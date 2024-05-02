@@ -70,6 +70,7 @@ class UCITLFrontImp extends Impl {
      val mbAfe = new MainbandAfeIo(afeParams)
      val sbAfe = new SidebandAfeIo(afeParams)
   })
+  withClockAndReset(clock, reset) {
 
   withClockAndReset(clock, reset) {
 
@@ -316,7 +317,6 @@ class UCITLFrontImp extends Impl {
   val rxTLPayload = Wire(new TLBundleAUnionD(tlParams))
   rxTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
   // ucietop.io.fdi_lpData.irdy := outward.io.enq.ready
-
   // map the uciRxPayload and the plData based on the uciPayload formatting
   // map the uciRxPayload to the rxTLPayload TLBundle
   when(rx_fire) {
