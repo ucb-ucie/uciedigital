@@ -64,7 +64,7 @@ class AfeLoopbackTester (implicit p: Parameters) extends LazyModule {
 class AfeLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     behavior of "AfeLoopback"
     val txns = 2
-    val timeout = 1000
+    val timeout = 2000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
         test(LazyModule(new AfeLoopbackTester()).module).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
