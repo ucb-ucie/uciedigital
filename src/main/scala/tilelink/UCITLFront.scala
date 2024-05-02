@@ -387,4 +387,4 @@ class UCITLFrontImp extends Impl {
   // sent out before triggering reset
   ucietop.io.soft_reset := (regNode.module.io.d2d_csrs.d2d_state_can_reset | 
                             regNode.module.io.d2d_csrs.d2d_flush_and_reset)
-}}}
+}}}}
