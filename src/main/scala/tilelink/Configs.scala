@@ -29,14 +29,15 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
       protoParams = params.proto,
       fdiParams   = params.fdi
     ))
+    uciTL.clockNode := bus.fixedClockNode
     bus.coupleTo(s"ucie_tl_man_port") { 
-        uciTL.managerNode :*= TLWidthWidget(bus.beatBytes) :*= TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) :*= _ 
+        uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLSourceShrinker(params.tl.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
     } //manager node because SBUS is making request?
-    bus.coupleFrom(s"ucie_tl_cl_port") { _ :*= TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) :*= TLWidthWidget(bus.beatBytes) :*= uciTL.clientNode }
+    bus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(bus.beatBytes) := uciTL.clientNode }
+    bus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(bus.beatBytes) := TLFragmenter(bus.beatBytes, bus.blockBytes) := _ }
   }
 }
 
 class WithUCITLAdapter(params: UCITLParams) extends Config((site, here, up) => {
   case UCITLKey => Some(params)
 })
-
