@@ -55,4 +55,3 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
 class WithUCITLAdapter(params: UCITLParams) extends Config((site, here, up) => {
   case UCITLKey => Some(params)
 })
-
