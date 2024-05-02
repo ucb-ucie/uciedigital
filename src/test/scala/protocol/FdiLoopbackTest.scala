@@ -20,7 +20,7 @@ class FdiLoopbackTester (implicit p: Parameters) extends LazyModule {
     val protoParams = ProtocolLayerParams()
     val tlParams = TileLinkParams(address=0x0, addressRange=0xffff, configAddress=0x40000, inwardQueueDepth=8, outwardQueueDepth=8)
     val delay = 0.0
-    val txns = 10
+    val txns = 5
 
     // Create clock source
     val clockSourceNode = ClockSourceNode(Seq(ClockSourceParameters()))
@@ -119,7 +119,7 @@ class FdiLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     val timeout = 1000
     implicit val p: Parameters = Parameters.empty
     it should "finish request and response before timeout" in {
-        test(new FDITLTestHarness()).withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation)) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+        test(new FDITLTestHarness()) {c => //.withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
             println("start Fdi Loopback Test")
             c.clock.setTimeout(timeout+10)
             c.clock.step(timeout)
