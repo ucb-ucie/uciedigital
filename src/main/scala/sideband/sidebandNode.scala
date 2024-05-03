@@ -339,6 +339,8 @@ class SidebandLinkDeserializer(
     val recvDone = WireInit(recvCount === (dataBeats - 1).U)
     when(recvDone) {
       recvCount := 0.U
+    }.otherwise {
+      recvCount := recvCount + 1
     }
     val receiving = RegInit(true.B)
 
