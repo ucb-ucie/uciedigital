@@ -110,7 +110,11 @@ class AfeLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
     test(new AfeTLTestHarness()).withAnnotations(
       Seq(VcsBackendAnnotation, WriteFsdbAnnotation),
     ) { c => // .withAnnotations(Seq(VcsBackendAnnotation, WriteVcdAnnotation))
+
       println("start Afe Loopback Test")
+      c.reset.poke(true.B)
+      c.clock.step(3)
+      c.reset.poke(false.B)
       c.clock.setTimeout(timeout + 10)
       c.clock.step(timeout)
       c.io.success.expect(true.B)
