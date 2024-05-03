@@ -72,14 +72,20 @@ class LinkTrainingFSM(
   sbMsgWrapper.io.trainIO.msgReq.noenq()
   sbMsgWrapper.io.trainIO.msgReqStatus.nodeq()
 
-  io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
-  io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
     io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
     sbMsgWrapper.io.laneIO.rxData.noenq()
+    io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
     patternGenerator.io.sidebandLaneIO.rxData.noenq()
+    when(io.sidebandFSMIO.rxMode === RXTXMode.RAW) {
+      io.sidebandFSMIO.patternTxData <> sbMsgWrapper.io.laneIO.txData
+      io.sidebandFSMIO.packetTxData.noenq()
+    }.otherwise {
+      io.sidebandFSMIO.patternTxData.noenq()
+      io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
+    }
   }
 
   private val currentState = RegInit(LinkTrainingState.reset)
@@ -145,7 +151,11 @@ class LinkTrainingFSM(
    * Mux(plStateStatus === )), */
   // )
   io.sidebandFSMIO.rxMode := Mux(
-    msgSource === MsgSource.PATTERN_GENERATOR,
+    currentState === LinkTrainingState.sbInit &&
+      (sbInitSubState === SBInitSubState.SEND_CLOCK ||
+        sbInitSubState === SBInitSubState.WAIT_CLOCK ||
+        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_EXCH ||
+        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_WAIT),
     RXTXMode.RAW,
     RXTXMode.PACKET,
   )
