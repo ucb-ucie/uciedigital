@@ -12,5 +12,5 @@ class ClockMux2 extends BlackBox with HasBlackBoxResource {
     val clockOut = Output(Clock())
   })
 
-  addResource("/uciedigital/src/main/resources/vsrc/ClockSelector.v")
+  addResource("/vsrc/ClockSelector.v")
 }
