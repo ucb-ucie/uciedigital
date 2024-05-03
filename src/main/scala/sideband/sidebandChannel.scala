@@ -72,5 +72,5 @@ class PHYSidebandChannel(
   lower_node.io.rxMode := io.inner.rxMode
 
   // Connect inner signals
-  io.inner.switcherBundle <> switcher.io.inner
+  // io.inner.switcherBundle <> switcher.io.inner
 }
