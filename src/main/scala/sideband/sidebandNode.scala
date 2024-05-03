@@ -326,7 +326,7 @@ class SidebandLinkDeserializer(
   asyncFifo.io.enq_clock := remote_clock
   asyncFifo.io.enq_reset := reset
 
-  withClock(Mux(reset.asBool, clock, remote_clock)) {
+  withClock(Mux(reset.asBool, clock.asBool, remote_clock.asBool).asClock) {
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
     val receiving = RegInit(true.B)
