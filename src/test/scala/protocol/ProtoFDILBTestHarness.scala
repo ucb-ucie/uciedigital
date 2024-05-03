@@ -11,9 +11,12 @@ import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import scala.collection.immutable.ListMap
+import e2e._
 import tilelink._
 import interfaces._
 import protocol._
+import sideband.{SidebandParams}
+import logphy.{LinkTrainingParams}
 
 trait HasSuccessIO { this: Module =>
   val io = IO(new Bundle {
@@ -22,9 +25,15 @@ trait HasSuccessIO { this: Module =>
 }
 
 case class ProtoLBTesterParams(
-  fdi: FdiParams,
-  proto: ProtocolLayerParams, 
-  tl: TileLinkParams,
+  protoParams: ProtocolLayerParams, 
+  tlParams: TileLinkParams,
+  fdiParams: FdiParams,
+  rdiParams: RdiParams,
+  sbParams: SidebandParams, 
+  myId: BigInt,
+  linkTrainingParams: LinkTrainingParams,
+  afeParams: AfeParams,
+  laneAsyncQueueParams: AsyncQueueParams,
   delay: Double = 0.0,
   txns: Int = 100
 )
@@ -39,15 +48,27 @@ class ProtoFDILBTester(implicit p: Parameters) extends LazyModule {
   val clockSourceNode1 = ClockSourceNode(Seq(ClockSourceParameters()))
   val clockSourceNode2 = ClockSourceNode(Seq(ClockSourceParameters()))
   
-  val tlUcieDie1 = LazyModule(new UCITLFront(tlParams = tParams.tl, 
-                          protoParams = tParams.proto, 
-                          fdiParams = tParams.fdi))
+  val tlUcieDie1 = LazyModule(new UCITLFrontFDI(tlParams = tParams.tlParams,
+                          protoParams = tParams.protoParams, 
+                          fdiParams = tParams.fdiParams,
+                          rdiParams = tParams.rdiParams,
+                          sbParams = tParams.sbParams,
+                          myId = tParams.myId,
+                          linkTrainingParams = tParams.linkTrainingParams,
+                          afeParams = tParams.afeParams,
+                          laneAsyncQueueParams = tParams.laneAsyncQueueParams))
 
-  val fdiLoopback = Module(new ProtoFDILoopback(fdiParams = tParams.fdi, latency = 8))
+  val fdiLoopback = Module(new ProtoFDILoopback(fdiParams = tParams.fdiParams, latency = 8))
 
-  val tlUcieDie2 = LazyModule(new UCITLFront(tlParams = tParams.tl, 
-                          protoParams = tParams.proto, 
-                          fdiParams = tParams.fdi))
+  val tlUcieDie2 = LazyModule(new UCITLFrontFDI(tlParams = tParams.tlParams, 
+                          protoParams = tParams.protoParams, 
+                          fdiParams = tParams.fdiParams,
+                          rdiParams = tParams.rdiParams,
+                          sbParams = tParams.sbParams,
+                          myId = tParams.myId,
+                          linkTrainingParams = tParams.linkTrainingParams,
+                          afeParams = tParams.afeParams,
+                          laneAsyncQueueParams = tParams.laneAsyncQueueParams))
 
   //tlUcieDie1.node := TLDelayer(tParams.delay) := fuzzm.node
   // Connect Die 1's FDI lp signals to the Loopback module's FDI lp signals

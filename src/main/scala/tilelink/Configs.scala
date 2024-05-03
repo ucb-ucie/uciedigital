@@ -12,11 +12,19 @@ import freechips.rocketchip.subsystem._
 import freechips.rocketchip.regmapper.{HasRegMap, RegField}
 import interfaces._
 import protocol._
+import sideband.{SidebandParams}
+import logphy.{LinkTrainingParams}
 
 case class UCITLParams (
-  val fdi: FdiParams,
-  val proto: ProtocolLayerParams, 
-  val tl: TileLinkParams
+  val protoParams: ProtocolLayerParams, 
+  val tlParams: TileLinkParams,
+  val fdiParams: FdiParams,
+  val rdiParams: RdiParams,
+  val sbParams: SidebandParams, 
+  val myId: BigInt,
+  val linkTrainingParams: LinkTrainingParams,
+  val afeParams: AfeParams,
+  val laneAsyncQueueParams: AsyncQueueParams
 )
 
 case object UCITLKey extends Field[Option[UCITLParams]](None)
@@ -25,13 +33,19 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
   p(UCITLKey).map { params =>
     val bus = locateTLBusWrapper(SBUS) //TODO: make parameterizable?
     val uciTL = LazyModule(new UCITLFront(
-      tlParams    = params.tl,
-      protoParams = params.proto,
-      fdiParams   = params.fdi
+      tlParams    = params.tlParams,
+      protoParams = params.protoParams,
+      fdiParams   = params.fdiParams,
+      rdiParams   = params.rdiParams,
+      sbParams    = params.sbParams,
+      myId        = params.myId,
+      linkTrainingParams = params.linkTrainingParams,
+      afeParams   = params.afeParams,
+      laneAsyncQueueParams = params.laneAsyncQueueParams
     ))
     uciTL.clockNode := bus.fixedClockNode
     bus.coupleTo(s"ucie_tl_man_port") { 
-        uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLSourceShrinker(params.tl.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
+        uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLSourceShrinker(params.tlParams.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
     } //manager node because SBUS is making request?
     bus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(bus.beatBytes) := uciTL.clientNode }
     bus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(bus.beatBytes) := TLFragmenter(bus.beatBytes, bus.blockBytes) := _ }

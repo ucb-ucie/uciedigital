@@ -19,9 +19,11 @@ import javax.swing.InputMap
 class ProtocolLayer(val fdiParams: FdiParams) extends Module {
     val io = IO(new Bundle{
         val fdi = new Fdi(fdiParams)
+        val TLplStateStatus = Output(PhyState())
         val TLlpData_valid = Input(Bool())
         val TLlpData_bits = Input(Bits((8 * fdiParams.width).W)) 
         val TLlpData_irdy = Input(Bool())
+        val TLlpData_ready = Output(Bool())
         val TLplData_bits = Output(Bits((8 * fdiParams.width).W))
         val TLplData_valid = Output(Bool())
         val TLready_to_rcv = Input(Bool())
@@ -29,9 +31,12 @@ class ProtocolLayer(val fdiParams: FdiParams) extends Module {
         val soft_reset = Input(Bool())
     })
 
+    io.TLplStateStatus := io.fdi.plStateStatus
+
     io.fdi.lpData.bits := io.TLlpData_bits
     io.fdi.lpData.valid := io.TLlpData_valid
     io.fdi.lpData.irdy := io.TLlpData_irdy
+    io.TLlpData_ready := io.fdi.lpData.ready
 
     io.TLplData_valid := io.fdi.plData.valid
     io.TLplData_bits := io.fdi.plData.bits
