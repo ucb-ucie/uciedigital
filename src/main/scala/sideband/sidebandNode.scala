@@ -314,8 +314,6 @@ class SidebandLinkDeserializer(
   val dataBeats = (dataBits - 1) / sb_w + 1
   val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
-  val receiving = RegInit(true.B)
-
   val asyncFifo = Module(
     new AsyncQueue(
       UInt(msg_w.W),
@@ -328,9 +326,10 @@ class SidebandLinkDeserializer(
   asyncFifo.io.enq_clock := remote_clock
   asyncFifo.io.enq_reset := reset
 
-  withClock(remote_clock) {
+  withClock(Mux(reset.asBool, clock, remote_clock)) {
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
+    val receiving = RegInit(true.B)
 
     // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
     // recvCount_delay := recvCount
