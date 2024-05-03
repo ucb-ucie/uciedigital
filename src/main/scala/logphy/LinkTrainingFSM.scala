@@ -77,6 +77,7 @@ class LinkTrainingFSM(
     sbMsgWrapper.io.laneIO.rxData.noenq()
     sbMsgWrapper.io.laneIO.txData.nodeq()
     io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
+    io.sidebandFSMIO.packetTxData.noenq()
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
     patternGenerator.io.sidebandLaneIO.rxData.noenq()
