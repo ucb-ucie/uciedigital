@@ -7,7 +7,7 @@ import sideband.SidebandParams
 import interfaces._
 
 object LinkTrainingState extends ChiselEnum {
-  val reset, sbInit, mbInit, linkInit, active, linkError = Value
+  val reset, sbInit, mbInit, linkInit, active, linkError, retrain = Value
 }
 
 object MsgSource extends ChiselEnum {

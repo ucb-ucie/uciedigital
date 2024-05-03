@@ -118,9 +118,32 @@ class LinkTrainingFSM(
   rdiBringup.io.rdiIO <> io.rdi.rdiBringupIO
   rdiBringup.io.sbTrainIO.msgReq.nodeq()
   rdiBringup.io.sbTrainIO.msgReqStatus.noenq()
+  val plStateStatus = WireInit(rdiBringup.io.rdiIO.plStateStatus)
 
   // TODO: incorporate lpstatereq
-  currentState := nextState
+  currentState := PriorityMux(
+    Seq(
+      (rdiBringup.io.rdiIO.plStateStatus === PhyState.reset, nextState),
+      (
+        rdiBringup.io.rdiIO.plStateStatus === PhyState.active,
+        LinkTrainingState.active,
+      ),
+      (
+        rdiBringup.io.rdiIO.plStateStatus === PhyState.retrain,
+        LinkTrainingState.retrain,
+      ),
+      (
+        rdiBringup.io.rdiIO.plStateStatus === PhyState.linkError,
+        LinkTrainingState.linkError,
+      ),
+    ),
+  )
+  // currentState := Mux(
+  //   plStateStatus === PhyState.reset,
+  //   nextState,
+  /* Mux(plStateStatus === PhyState.linkError, LinkTrainingState.linkError,
+   * Mux(plStateStatus === )), */
+  // )
   io.sidebandFSMIO.rxMode := Mux(
     currentState === LinkTrainingState.sbInit &&
       (sbInitSubState === SBInitSubState.SEND_CLOCK ||
@@ -149,6 +172,9 @@ class LinkTrainingFSM(
   resetFreqCtrValue := false.B
 
   rdiBringup.io.internalError := currentState === LinkTrainingState.linkError
+
+  /** TODO: need to set accurately */
+  rdiBringup.io.internalRetrain := false.B
 
   private object ActiveSubState extends ChiselEnum {
     val IDLE = Value

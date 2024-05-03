@@ -32,6 +32,7 @@ class RdiBringup extends Module {
     val sbTrainIO = Flipped(new SBMsgWrapperTrainIO)
     val active = Output(Bool())
     val internalError = Input(Bool())
+    val internalRetrain = Input(Bool())
   })
 
   io.rdiIO.plClkReq := true.B
@@ -53,8 +54,10 @@ class RdiBringup extends Module {
   io.sbTrainIO.msgReq.noenq()
   io.sbTrainIO.msgReqStatus.nodeq()
   state := nextState
-  when(io.internalError) {
-    state := PhyState.linkError
+  when(io.internalError || io.rdiIO.lpLinkError) {
+    nextState := PhyState.linkError
+  }.elsewhen(io.internalRetrain) {
+    nextState := PhyState.retrain
   }
 
   private val resetSubstate = RegInit(ResetSubState.WAIT_LP_STATE_REQ)
@@ -68,12 +71,24 @@ class RdiBringup extends Module {
   }
 
   io.rdiIO.plStallReq := stallReqAckState === StallReqAckState.LP_STALLACK_WAIT
+  private val prevReq = RegInit(PhyStateReq.nop)
+  prevReq := io.rdiIO.lpStateReq
+
+  /** TODO: Implement Table 8-3 from spec */
+  when(io.rdiIO.lpStateReq =/= PhyStateReq.nop) {
+    when(state =/= PhyState.reset || prevReq === PhyStateReq.nop) {
+      nextState := io.rdiIO.lpStateReq.asUInt.asTypeOf(PhyState())
+    }
+  }
 
   switch(state) {
     is(PhyState.reset) {
       switch(resetSubstate) {
         is(ResetSubState.WAIT_LP_STATE_REQ) {
-          when(io.rdiIO.lpStateReq === PhyStateReq.active) {
+          when(
+            nextState === PhyState.active,
+          ) {
+            state := PhyState.reset
             resetSubstate := ResetSubState.REQ_ACTIVE_SEND
           }
         }
