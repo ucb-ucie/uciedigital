@@ -334,7 +334,12 @@ class SidebandLinkDeserializer(
 
   withClockAndReset(remote_clock, reset.asAsyncReset) {
 
-    val (recvCount, recvDone) = Counter(true.B, dataBeats)
+    // val (recvCount, recvDone) = Counter(true.B, dataBeats)
+    val recvCount = RegInit(0.U(dataBeats.W))
+    val recvDone = WireInit(recvCount === (dataBeats - 1).U)
+    when(recvDone) {
+      recvCount := 0.U
+    }
     val receiving = RegInit(true.B)
 
     // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
