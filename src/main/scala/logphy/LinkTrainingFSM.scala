@@ -145,11 +145,7 @@ class LinkTrainingFSM(
    * Mux(plStateStatus === )), */
   // )
   io.sidebandFSMIO.rxMode := Mux(
-    currentState === LinkTrainingState.sbInit &&
-      (sbInitSubState === SBInitSubState.SEND_CLOCK ||
-        sbInitSubState === SBInitSubState.WAIT_CLOCK ||
-        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_EXCH ||
-        sbInitSubState === SBInitSubState.SB_OUT_OF_RESET_WAIT),
+    msgSource === MsgSource.PATTERN_GENERATOR,
     RXTXMode.RAW,
     RXTXMode.PACKET,
   )
