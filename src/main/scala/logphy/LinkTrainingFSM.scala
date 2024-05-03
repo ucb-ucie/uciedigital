@@ -75,10 +75,12 @@ class LinkTrainingFSM(
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
     io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
     sbMsgWrapper.io.laneIO.rxData.noenq()
+    sbMsgWrapper.io.laneIO.txData.nodeq()
     io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
     patternGenerator.io.sidebandLaneIO.rxData.noenq()
+    patternGenerator.io.sidebandLaneIO.txData.nodeq()
     when(io.sidebandFSMIO.rxMode === RXTXMode.RAW) {
       io.sidebandFSMIO.patternTxData <> sbMsgWrapper.io.laneIO.txData
       io.sidebandFSMIO.packetTxData.noenq()
