@@ -42,6 +42,9 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
 
   delayerSb.io.enq.valid := true.B // io.sbAfe.txData.valid
   delayerSb.io.enq.bits := io.sbAfe.txData
+  delayerSb_clock.io.enq.valid := true.B
+  delayerSb_clock.io.enq.bits := io.sbAfe.txClock
+
   io.sbAfe.rxData := delayerSb.io.deq.bits
   // io.sbAfe.rxData.valid   := delayerSb.io.deq.valid
   io.sbAfe.rxClock := delayerSb_clock.io.deq.bits
