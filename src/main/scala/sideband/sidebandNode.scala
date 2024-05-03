@@ -3,7 +3,7 @@ package sideband
 
 import chisel3._
 import chisel3.util._
-
+import freechips.rocketchip.util.AsyncQueue
 import interfaces._
 
 //TODO: 1) L317-318 needs to be revisited
@@ -316,20 +316,30 @@ class SidebandLinkDeserializer(
 
   val receiving = RegInit(true.B)
 
+  val asyncFifo = Module(
+    new AsyncQueue(
+      UInt(msg_w.W),
+    ),
+  )
+
+  asyncFifo.io.deq <> io.out
+  asyncFifo.io.deq_clock := clock
+  asyncFifo.io.deq_reset := reset
+  asyncFifo.io.enq_clock := remote_clock
+  asyncFifo.io.enq_reset := reset
+
   withClock(remote_clock) {
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
 
-    val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
-    recvCount_delay := recvCount
-    val recvDone_delay = RegInit(false.B)
-    recvDone_delay := recvDone
+    // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
+    // recvCount_delay := recvCount
 
-    data(recvCount_delay) := io.in.bits
-    when(recvDone_delay) { receiving := false.B }
-    when(io.out.fire) { receiving := true.B }
-    io.out.valid := !receiving
+    data(recvCount) := io.in.bits
+    when(recvDone) { receiving := false.B }
+    when(asyncFifo.io.enq.fire) { receiving := true.B }
+    asyncFifo.io.enq.valid := !receiving
 
-    io.out.bits := data.asUInt
+    asyncFifo.io.enq.bits := data.asUInt
   }
 }
