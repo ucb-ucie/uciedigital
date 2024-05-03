@@ -60,6 +60,8 @@ class PHYSidebandChannel(
 
   when(io.inner.rxMode === RXTXMode.RAW) {
     switcher.io.outer.node_to_layer_below.noenq()
+    switcher.io.inner.node_to_layer_below.nodeq()
+
     lower_node.io.inner.node_to_layer <> io.inner.switcherBundle.node_to_layer_below
     switcher.io.inner.layer_to_node_below <> io.inner.switcherBundle.layer_to_node_below
     switcher.io.inner.node_to_layer_above <> io.inner.switcherBundle.node_to_layer_above
