@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import freechips.rocketchip.util.AsyncQueue
 import interfaces._
+import utils.ClockMux2
 
 //TODO: 1) L317-318 needs to be revisited
 //      2) SidebandLinkDeserializer needs to have CDC crossings
@@ -326,7 +327,12 @@ class SidebandLinkDeserializer(
   asyncFifo.io.enq_clock := remote_clock
   asyncFifo.io.enq_reset := reset
 
-  withClock(Mux(reset.asBool, clock.asBool, remote_clock.asBool).asClock) {
+  val clockMux2 = Module(new ClockMux2)
+  clockMux2.io.clocksIn(0) := clock
+  clockMux2.io.clocksIn(1) := remote_clock
+  clockMux2.io.sel := reset.asBool
+
+  withClock(clockMux2.io.clockOut) {
 
     val (recvCount, recvDone) = Counter(true.B, dataBeats)
     val receiving = RegInit(true.B)
