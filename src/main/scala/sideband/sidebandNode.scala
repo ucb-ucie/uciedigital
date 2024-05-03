@@ -322,9 +322,11 @@ class SidebandLinkDeserializer(
 
     val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
     recvCount_delay := recvCount
+    val recvDone_delay = RegInit(false.B)
+    recvDone_delay := recvDone
 
     data(recvCount_delay) := io.in.bits
-    when(recvDone) { receiving := false.B }
+    when(recvDone_delay) { receiving := false.B }
     when(io.out.fire) { receiving := true.B }
     io.out.valid := !receiving
 
