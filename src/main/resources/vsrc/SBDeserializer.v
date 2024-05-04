@@ -1,4 +1,4 @@
-module SBDeserializer #(
+module SBDeserializerBlackBox #(
     parameter WIDTH = 128,
     parameter WIDTH_W = 8
 ) (
