@@ -3,7 +3,7 @@ package sideband
 
 import chisel3._
 import chisel3.util._
-import freechips.rocketchip.util.AsyncQueue
+import freechips.rocketchip.util.{AsyncQueue, AsyncResetReg}
 import interfaces._
 import utils.ClockMux2
 
@@ -335,14 +335,15 @@ class SidebandLinkDeserializer(
   withClockAndReset(remote_clock, reset.asAsyncReset) {
 
     // val (recvCount, recvDone) = Counter(true.B, dataBeats)
-    val recvCount = RegInit(0.U(dataBeats.W))
+    val recvCount = RegInit((dataBeats - 1).U(log2Ceil(dataBeats + 2).W))
     val recvDone = WireInit(recvCount === (dataBeats - 1).U)
-    when(recvDone) {
+    val receiving = RegInit(true.B)
+
+    when(recvCount === dataBeats) {
       recvCount := 0.U
-    }.otherwise {
+    }.elsewhen(receiving) {
       recvCount := recvCount + 1.U
     }
-    val receiving = RegInit(true.B)
 
     // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
     // recvCount_delay := recvCount
