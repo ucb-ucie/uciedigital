@@ -331,19 +331,19 @@ class SidebandLinkDeserializer(
   // clockMux2.io.clocksIn(1) := clock
   // clockMux2.io.sel := reset.asBool
 
-  withClockAndReset(remote_clock, reset.asAsyncReset) {
+  withClockAndReset((!remote_clock.asBool).asClock, reset.asAsyncReset) {
     val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
-    // val (recvCount, recvDone) = Counter(true.B, dataBeats)
-    val recvCount = RegInit(0.U(log2Ceil(dataBeats + 1).W))
-    val recvDone = WireInit(recvCount === (dataBeats - 1).U)
+    val (recvCount, recvDone) = Counter(true.B, dataBeats)
+    // val recvCount = RegInit(0.U(log2Ceil(dataBeats + 1).W))
+    // val recvDone = WireInit(recvCount === (dataBeats - 1).U)
     val receiving = RegInit(true.B)
 
-    when(recvCount === (dataBeats - 1).U) {
-      recvCount := 0.U
-    }.elsewhen(receiving) {
-      recvCount := recvCount + 1.U
-    }
+    // when(recvCount === (dataBeats - 1).U) {
+    //   recvCount := 0.U
+    // }.elsewhen(receiving) {
+    //   recvCount := recvCount + 1.U
+    // }
 
     // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
     // recvCount_delay := recvCount
