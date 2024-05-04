@@ -331,30 +331,38 @@ class SidebandLinkDeserializer(
   // clockMux2.io.clocksIn(1) := clock
   // clockMux2.io.sel := reset.asBool
 
-  val inv_clock = (!remote_clock.asBool).asClock
-  withClockAndReset(inv_clock, reset.asAsyncReset) {
+  // val inv_clock = (!remote_clock.asBool).asClock
+  withClockAndReset(remote_clock, reset.asAsyncReset) {
 
-    val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
+    val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
+    asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
+    asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
+    sbDeserBlackBox.io.out_data_ready := asyncFifo.io.enq.ready
+    sbDeserBlackBox.io.in_data := io.in.bits
 
-    val (recvCount, recvDone) = Counter(true.B, dataBeats)
-    // val recvCount = RegInit(0.U(log2Ceil(dataBeats + 1).W))
-    // val recvDone = WireInit(recvCount === (dataBeats - 1).U)
-    val receiving = RegInit(true.B)
+    // val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
-    // when(recvCount === (dataBeats - 1).U) {
-    //   recvCount := 0.U
-    // }.elsewhen(receiving) {
-    //   recvCount := recvCount + 1.U
-    // }
+    // val (recvCount, recvDone) = Counter(true.B, dataBeats)
+    // val receiving = RegInit(true.B)
 
-    // val recvCount_delay = RegInit(0.U(log2Ceil(dataBeats).W))
-    // recvCount_delay := recvCount
+    // data(recvCount) := io.in.bits
+    // when(recvDone) { receiving := false.B }
+    // when(asyncFifo.io.enq.fire) { receiving := true.B }
+    // asyncFifo.io.enq.valid := !receiving
 
-    data(recvCount) := io.in.bits
-    when(recvDone) { receiving := false.B }
-    when(asyncFifo.io.enq.fire) { receiving := true.B }
-    asyncFifo.io.enq.valid := !receiving
-
-    asyncFifo.io.enq.bits := data.asUInt
+    // asyncFifo.io.enq.bits := data.asUInt
   }
+}
+
+class SBDeserializerBlackBox(val width: Int)
+    extends BlackBox(Map("WIDTH" -> width, "WIDTH_W" -> log2Ceil(width)))
+    with HasBlackBoxResource {
+  val io = IO(new Bundle {
+    val in_data = Input(Wire(UInt(1.W)))
+    val out_data_ready = Input(Bool())
+    val out_data = Output(Wire(UInt(128.W)))
+    val out_data_valid = Output(Bool())
+  })
+
+  addResource("/vsrc/SBDeserializer.v")
 }
