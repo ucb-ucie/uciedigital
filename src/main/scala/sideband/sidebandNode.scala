@@ -2,10 +2,10 @@ package edu.berkeley.cs.ucie.digital
 package sideband
 
 import chisel3._
+import chisel3.experimental._
 import chisel3.util._
 import freechips.rocketchip.util.{AsyncQueue, AsyncResetReg}
 import interfaces._
-import utils.ClockMux2
 
 //TODO: 1) L317-318 needs to be revisited
 //      2) SidebandLinkDeserializer needs to have CDC crossings
@@ -355,7 +355,9 @@ class SidebandLinkDeserializer(
 }
 
 class SBDeserializerBlackBox(val width: Int)
-    extends BlackBox(Map("WIDTH" -> width, "WIDTH_W" -> log2Ceil(width)))
+    extends BlackBox(
+      Map("WIDTH" -> IntParam(width), "WIDTH_W" -> IntParam(log2Ceil(width))),
+    )
     with HasBlackBoxResource {
   val io = IO(new Bundle {
     val in_data = Input(UInt(1.W))
