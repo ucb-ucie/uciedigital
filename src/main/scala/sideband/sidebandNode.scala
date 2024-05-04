@@ -332,7 +332,7 @@ class SidebandLinkDeserializer(
   // clockMux2.io.sel := reset.asBool
 
   // val inv_clock = (!remote_clock.asBool).asClock
-  withClockAndReset(remote_clock, reset.asAsyncReset) {
+  withClockAndReset(clock, reset.asAsyncReset) {
 
     val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
     sbDeserBlackBox.io.clk := remote_clock
