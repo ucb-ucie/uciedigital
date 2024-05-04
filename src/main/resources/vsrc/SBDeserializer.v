@@ -1,13 +1,13 @@
 module SBDeserializer #(
     parameter WIDTH,
-    parameter WIDTH_W,
+    parameter WIDTH_W
 ) (
     input clk,
     input rst,
     input in_data,
     input out_data_ready,
     output [WIDTH - 1:0] out_data,
-    output out_data_valid,
+    output out_data_valid
 
 );
 
