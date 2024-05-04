@@ -1,6 +1,6 @@
 module SBDeserializer #(
-    parameter WIDTH,
-    parameter WIDTH_W
+    parameter WIDTH = 128,
+    parameter WIDTH_W = 8
 ) (
     input clk,
     input rst,
