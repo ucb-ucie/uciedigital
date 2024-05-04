@@ -313,7 +313,6 @@ class SidebandLinkDeserializer(
 
   val dataBits = msg_w
   val dataBeats = (dataBits - 1) / sb_w + 1
-  val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
   val asyncFifo = Module(
     new AsyncQueue(
@@ -333,6 +332,7 @@ class SidebandLinkDeserializer(
   // clockMux2.io.sel := reset.asBool
 
   withClockAndReset(remote_clock, reset.asAsyncReset) {
+    val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
     // val (recvCount, recvDone) = Counter(true.B, dataBeats)
     val recvCount = RegInit(0.U(log2Ceil(dataBeats + 1).W))
