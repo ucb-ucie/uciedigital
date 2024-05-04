@@ -335,6 +335,8 @@ class SidebandLinkDeserializer(
   withClockAndReset(remote_clock, reset.asAsyncReset) {
 
     val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
+    sbDeserBlackBox.io.clk := clock
+    sbDeserBlackBox.io.rst := reset.asAsyncReset
     asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
     asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
     sbDeserBlackBox.io.out_data_ready := asyncFifo.io.enq.ready
@@ -356,10 +358,15 @@ class SidebandLinkDeserializer(
 
 class SBDeserializerBlackBox(val width: Int)
     extends BlackBox(
-      Map("WIDTH" -> IntParam(width), "WIDTH_W" -> IntParam(log2Ceil(width))),
+      Map(
+        "WIDTH" -> IntParam(width),
+        "WIDTH_W" -> IntParam(log2Ceil(width) + 1),
+      ),
     )
     with HasBlackBoxResource {
   val io = IO(new Bundle {
+    val clk = Input(Clock())
+    val rst = Input(Reset())
     val in_data = Input(UInt(1.W))
     val out_data_ready = Input(Bool())
     val out_data = Output(UInt(width.W))
