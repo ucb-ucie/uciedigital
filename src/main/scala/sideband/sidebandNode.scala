@@ -358,9 +358,9 @@ class SBDeserializerBlackBox(val width: Int)
     extends BlackBox(Map("WIDTH" -> width, "WIDTH_W" -> log2Ceil(width)))
     with HasBlackBoxResource {
   val io = IO(new Bundle {
-    val in_data = Input(Wire(UInt(1.W)))
+    val in_data = Input(UInt(1.W))
     val out_data_ready = Input(Bool())
-    val out_data = Output(Wire(UInt(128.W)))
+    val out_data = Output(UInt(width.W))
     val out_data_valid = Output(Bool())
   })
 
