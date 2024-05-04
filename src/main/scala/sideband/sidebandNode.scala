@@ -332,28 +332,28 @@ class SidebandLinkDeserializer(
   // clockMux2.io.sel := reset.asBool
 
   // val inv_clock = (!remote_clock.asBool).asClock
-  withClockAndReset(clock, reset.asAsyncReset) {
+  // withClockAndReset(clock, reset.asAsyncReset) {
 
-    val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
-    sbDeserBlackBox.io.clk := remote_clock
-    sbDeserBlackBox.io.rst := reset.asAsyncReset
-    asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
-    asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
-    sbDeserBlackBox.io.out_data_ready := asyncFifo.io.enq.ready
-    sbDeserBlackBox.io.in_data := io.in.bits
+  val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
+  sbDeserBlackBox.io.clk := remote_clock
+  sbDeserBlackBox.io.rst := reset.asAsyncReset
+  asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
+  asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
+  sbDeserBlackBox.io.out_data_ready := asyncFifo.io.enq.ready
+  sbDeserBlackBox.io.in_data := io.in.bits
 
-    // val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
+  // val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
 
-    // val (recvCount, recvDone) = Counter(true.B, dataBeats)
-    // val receiving = RegInit(true.B)
+  // val (recvCount, recvDone) = Counter(true.B, dataBeats)
+  // val receiving = RegInit(true.B)
 
-    // data(recvCount) := io.in.bits
-    // when(recvDone) { receiving := false.B }
-    // when(asyncFifo.io.enq.fire) { receiving := true.B }
-    // asyncFifo.io.enq.valid := !receiving
+  // data(recvCount) := io.in.bits
+  // when(recvDone) { receiving := false.B }
+  // when(asyncFifo.io.enq.fire) { receiving := true.B }
+  // asyncFifo.io.enq.valid := !receiving
 
-    // asyncFifo.io.enq.bits := data.asUInt
-  }
+  // asyncFifo.io.enq.bits := data.asUInt
+  // }
 }
 
 class SBDeserializerBlackBox(val width: Int)
