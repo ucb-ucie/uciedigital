@@ -335,7 +335,7 @@ class SidebandLinkDeserializer(
   // withClockAndReset(clock, reset.asAsyncReset) {
 
   val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
-  sbDeserBlackBox.io.clk := clock
+  sbDeserBlackBox.io.clk := remote_clock
   sbDeserBlackBox.io.rst := reset.asAsyncReset
   asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
   asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
