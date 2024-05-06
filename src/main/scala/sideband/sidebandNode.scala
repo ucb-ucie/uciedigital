@@ -264,7 +264,7 @@ class SidebandLinkSerializer(
   val done = RegInit(false.B)
   val waited = RegInit(true.B)
   val sendNext = RegInit(false.B)
-  val (sendCount, sendDone) = Counter(sending && !sendNext, dataBeats)
+  val (sendCount, sendDone) = Counter(sending, dataBeats)
 
   val isComplete = RegInit(false.B)
 
@@ -292,7 +292,7 @@ class SidebandLinkSerializer(
     waited := false.B
   }
 
-  when(sending && !delay) { data := data >> sb_w.U }
+  when(sending) { data := data >> sb_w.U }
 
   when(sendDone) {
     sending := false.B
