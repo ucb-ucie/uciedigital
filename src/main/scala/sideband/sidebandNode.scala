@@ -278,12 +278,18 @@ class SidebandLinkSerializer(
   counter_en := false.B
 
   io.counter := counter
+  val cycDelay = RegInit(false.B)
 
   when(io.in.fire) {
+    cycDelay := true.B
+  }
+
+  when(cycDelay) {
     data := io.in.bits.asUInt
     sending := true.B
     waited := false.B
     counter_next := 0.U
+    cycDelay := false.B
   }
 
   when(sending) { data := data >> sb_w.U }
