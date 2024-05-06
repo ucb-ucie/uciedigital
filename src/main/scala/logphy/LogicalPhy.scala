@@ -62,7 +62,7 @@ class LogicalPhy(
   io.rdi.lpLinkError <> trainingModule.io.rdi.rdiBringupIO.lpLinkError
 
   /** TODO: is this correct behavior, look at spec */
-  io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.linkInit
+  io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.linkInit || trainingModule.io.currentState === LinkTrainingState.active
 
   val rdiDataMapper = Module(new RdiDataMapper(rdiParams, afeParams))
 
