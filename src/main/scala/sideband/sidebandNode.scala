@@ -263,15 +263,15 @@ class SidebandLinkSerializer(
   val sending = RegInit(false.B)
   val done = RegInit(false.B)
   val waited = RegInit(true.B)
-  val (sendCount, sendDone) = Counter(sending, dataBeats)
+  val (sendCount, sendDone) = Counter(sending && !delay, dataBeats)
 
   val isComplete = RegInit(false.B)
 
   io.in.ready := (waited) // wait for 32 cycles between SB messages
 
   val sendNegEdge = withClock((!clock.asBool).asClock)(RegInit(false.B))
-  val sendEarly = RegInit(false.B)
-  sendNegEdge := sending || sendEarly
+  val delay = RegInit(false.B)
+  sendNegEdge := sending
 
   io.out.clock := Mux(sendNegEdge, clock.asUInt, false.B)
   io.out.bits := data(sb_w - 1, 0)
@@ -282,17 +282,17 @@ class SidebandLinkSerializer(
 
   when(io.in.fire) {
     data := io.in.bits.asUInt
-    sendEarly := true.B
-  }
-
-  when(sendEarly) {
+    delay := true.B
     sending := true.B
     waited := false.B
     counter_next := 0.U
-    sendEarly := false.B
   }
 
-  when(sending) { data := data >> sb_w.U }
+  when(delay) {
+    delay := false.B
+  }
+
+  when(sending && !delay) { data := data >> sb_w.U }
 
   when(sendDone) {
     sending := false.B
