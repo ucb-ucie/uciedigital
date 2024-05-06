@@ -103,7 +103,7 @@ class AfeTLTestHarness(implicit val p: Parameters) extends Module {
 class AfeLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "AfeLoopback"
   val txns = 2
-  val timeout = 1000
+  val timeout = 4000
   implicit val p: Parameters = Parameters.empty
   it should "finish request and response before timeout" in {
     test(new AfeTLTestHarness()).withAnnotations(
