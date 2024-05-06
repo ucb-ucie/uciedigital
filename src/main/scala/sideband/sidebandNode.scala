@@ -4,7 +4,7 @@ package sideband
 import chisel3._
 import chisel3.experimental._
 import chisel3.util._
-import freechips.rocketchip.util.{AsyncQueue, AsyncResetReg}
+import freechips.rocketchip.util.{AsyncQueue, AsyncResetReg, ClockGate}
 import interfaces._
 
 //TODO: 1) L317-318 needs to be revisited
@@ -268,7 +268,11 @@ class SidebandLinkSerializer(
   val isComplete = RegInit(false.B)
 
   io.in.ready := (waited) // wait for 32 cycles between SB messages
-  io.out.clock := Mux(sending, clock.asUInt, false.B)
+
+  val sendNegEdge = withClock((!clock.asBool).asClock)(RegInit(false.B))
+  sendNegEdge := sending
+
+  io.out.clock := Mux(sendNegEdge, clock.asUInt, false.B)
   io.out.bits := data(sb_w - 1, 0)
 
   counter_en := false.B
