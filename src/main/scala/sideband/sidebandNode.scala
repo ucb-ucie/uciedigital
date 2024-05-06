@@ -271,7 +271,7 @@ class SidebandLinkSerializer(
   io.in.ready := (waited) // wait for 32 cycles between SB messages
 
   val sendNegEdge = withClock((!clock.asBool).asClock)(RegInit(false.B))
-  sendNegEdge := sending
+  sendNegEdge := sending && (sendCount =/= (dataBeats - 1).U)
 
   io.out.clock := Mux(sendNegEdge, clock.asUInt, false.B)
   io.out.bits := data(sb_w - 1, 0)
