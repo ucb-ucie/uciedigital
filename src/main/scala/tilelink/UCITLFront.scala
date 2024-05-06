@@ -67,7 +67,8 @@ class UCITLFrontImp extends Impl {
      // FDI interface for testing purposes only
      //val fdi = new Fdi(fdiParams)
      // IOs for connecting to the AFE
-     val mbAfe = new MainbandAfeIo(afeParams)
+    //  val mbAfe = new MainbandAfeIo(afeParams)
+     val mbAfe = Output(new MainbandIo(afeParams.mbLanes))
      val sbAfe = new SidebandAfeIo(afeParams)
   })
   withClockAndReset(clock, reset) {

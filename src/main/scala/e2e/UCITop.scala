@@ -9,6 +9,7 @@ import sideband._
 import protocol._
 import d2dadapter._
 import logphy._
+import afe._
 import freechips.rocketchip.util.AsyncQueueParams
 
 /**
@@ -41,7 +42,8 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
         val fault = Input(Bool())
         val soft_reset = Input(Bool())
         // IOs for connecting to the AFE
-        val mbAfe = new MainbandAfeIo(afeParams)
+        // val mbAfe = new MainbandAfeIo(afeParams)
+        val mbAfe = Output(new MainbandIo(afeParams.mbLanes))
         val sbAfe = new SidebandAfeIo(afeParams)
     })
 
@@ -52,6 +54,7 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   // Instantiate the logPhy
   val logPhy = Module(new LogicalPhy(myId, linkTrainingParams, afeParams, rdiParams, fdiParams, sbParams, laneAsyncQueueParams))
 
+  val dafe = Module(new MbAfe(afeParams, AsyncQueueParams()))
   // Connect the FDI interface of Protocol layer to D2D adapter
   protocol.io.fdi <> d2dadapter.io.fdi
 
@@ -59,7 +62,11 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   d2dadapter.io.rdi <> logPhy.io.rdi
 
   // Connect the AFE interface from logPhy to the top
-  io.mbAfe <> logPhy.io.mbAfe
+  // logphy.io.mbAfe.
+  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData 
+  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData 
+  // dafe.io.
+  io.mbAfe <> dafe.io.stdIo.tx.mainband 
   io.sbAfe <> logPhy.io.sbAfe
 
   // Connect the protocol IOs to the top for connections to the tilelink interface
