@@ -283,13 +283,13 @@ class SidebandLinkSerializer(
   when(io.in.fire) {
     data := io.in.bits.asUInt
     sendNext := true.B
-    done := false.B
   }
 
   when(sendNext) {
     sendNext := false.B
     sending := true.B
     counter_next := 0.U
+    done := false.B
     waited := false.B
   }
 
