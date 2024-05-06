@@ -51,7 +51,6 @@ class AfeLoopbackTester(implicit p: Parameters) extends LazyModule {
       fdiParams = fdiParams,
       rdiParams = rdiParams,
       sbParams = sbParams,
-      myId = myId,
       linkTrainingParams = linkTrainingParams,
       afeParams = afeParams,
       laneAsyncQueueParams = laneAsyncQueueParams,

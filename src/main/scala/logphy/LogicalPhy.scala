@@ -7,7 +7,6 @@ import chisel3._
 import freechips.rocketchip.util.AsyncQueueParams
 
 class LogicalPhy(
-    myId: BigInt,
     linkTrainingParams: LinkTrainingParams,
     afeParams: AfeParams,
     rdiParams: RdiParams,
@@ -80,7 +79,7 @@ class LogicalPhy(
   io.rdi.plData <> rdiDataMapper.io.rdi.plData
 
   private val sidebandChannel =
-    Module(new PHYSidebandChannel(myId, sbParams, fdiParams))
+    Module(new PHYSidebandChannel(sbParams = sbParams, fdiParams = fdiParams))
   assert(
     afeParams.sbSerializerRatio == 1,
     "connecting sideband module directly to training module, sb serializer ratio must be 1!",

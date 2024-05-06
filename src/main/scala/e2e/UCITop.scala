@@ -14,12 +14,12 @@ import freechips.rocketchip.util.AsyncQueueParams
 /**
   * UCITop is the main class which instantiates all the three
   * layers of the UCIe protocol stack
-  * 
+  *
   */
 class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
-             val sbParams: SidebandParams, val myId: BigInt,
+             val sbParams: SidebandParams,
              val linkTrainingParams: LinkTrainingParams,
-             val afeParams: AfeParams, 
+             val afeParams: AfeParams,
              val laneAsyncQueueParams: AsyncQueueParams) extends Module {
     val io = IO(new Bundle{
         // IOs for connecting to the protocol layer
@@ -32,7 +32,7 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
         val TLplStateStatus = Output(PhyState())
 
         val TLlpData_valid = Input(Bool())
-        val TLlpData_bits = Input(Bits((8 * fdiParams.width).W)) 
+        val TLlpData_bits = Input(Bits((8 * fdiParams.width).W))
         val TLlpData_irdy = Input(Bool())
         val TLlpData_ready = Output(Bool())
         val TLplData_bits = Output(Bits((8 * fdiParams.width).W))
@@ -50,7 +50,7 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   // Instantiate the D2D adapter
   val d2dadapter = Module(new D2DAdapter(fdiParams, rdiParams, sbParams))
   // Instantiate the logPhy
-  val logPhy = Module(new LogicalPhy(myId, linkTrainingParams, afeParams, rdiParams, fdiParams, sbParams, laneAsyncQueueParams))
+  val logPhy = Module(new LogicalPhy(linkTrainingParams, afeParams, rdiParams, fdiParams, sbParams, laneAsyncQueueParams))
 
   // Connect the FDI interface of Protocol layer to D2D adapter
   protocol.io.fdi <> d2dadapter.io.fdi
@@ -70,7 +70,7 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   io.fdi_plConfigCredit <> protocol.io.fdi.plConfigCredit
   io.fdi_lpStallAck <> protocol.io.fdi.lpStallAck
   io.TLplStateStatus <> protocol.io.TLplStateStatus
-  
+
   protocol.io.TLlpData_valid := io.TLlpData_valid
   protocol.io.TLlpData_bits := io.TLlpData_bits
   protocol.io.TLlpData_irdy := io.TLlpData_irdy
