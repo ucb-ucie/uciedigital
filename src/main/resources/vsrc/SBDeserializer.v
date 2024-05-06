@@ -1,6 +1,6 @@
 module SBDeserializerBlackBox #(
     parameter WIDTH = 128,
-    parameter WIDTH_W = $clog2(WIDTH),
+    parameter WIDTH_W = $clog2(WIDTH)
 ) (
     input clk,
     input rst,
