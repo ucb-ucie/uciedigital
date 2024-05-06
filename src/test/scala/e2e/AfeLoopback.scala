@@ -47,12 +47,11 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
 
   io.sbAfe.rxData := delayerSb.io.deq.bits
   // io.sbAfe.rxData.valid   := delayerSb.io.deq.valid
-  io.sbAfe.rxClock := io.sbAfe.txClock
-  // io.sbAfe.rxClock := Mux(
-  //   delayerSb_clock.io.deq.bits && delayerSb_clock.io.deq.valid,
-  //   clock.asBool,
-  //   false.asBool,
-  // )
+  io.sbAfe.rxClock := Mux(
+    delayerSb_clock.io.deq.bits && delayerSb_clock.io.deq.valid,
+    clock.asBool,
+    false.asBool,
+  )
   io.sbAfe.fifoParams.clk := clock
   io.sbAfe.fifoParams.reset := reset
   io.sbAfe.pllLock := true.B
