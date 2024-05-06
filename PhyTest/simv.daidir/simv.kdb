@@ -1,0 +1,18 @@
+rc file Version 1.0
+
+[Design]
+COMPILE_PATH=/bwrcq/C/stefan_shi/uciedigital/PhyTest
+VCS_HOME=/tools/synopsys/vcs/S-2021.09-SP1-1/
+VERDI_HOME=/tools/synopsys/verdi/S-2021.09-SP1-1/
+SystemC=FALSE
+UUM=FALSE
+KDB=FALSE
+USE_NOVAS_HOME=FALSE
+COSIM=FALSE
+TOP=tb_PhyTest 
+OPTION=-ssz -ssv -ssy 
+ELAB_OPTION=-ssz -ssv -ssy 
+
+[Value]
+WREALX=ffff534e50535f58
+WREALZ=ffff534e50535f5a

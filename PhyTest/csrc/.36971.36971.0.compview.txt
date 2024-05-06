@@ -1,0 +1,9 @@
+{"vcs1":{"timestamp_begin":1714950361.248078501, "rt":2.39, "ut":0.63, "st":0.30}}
+{"vcselab":{"timestamp_begin":1714950363.763584433, "rt":0.95, "ut":0.27, "st":0.15}}
+{"link":{"timestamp_begin":1714950364.833860998, "rt":0.40, "ut":0.12, "st":0.12}}
+{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1714950360.492483944}
+{"VCS_COMP_START_TIME": 1714950360.492483944}
+{"VCS_COMP_END_TIME": 1714950365.638855443}
+{"VCS_USER_OPTIONS": "-full64 -sverilog +incdir+ +v2k -debug_all ./PhyTest.sv ./tb_PhyTest.sv -o simv"}
+{"vcs1": {"peak_mem": 347096}}
+{"stitch_vcselab": {"peak_mem": 228380}}

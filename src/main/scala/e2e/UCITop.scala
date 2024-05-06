@@ -68,7 +68,11 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   // dafe.io.
   io.mbAfe <> dafe.io.stdIo.tx.mainband 
   io.sbAfe <> logPhy.io.sbAfe
-
+  
+  dafe.io.clkp := clock 
+  dafe.io.clkn := clock 
+  dafe.io.clk_800 := clock
+ 
   // Connect the protocol IOs to the top for connections to the tilelink interface
   //io.fdi <> protocol.io.fdi
   io.fdi_lpConfig <> protocol.io.fdi.lpConfig
@@ -87,5 +91,28 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   protocol.io.TLready_to_rcv := io.TLready_to_rcv
   protocol.io.fault := io.fault
   protocol.io.soft_reset := io.soft_reset
+
+
+  dafe.io.sbAfeIo.fifoParams.clk := clock
+  dafe.io.clk_800 := clock
+  dafe.io.sbAfeIo.rxData := 0.U
+  dafe.io.mbAfeIo.fifoParams.clk := clock
+  dafe.io.stdIo.rx.mainband.valid := false.B
+  dafe.io.stdIo.rx.mainband.clkn := clock
+  dafe.io.stdIo.rx.mainband.data := 0.U
+  dafe.io.clkp := clock
+  dafe.io.stdIo.rx.sideband.clk := clock
+  dafe.io.mbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.clk := clock
+  dafe.io.sbAfeIo.rxClock := false.B
+  dafe.io.stdIo.rx.mainband.clkp := clock
+  dafe.io.stdIo.rx.mainband.track := false.B
+  dafe.io.clkn := clock
+  logPhy.io.mbAfe.pllLock := false.B
+  dafe.io.mbAfeIo.pllLock := false.B
+  dafe.io.stdIo.rx.sideband.data := false.B
+  dafe.io.sbAfeIo.pllLock := false.B
+  dafe.io.sbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.reset := false.B
 
 }

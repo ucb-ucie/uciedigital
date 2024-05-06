@@ -1,0 +1,156 @@
+0 
+34
++incdir+
++itf+/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/vcsdp.tab
++memcbk
++v2k
++vcsd
++vpi
+-Mamsrun=
+-Masflags=
+-Mcc=gcc
+-Mcfl= -pipe -fPIC -O -I/tools/synopsys/vcs/S-2021.09-SP1-1/include
+-Mcplusplus=g++
+-Mcrt0=
+-Mcrtn=
+-Mcsrc=
+-Mexternalobj=
+-Mldflags= -rdynamic
+-Mobjects= /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libvirsim.so /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/liberrorinf.so /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libsnpsmalloc.so /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libvfs.so
+-Mout=simv
+-Msaverestoreobj=/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/vcs_save_restore_new.o
+-Msyslibs=-ldl
+-Mvcsaceobjs=
+-Mxcflags= -pipe -fPIC -I/tools/synopsys/vcs/S-2021.09-SP1-1/include
+-Mxllcflags=
+-debug_access+all+bc
+-debug_region+cell
+-full64
+-gen_obj
+-o simv
+-picarchive
+-sverilog
+/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/bin/vcs1
+simv
+./PhyTest.sv
+./tb_PhyTest.sv
+106
+_CE_M=
+_CE_CONDA=
+XML_CATALOG_FILES=file:///bwrcq/C/stefan_shi/conda/etc/xml/catalog file:///etc/xml/catalog
+XDG_SESSION_ID=173142
+XDG_RUNTIME_DIR=/run/user/200477
+XDG_DATA_DIRS=/users/stefan_shi/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
+VSCODE_IPC_HOOK_CLI=/run/user/200477/vscode-ipc-7b5f4b83-8dc9-42b0-86c1-68d27dff131e.sock
+VSCODE_GIT_IPC_HANDLE=/run/user/200477/vscode-git-90ac5553b4.sock
+VSCODE_GIT_ASKPASS_NODE=/bwrcq/home/stefan_shi/.vscode-server/cli/servers/Stable-5c3e652f63e798a5ac2f31ffd0d863669328dc4c/server/node
+VSCODE_GIT_ASKPASS_MAIN=/bwrcq/home/stefan_shi/.vscode-server/cli/servers/Stable-5c3e652f63e798a5ac2f31ffd0d863669328dc4c/server/extensions/git/dist/askpass-main.js
+VSCODE_GIT_ASKPASS_EXTRA_ARGS=
+VMR_MODE_FLAG=64
+VERPLEX_LICENSE_FILE=5280@sunv210-2.eecs.berkeley.edu
+VERDI_HOME=/tools/synopsys/verdi/S-2021.09-SP1-1/
+VCS_PATHMAP_PRELOAD_DONE=1
+VCS_MX_HOME_INTERNAL=1
+VCS_MODE_FLAG=64
+VCS_HOME=/tools/synopsys/vcs/S-2021.09-SP1-1/
+VCS_EXEC_DONE=1
+VCS_DEPTH=0
+VCS_ARG_ADDED_FOR_TMP=1
+VCS_ARCH=linux64
+VCS_64=1
+UNAME=/bin/uname
+TOOL_HOME=/tools/synopsys/vcs/S-2021.09-SP1-1/linux64
+TMALD_LICENSE_FILE=1701@bwrcflex-1.eecs.berkeley.edu
+TERM_PROGRAM_VERSION=1.88.0
+TERM_PROGRAM=vscode
+TAVEREN_LICENSE_FILE=1701@bwrcflex-1.eecs.berkeley.edu:1701@bwrcflex-2.eecs.berkeley.edu
+SYNPLIFY_LICENSE_TYPE=synplifypremierdp
+SYNPLIFYPRO_LICENSE_TYPE=synplifypremierdp
+SYNPLIFYPREMIER_LICENSE_TYPE=synplifypremierdp
+SYNPLICITYD_LICENSE_FILE=1701@sunv40z-1.eecs.berkeley.edu:1701@sunv20z-1.eecs.berkeley.edu
+SYNPLCTYD_LICENSE_FILE=1701@bwrcflex-1.eecs.berkeley.edu:1701@bwrcflex-2.eecs.berkeley.edu
+SYNFORAD_LICENSE_FILE=1726@sunv210-2.eecs.berkeley.edu
+SSL_CERT_FILE=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+SSL_CERT_DIR=/etc/pki/tls/certs
+SSH_CONNECTION=10.136.133.227 64175 128.32.63.61 22
+SSH_CLIENT=10.136.133.227 64175 22
+SSH_ASKPASS=/usr/libexec/openssh/gnome-ssh-askpass
+SNPS_VCS_CLANG_PATH=/tools/synopsys/vcs/S-2021.09-SP1-1//linux64/clang
+SNPS_INTERNAL_VCS_LINUX_OS=linux
+SCRNAME=vcs
+SCRIPT_NAME=vcs
+SALMD_LICENSE_FILE=9524@bwrcflex-1.eecs.berkeley.edu:9524@bwrcflex-2.eecs.berkeley.edu
+REMCOMFDTD_LICENSE_FILE=1713@sunv210-2.eecs.berkeley.edu
+QT_PLUGIN_PATH=/usr/lib64/kde4/plugins:/usr/lib/kde4/plugins
+QT_GRAPHICSSYSTEM_CHECKED=1
+QTLIB=/usr/lib64/qt-3.3/lib
+QTINC=/usr/lib64/qt-3.3/include
+QTDIR=/usr/lib64/qt-3.3
+OVA_UUM=0
+NI_LICENSE_FILE=27010@sunv210-2.eecs.berkeley.edu
+MODULESHOME=/usr/share/Modules
+MODULEPATH=/usr/share/Modules/modulefiles:/etc/modulefiles
+MLM_LICENSE_FILE=/tools/mathworks/flexlm/license.campus
+MGLS_LICENSE_FILE=1717@bwrcflex-1.eecs.berkeley.edu:1717@bwrcflex-2.eecs.berkeley.edu:1717@license-srv.eecs.berkeley.edu
+MEMSPLD_LICENSE_FILE=27009@sunv40z-1.eecs.berkeley.edu:27009@sunv20z-1.eecs.berkeley.edu
+MAMBA_ROOT_PREFIX=/bwrcq/home/stefan_shi/micromamba
+MAMBA_EXE=/bwrcq/home/stefan_shi/.local/bin/micromamba
+MAGMA_LICENSE_FILE=1701@bwrcflex-1.eecs.berkeley.edu:1701@bwrcflex-2.eecs.berkeley.edu
+LSF_SERVERDIR=/tools/support/lsf/9.1/linux2.6-glibc2.3-x86_64/etc
+LSF_LIBDIR=/tools/support/lsf/9.1/linux2.6-glibc2.3-x86_64/lib
+LSF_ENVDIR=/tools/support/lsf/conf
+LSF_BINDIR=/tools/support/lsf/9.1/linux2.6-glibc2.3-x86_64/bin
+LORENTZ_LICENSE_FILE=27017@bwrcflex-1.eecs.berkeley.edu
+LOADEDMODULES=
+LM_PROJECT=bwrc_users
+LESSOPEN=||/usr/bin/lesspipe.sh %s
+LC_ALL=C
+KDEDIRS=/usr
+IDEMWD_LICENSE_FILE=27013@sunv40z-1.eecs.berkeley.edu:27013@sunv20z-1.eecs.berkeley.edu
+ICCAP_LICENSE_FILE=1711@bwrcflex-1.eecs.berkeley.edu:1711@bwrcflex-2.eecs.berkeley.edu
+HISTCONTROL=ignoredups
+GUESTFISH_RESTORE=\e[0m
+GUESTFISH_PS1=\[\e[1;32m\]><fs>\[\e[0;31m\] 
+GUESTFISH_OUTPUT=\e[0m
+GUESTFISH_INIT=\e[1;34m
+GSETTINGS_SCHEMA_DIR_CONDA_BACKUP=
+GSETTINGS_SCHEMA_DIR=/bwrcq/C/stefan_shi/conda/share/glib-2.0/schemas
+GOLDENGATE_LICENSE_FILE=1711@bwrcflex-1.eecs.berkeley.edu:1711@bwrcflex-2.eecs.berkeley.edu
+GIT_ASKPASS=/bwrcq/home/stefan_shi/.vscode-server/cli/servers/Stable-5c3e652f63e798a5ac2f31ffd0d863669328dc4c/server/extensions/git/dist/askpass.sh
+FTP_PASSIVE_MODE=yes
+DKLMD_LICENSE_FILE=27023@bwrcflex-1.eecs.berkeley.edu:27023@bwrcflex-2.eecs.berkeley.edu
+CVS_RSH=ssh
+CSTD_LICENSE_FILE=27002@sunv40z-1.eecs.berkeley.edu
+CONDA_SHLVL=1
+CONDA_PYTHON_EXE=/bwrcq/C/stefan_shi/conda/bin/python
+CONDA_PROMPT_MODIFIER=(base) 
+CONDA_PREFIX=/bwrcq/C/stefan_shi/conda
+CONDA_EXE=/bwrcq/C/stefan_shi/conda/bin/conda
+CONDA_DEFAULT_ENV=base
+COLORTERM=truecolor
+CDS_LIC_FILE=5280@bwrcflex-1.eecs.berkeley.edu:5280@bwrcflex-2.eecs.berkeley.edu:5280@license-srv.eecs.berkeley.edu
+CDS_AUTO_64BIT=ALL
+BINARY_TYPE_HPC=
+BDA_LICENSE_FILE=1724@sunv40z-1.eecs.berkeley.edu:1724@sunv20z-1.eecs.berkeley.edu
+BASH_FUNC_module()=() {  eval `/usr/bin/modulecmd bash $*`_}
+AVPMQAD_LICENSE_FILE=1713@sunv40z-1.eecs.berkeley.edu:1713@sunv20z-1.eecs.berkeley.edu
+AVANTD_LICENSE_FILE=1701@bwrcflex-1.eecs.berkeley.edu
+APACHEDA_LICENSE_FILE=27019@sunv40z-1.eecs.berkeley.edu:27019@sunv20z-1.eecs.berkeley.edu
+ANSYSLMD_LICENSE_FILE=1706@bwrcflex-1.eecs.berkeley.edu:1706@bwrcflex-2.eecs.berkeley.edu:1055@lsr.me.berkeley.edu
+ANSOFTD_LICENSE_FILE=1706@bwrcflex-1.eecs.berkeley.edu:1706@bwrcflex-2.eecs.berkeley.edu:1055@lsr.me.berkeley.edu
+ALTERAD_LICENSE_FILE=1721@bwrcflex-1.eecs.berkeley.edu:1721@bwrcflex-2.eecs.berkeley.edu
+AGILEESOFD_LICENSE_FILE=1711@bwrcflex-1.eecs.berkeley.edu:1711@bwrcflex-2.eecs.berkeley.edu
+ADS_LICENSE_FILE=1711@bwrcflex-1.eecs.berkeley.edu:1711@bwrcflex-2.eecs.berkeley.edu
+0
+0
+3
+1714950344 ./tb_PhyTest.sv
+1714950360 ./PhyTest.sv
+1642392338 /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/vcsdp.tab
+4
+1642395057 /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libvirsim.so
+1642393397 /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/liberrorinf.so
+1642393270 /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libsnpsmalloc.so
+1642393394 /tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/libvfs.so
+1714950365 simv.daidir
+-1 partitionlib

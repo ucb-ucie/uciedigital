@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Check if exactly one argument is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <module_name>"
+    exit 1
+fi
+
+module_name="$1"
+
+dir_exists=0
+tb_exists=0
+
+# Check if directory does not exist
+if [ ! -d "$module_name" ]; then
+    # Create directory with the name provided
+    mkdir "$module_name"
+    echo "Directory '$module_name' created."
+else
+    dir_exists=1
+fi
+
+
+sed -i 's/`timescale.*//g' ${module_name}.sv
+
+sed -i '1i\`timescale 1ns/100ps' ${module_name}.sv
+sed -i -E 's/(always @\(posedge (.*)_clkp).*/\1 or posedge \2_clkn) begin/g' ${module_name}.sv
+sed -i -E 's/(always @\(posedge (.*)_clk_800).*/\1 or negedge \2_clk_800) begin/g' ${module_name}.sv
+# Move module_name.sv into the newly created directory if it exists and if directory was just created or file does not exist in the directory
+# module_name.sv will always be overridden if there exists a module_name.sv in base dir
+if [ -f "${module_name}.sv" ]; then
+    cp "${module_name}.sv" "$module_name/"
+    cp "${module_name}.anno.json" "$module_name/"
+    cp "${module_name}.fir" "$module_name/"
+    echo "Moved ${module_name} files into ${module_name}/"
+fi
+
+
+# Check if tb_module_name.sv does not exist before creating it
+if [ ! -f "${module_name}/tb_${module_name}.sv" ]; then
+    cd ${module_name}/ 
+    perl ../generate_tb.pl "${module_name}.sv"
+    echo "Testbench for ${module_name} generated. Please complete tb_${module_name}.sv before running VCS."
+
+else
+    tb_exists=1
+fi
+
+
+
+# Execute command if directory and tb file exist or after creating them
+if [ $dir_exists -eq 1 ] && [ $tb_exists -eq 1 ]; then
+    echo "Executing VCS. on ${module_name}"
+    cd ${module_name}/
+	pwd
+# Additional .sv files
+resource_dir="../src/main/resources/vsrc/"
+src_dir="./"
+
+vcs -full64 -sverilog +incdir+$(dirname) +v2k -debug_all $(find $src_dir $resource_dir -name "*.sv") -o simv
+    ./simv
+else
+    echo "Setup completed. Complete tb_${module_name}.sv, then call this again to run VCS."
+fi
+
+#vcs -sverilog +incdir+$(dirname) tb_AsyncFifoStefan.sv AsyncFifoStefan.sv -o simv
+#./simv
+

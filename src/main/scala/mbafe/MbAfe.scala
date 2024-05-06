@@ -412,6 +412,13 @@ class MbAfe (afeParams: AfeParams, queueParams: AsyncQueueParams) extends Module
     
     rxMainband.io.txMbAfe <> io.mbAfeIo.txData
     rxMainband.io.rxMbIo := io.stdIo.rx.mainband 
+    io.stdIo.tx.sideband.data := 0.U
+    io.sbAfeIo.rxEn := false.B
+    io.mbAfeIo.txFreqSel := SpeedMode.speed16 
+    io.sbAfeIo.txData := 0.U
+    io.mbAfeIo.rxEn := false.B
+    io.sbAfeIo.txClock := false.B
+    io.stdIo.tx.sideband.clk := clock
 }
 
 // To execute do:

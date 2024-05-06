@@ -20,25 +20,27 @@ import protocol._
 class AfeLoopback(val afeParams: AfeParams) extends Module {
   val io = IO(new Bundle {
     // val finished = Output(Bool())
-    val mbAfe = Flipped(new MainbandAfeIo(afeParams))
+    // val mbAfe = Flipped(new MainbandAfeIo(afeParams))
+    val mbAfe = Input(new MainbandIo(afeParams.mbLanes))
     val sbAfe = Flipped(new SidebandAfeIo(afeParams))
   })
 
   val latency = 2
-  val delayerMb = Module(new Pipe(chiselTypeOf(io.mbAfe.txData.bits), latency))
+  val delayerMb = Module(new Pipe(chiselTypeOf(io.mbAfe.data), latency))
   val delayerSb = Module(new Pipe(chiselTypeOf(io.sbAfe.txData), latency))
   val delayerSb_clock = Module(
     new Pipe(chiselTypeOf(io.sbAfe.txClock), latency),
   )
 
-  delayerMb.io.enq.valid := io.mbAfe.txData.valid
-  delayerMb.io.enq.bits := io.mbAfe.txData.bits
-  io.mbAfe.rxData.bits := delayerMb.io.deq.bits
-  io.mbAfe.rxData.valid := delayerMb.io.deq.valid
-  io.mbAfe.txData.ready := true.B
-  io.mbAfe.fifoParams.clk := clock
-  io.mbAfe.fifoParams.reset := reset
-  io.mbAfe.pllLock := true.B
+  delayerMb.io.enq.valid := true.B
+  delayerMb.io.enq.bits := io.mbAfe.data
+  
+  // io.mbAfe.rxData.bits := delayerMb.io.deq.bits
+  // io.mbAfe.rxData.valid := delayerMb.io.deq.valid
+  // io.mbAfe.txData.ready := true.B
+  // io.mbAfe.fifoParams.clk := clock
+  // io.mbAfe.fifoParams.reset := reset
+  // io.mbAfe.pllLock := true.B
 
   delayerSb.io.enq.valid := true.B // io.sbAfe.txData.valid
   delayerSb.io.enq.bits := io.sbAfe.txData

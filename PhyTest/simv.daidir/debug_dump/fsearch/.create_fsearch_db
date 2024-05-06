@@ -1,0 +1,9 @@
+#!/bin/sh -h 
+PYTHONHOME=/tools/synopsys/vcs/S-2021.09-SP1-1//etc/search/pyh
+export PYTHONHOME
+PYTHONPATH=/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/pylib27
+export PYTHONPATH
+LD_LIBRARY_PATH=/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib:/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/lib/pylib27
+export LD_LIBRARY_PATH
+/tools/synopsys/vcs/S-2021.09-SP1-1/linux64/bin/vcsfind_create_index.exe  -z  "/bwrcq/C/stefan_shi/uciedigital/PhyTest/simv.daidir/debug_dump/fsearch/./idents_tapi.xml.gz" -o "/bwrcq/C/stefan_shi/uciedigital/PhyTest/simv.daidir/debug_dump/fsearch/fsearch.db_tmp"
+\mv "/bwrcq/C/stefan_shi/uciedigital/PhyTest/simv.daidir/debug_dump/fsearch/fsearch.db_tmp" "/bwrcq/C/stefan_shi/uciedigital/PhyTest/simv.daidir/debug_dump/fsearch/fsearch.db"
