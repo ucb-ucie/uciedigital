@@ -67,8 +67,11 @@ class UCITLFrontImp extends Impl {
      // FDI interface for testing purposes only
      //val fdi = new Fdi(fdiParams)
      // IOs for connecting to the AFE
-     val mbAfe = new MainbandAfeIo(afeParams)
-     val sbAfe = new SidebandAfeIo(afeParams)
+     val mbAfe = Output(new MainbandIo(afeParams.mbLanes))
+     val rxSbAfe = Input(new SidebandIo())
+     val txSbAfe = Output(new SidebandIo())
+     //val mbAfe = new MainbandAfeIo(afeParams)
+     //val sbAfe = new SidebandAfeIo(afeParams)
   })
   withClockAndReset(clock, reset) {
 
@@ -85,7 +88,8 @@ class UCITLFrontImp extends Impl {
   //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
   io.mbAfe <> ucietop.io.mbAfe
-  io.sbAfe <> ucietop.io.sbAfe
+  io.rxSbAfe <> ucietop.io.rxSbAfe
+  io.txSbAfe <> ucietop.io.txSbAfe
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(protoParams))

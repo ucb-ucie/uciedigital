@@ -9,6 +9,7 @@ import sideband._
 import protocol._
 import d2dadapter._
 import logphy._
+import afe._
 import freechips.rocketchip.util.AsyncQueueParams
 
 /**
@@ -41,8 +42,11 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
         val fault = Input(Bool())
         val soft_reset = Input(Bool())
         // IOs for connecting to the AFE
-        val mbAfe = new MainbandAfeIo(afeParams)
-        val sbAfe = new SidebandAfeIo(afeParams)
+        val mbAfe = Output(new MainbandIo(afeParams.mbLanes))
+        val rxSbAfe = Input(new SidebandIo())
+        val txSbAfe = Output(new SidebandIo())
+        //val mbAfe = new MainbanmbAfeIo(afeParams)
+        //val sbAfe = new SidebandAfeIo(afeParams)
     })
 
   // Instantiate the agnostic protocol layer
@@ -51,6 +55,8 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   val d2dadapter = Module(new D2DAdapter(fdiParams, rdiParams, sbParams))
   // Instantiate the logPhy
   val logPhy = Module(new LogicalPhy(myId, linkTrainingParams, afeParams, rdiParams, fdiParams, sbParams, laneAsyncQueueParams))
+  // Instatntiate the mainband Afe
+  val mbAfe = Module(new MbAfe(afeParams, AsyncQueueParams()))
 
   // Connect the FDI interface of Protocol layer to D2D adapter
   protocol.io.fdi <> d2dadapter.io.fdi
@@ -59,8 +65,37 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   d2dadapter.io.rdi <> logPhy.io.rdi
 
   // Connect the AFE interface from logPhy to the top
-  io.mbAfe <> logPhy.io.mbAfe
-  io.sbAfe <> logPhy.io.sbAfe
+  //io.mbAfe <> logPhy.io.mbAfe
+  logPhy.io.mbAfe.txData <> mbAfe.io.mbAfeIo.rxData 
+  logPhy.io.mbAfe.rxData <> mbAfe.io.mbAfeIo.txData 
+  io.mbAfe <> mbAfe.io.stdIo.tx.mainband
+  mbAfe.io.clkp := clock 
+  mbAfe.io.clkn := clock 
+  mbAfe.io.clk_800 := clock
+  mbAfe.io.sbAfeIo.fifoParams.clk := clock
+  mbAfe.io.clk_800 := clock
+  mbAfe.io.sbAfeIo.rxData := 0.U
+  mbAfe.io.mbAfeIo.fifoParams.clk := clock
+  mbAfe.io.stdIo.rx.mainband.valid := false.B
+  mbAfe.io.stdIo.rx.mainband.clkn := clock
+  mbAfe.io.stdIo.rx.mainband.data := 0.U
+  mbAfe.io.clkp := clock
+  mbAfe.io.stdIo.rx.sideband.clk := clock.asBool
+  mbAfe.io.mbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.clk := clock
+  mbAfe.io.sbAfeIo.rxClock := false.B
+  mbAfe.io.stdIo.rx.mainband.clkp := clock
+  mbAfe.io.stdIo.rx.mainband.track := false.B
+  mbAfe.io.clkn := clock
+  logPhy.io.mbAfe.pllLock := false.B
+  mbAfe.io.mbAfeIo.pllLock := false.B
+  mbAfe.io.stdIo.rx.sideband.data := false.B
+  mbAfe.io.sbAfeIo.pllLock := false.B
+  mbAfe.io.sbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.reset := false.B
+
+  io.rxSbAfe <> logPhy.io.rxSbAfe
+  io.txSbAfe <> logPhy.io.txSbAfe
 
   // Connect the protocol IOs to the top for connections to the tilelink interface
   //io.fdi <> protocol.io.fdi
