@@ -17,6 +17,18 @@ import interfaces._
 import sideband._
 import logphy.{LinkTrainingParams}
 
+
+class UcieDigitalTopIO(mbLanes: Int = 16) extends Bundle {
+     // FDI interface for testing purposes only
+     //val fdi = new Fdi(fdiParams)
+     // IOs for connecting to the AFE
+     val mbAfe = Output(new MainbandIo(mbLanes))
+     val rxSbAfe = Input(new SidebandIo())
+     val txSbAfe = Output(new SidebandIo())
+     //val mbAfe = new MainbandAfeIo(afeParams)
+     //val sbAfe = new SidebandAfeIo(afeParams)
+}
+
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
   * These needs to get connected to the chipyard system. The class converts tilelink 
@@ -60,19 +72,11 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
       visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
     )))))
 
+  val topIO = BundleBridgeSource(() => new UcieDigitalTopIO(afeParams.mbLanes))
+
   override lazy val module = new UCITLFrontImp
 
 class UCITLFrontImp extends Impl {
-  val io = IO(new Bundle {
-     // FDI interface for testing purposes only
-     //val fdi = new Fdi(fdiParams)
-     // IOs for connecting to the AFE
-     val mbAfe = Output(new MainbandIo(afeParams.mbLanes))
-     val rxSbAfe = Input(new SidebandIo())
-     val txSbAfe = Output(new SidebandIo())
-     //val mbAfe = new MainbandAfeIo(afeParams)
-     //val sbAfe = new SidebandAfeIo(afeParams)
-  })
   withClockAndReset(clock, reset) {
 
   withClockAndReset(clock, reset) {
