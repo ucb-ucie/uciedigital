@@ -325,46 +325,26 @@ class SidebandLinkDeserializer(
   val dataBits = msg_w
   val dataBeats = (dataBits - 1) / sb_w + 1
 
-  val asyncFifo = Module(
-    new AsyncQueue(
-      UInt(msg_w.W),
-    ),
-  )
+  val valid_sync_1 = RegNext(sbDeserBlackBox.io.out_data_valid)
+  val valid_sync = RegNext(valid_sync_1)
+  val data_sync_1 = RegNext(sbDeserBlackBox.io.out_data)
+  val data_sync = RegNext(data_sync_1)
 
-  asyncFifo.io.deq <> io.out
-  asyncFifo.io.deq_clock := clock
-  asyncFifo.io.deq_reset := reset
-  asyncFifo.io.enq_clock := remote_clock
-  asyncFifo.io.enq_reset := reset
+  val flag = RegInit(true.B)
+  when(valid_sync) {
+    flag := false.B
+  }.otherwise {
+    flag := true.B
+  }
 
-  // val clockMux2 = Module(new ClockMux2)
-  // clockMux2.io.clocksIn(0) := remote_clock
-  // clockMux2.io.clocksIn(1) := clock
-  // clockMux2.io.sel := reset.asBool
-
-  // val inv_clock = (!remote_clock.asBool).asClock
-  // withClockAndReset(clock, reset.asAsyncReset) {
+  io.out.valid := valid_sync && flag
+  io.out.bits := data_sync
 
   val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
   sbDeserBlackBox.io.clk := remote_clock
   sbDeserBlackBox.io.rst := reset.asAsyncReset
-  asyncFifo.io.enq.valid := sbDeserBlackBox.io.out_data_valid
-  asyncFifo.io.enq.bits := sbDeserBlackBox.io.out_data
-  sbDeserBlackBox.io.out_data_ready := asyncFifo.io.enq.ready
   sbDeserBlackBox.io.in_data := io.in.bits
 
-  // val data = Reg(Vec(dataBeats, UInt(sb_w.W)))
-
-  // val (recvCount, recvDone) = Counter(true.B, dataBeats)
-  // val receiving = RegInit(true.B)
-
-  // data(recvCount) := io.in.bits
-  // when(recvDone) { receiving := false.B }
-  // when(asyncFifo.io.enq.fire) { receiving := true.B }
-  // asyncFifo.io.enq.valid := !receiving
-
-  // asyncFifo.io.enq.bits := data.asUInt
-  // }
 }
 
 class SBDeserializerBlackBox(val width: Int)
@@ -379,7 +359,6 @@ class SBDeserializerBlackBox(val width: Int)
     val clk = Input(Clock())
     val rst = Input(Reset())
     val in_data = Input(UInt(1.W))
-    val out_data_ready = Input(Bool())
     val out_data = Output(UInt(width.W))
     val out_data_valid = Output(Bool())
   })

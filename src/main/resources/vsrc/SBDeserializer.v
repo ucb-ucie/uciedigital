@@ -5,7 +5,6 @@ module SBDeserializerBlackBox #(
     input clk,
     input rst,
     input in_data,
-    input out_data_ready,
     output [WIDTH - 1:0] out_data,
     output out_data_valid
 
@@ -30,10 +29,12 @@ always @(negedge clk or posedge rst) begin
             receiving <= 1'b0;
         end else begin
             counter <= counter + 1'b1;
-        end
-        if (out_data_valid && out_data_ready) begin
             receiving <= 1'b1;
         end
+
+        // if (out_data_valid && out_data_ready) begin
+        //     receiving <= 1'b1;
+        // end
 
         data_reg[counter] <= in_data;
 
