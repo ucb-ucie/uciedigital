@@ -91,9 +91,9 @@ class UCITLFrontImp extends Impl {
                                   afeParams, laneAsyncQueueParams))
   //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
-  io.mbAfe <> ucietop.io.mbAfe
-  io.rxSbAfe <> ucietop.io.rxSbAfe
-  io.txSbAfe <> ucietop.io.txSbAfe
+  topIO.out(0)._1.mbAfe <> ucietop.io.mbAfe
+  topIO.out(0)._1.rxSbAfe <> ucietop.io.rxSbAfe
+  topIO.out(0)._1.txSbAfe <> ucietop.io.txSbAfe
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(protoParams))
