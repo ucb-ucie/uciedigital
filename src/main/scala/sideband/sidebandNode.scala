@@ -324,6 +324,7 @@ class SidebandLinkDeserializer(
 
   val dataBits = msg_w
   val dataBeats = (dataBits - 1) / sb_w + 1
+  val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
 
   val valid_sync_1 = RegNext(sbDeserBlackBox.io.out_data_valid)
   val valid_sync = RegNext(valid_sync_1)
@@ -340,7 +341,6 @@ class SidebandLinkDeserializer(
   io.out.valid := valid_sync && flag
   io.out.bits := data_sync
 
-  val sbDeserBlackBox = Module(new SBDeserializerBlackBox(msg_w))
   sbDeserBlackBox.io.clk := remote_clock
   sbDeserBlackBox.io.rst := reset.asAsyncReset
   sbDeserBlackBox.io.in_data := io.in.bits
