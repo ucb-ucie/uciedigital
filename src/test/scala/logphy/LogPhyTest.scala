@@ -23,7 +23,6 @@ class LogPhyTest extends AnyFlatSpec with ChiselScalatestTester {
   ignore should "" in {
     test(
       new LogicalPhy(
-        0,
         linkTrainingParams = linkTrainingParams,
         afeParams = afeParams,
         rdiParams = rdiParams,
