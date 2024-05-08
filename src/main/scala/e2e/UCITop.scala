@@ -9,6 +9,7 @@ import sideband._
 import protocol._
 import d2dadapter._
 import logphy._
+import afe._
 import freechips.rocketchip.util.AsyncQueueParams
 
 /**
@@ -41,7 +42,14 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
         val fault = Input(Bool())
         val soft_reset = Input(Bool())
         // IOs for connecting to the AFE
-        val mbAfe = new MainbandAfeIo(afeParams)
+        // val mbAfe = new MainbandAfeIo(afeParams)
+
+        // this
+        val mbAfe_tx = Output(new MainbandIo(afeParams.mbLanes))
+        val mbAfe_rx = Input (new MainbandIo(afeParams.mbLanes))
+        // val sbAfe_tx = Output(new SidebandIo())
+        // val sbAfe_rx = Input (new SidebandIo())
+        // Using SidebandAfeIo is probably not intended, wait for Vikram to resolve 
         val sbAfe = new SidebandAfeIo(afeParams)
     })
 
@@ -52,6 +60,7 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   // Instantiate the logPhy
   val logPhy = Module(new LogicalPhy(myId, linkTrainingParams, afeParams, rdiParams, fdiParams, sbParams, laneAsyncQueueParams))
 
+  val dafe = Module(new MbAfe(afeParams, AsyncQueueParams()))
   // Connect the FDI interface of Protocol layer to D2D adapter
   protocol.io.fdi <> d2dadapter.io.fdi
 
@@ -59,9 +68,19 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   d2dadapter.io.rdi <> logPhy.io.rdi
 
   // Connect the AFE interface from logPhy to the top
-  io.mbAfe <> logPhy.io.mbAfe
+  // logphy.io.mbAfe.
+  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData 
+  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData 
+  // dafe.io.
+  io.mbAfe_tx <> dafe.io.stdIo.tx.mainband 
+  io.mbAfe_rx <> dafe.io.stdIo.rx.mainband
+  // io.mbAfe <> dafe.io.stdIo.tx.mainband 
   io.sbAfe <> logPhy.io.sbAfe
-
+  
+  dafe.io.clkp := clock 
+  dafe.io.clkn := clock 
+  dafe.io.clk_800 := clock
+ 
   // Connect the protocol IOs to the top for connections to the tilelink interface
   //io.fdi <> protocol.io.fdi
   io.fdi_lpConfig <> protocol.io.fdi.lpConfig
@@ -80,5 +99,28 @@ class UCITop(val fdiParams: FdiParams, val rdiParams: RdiParams,
   protocol.io.TLready_to_rcv := io.TLready_to_rcv
   protocol.io.fault := io.fault
   protocol.io.soft_reset := io.soft_reset
+
+
+  dafe.io.sbAfeIo.fifoParams.clk := clock
+  dafe.io.clk_800 := clock
+  dafe.io.sbAfeIo.rxData := 0.U
+  dafe.io.mbAfeIo.fifoParams.clk := clock
+  // dafe.io.stdIo.rx.mainband.valid := false.B
+  // dafe.io.stdIo.rx.mainband.clkn := clock
+  // dafe.io.stdIo.rx.mainband.data := 0.U
+  dafe.io.clkp := clock
+  dafe.io.stdIo.rx.sideband.clk := clock
+  dafe.io.mbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.clk := clock
+  dafe.io.sbAfeIo.rxClock := false.B
+  // dafe.io.stdIo.rx.mainband.clkp := clock
+  // dafe.io.stdIo.rx.mainband.track := false.B
+  dafe.io.clkn := clock
+  logPhy.io.mbAfe.pllLock := false.B
+  dafe.io.mbAfeIo.pllLock := false.B
+  // dafe.io.stdIo.rx.sideband.data := false.B
+  dafe.io.sbAfeIo.pllLock := false.B
+  dafe.io.sbAfeIo.fifoParams.reset := false.B
+  logPhy.io.mbAfe.fifoParams.reset := false.B
 
 }
