@@ -18,6 +18,14 @@
       "matchPackageNames": ["edu.berkeley.cs:chiseltest"],
       "allowedVersions": "~0.6", // Chisel 3.6 (chipyard chisel)
     },
+    {
+      // Pull rocket-chip from Sonatype OSS snapshot repos
+      "matchPackageNames": ["edu.berkeley.cs:rocketchip-3.6.0"],
+      "registryUrls": [
+        "https://oss.sonatype.org/content/repositories/snapshots",
+        "https://s01.oss.sonatype.org/content/repositories/snapshots",
+      ],
+    },
   ],
   "regexManagers": [
     {
