@@ -35,13 +35,15 @@ class TxMainband(afeParams: AfeParams, queueParams: AsyncQueueParams, BYTE: Int 
     // Default fifo has problem: when deq starts, data is XXXX for at least 10 cycles, not sure why
     // Use custom async fifo, this one works
     // val txMbFifos = Seq.fill(lanes)(Module (new AsyncFifoStefan(depth, width)))
+    // val txMbFifos = Seq.fill(lanes)(Module (
+    //     new AsyncQueue(
+    //         Bits(afeParams.mbSerializerRatio.W), 
+    //         queueParams)
+    //     )
+    // )
     val txMbFifos = Seq.fill(lanes)(Module (
-        new AsyncQueue(
-            Bits(afeParams.mbSerializerRatio.W), 
-            queueParams)
-        )
-    )
-
+        new AsyncFifoCustom(32, afeParams.mbSerializerRatio)
+    ))
 
     withClock(io.clkp) {
         val outValid = Wire(Bool())
@@ -157,12 +159,15 @@ class RxMainband(afeParams: AfeParams, queueParams: AsyncQueueParams, BYTE: Int 
     // This module receives data from analog, and store into async buffer
     // val rxMbFifos = Seq.fill(lanes)(Module (new AsyncFifoStefan(depth, width)))
 
+    // val rxMbFifos = Seq.fill(lanes)(Module (
+    //     new AsyncQueue(
+    //         Bits(afeParams.mbSerializerRatio.W), 
+    //         queueParams)
+    //     )
+    // )
     val rxMbFifos = Seq.fill(lanes)(Module (
-        new AsyncQueue(
-            Bits(afeParams.mbSerializerRatio.W), 
-            queueParams)
-        )
-    )
+        new AsyncFifoCustom(32, afeParams.mbSerializerRatio)
+    ))
 
         // Enqueue end from analog
     withClock(io.rxMbIo.clkp) {
