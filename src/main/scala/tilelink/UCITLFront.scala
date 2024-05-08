@@ -247,14 +247,15 @@ class UCITLFrontImp extends Impl {
   val checksum_reg = RegInit(0.U(64.W))
   checksum_reg := hammingEncoder.io.checksum
 
-  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(tlParams, protoParams), 1))
+  val tx_pipe = Module(new Queue(new UCIRawPayloadFormat(tlParams, protoParams), 1))
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
-  txArbiter.io.out.ready := ucietop.io.TLlpData_ready // if pl_trdy is asserted
+  txArbiter.io.out.ready := tx_pipe.io.enq.ready
+  tx_pipe.io.deq.ready := ucietop.io.TLlpData_ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  ucietop.io.TLlpData_valid := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
-  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
+  ucietop.io.TLlpData_valid := tx_pipe.io.deq.fire & (~ucietop.io.fdi_lpStallAck)
+  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.fire & (~ucietop.io.fdi_lpStallAck)
   ucietop.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
@@ -263,8 +264,8 @@ class UCITLFrontImp extends Impl {
   val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
-  outwardA.io.credit.ready := tx_pipe.io.deq.valid && creditA
-  outwardD.io.credit.ready := tx_pipe.io.deq.valid && creditD
+  outwardA.io.credit.ready := tx_pipe.io.deq.fire && creditA
+  outwardD.io.credit.ready := tx_pipe.io.deq.fire && creditD
 
   val txACredit = WireDefault(0.U(protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(protoParams.creditWidth.W))
