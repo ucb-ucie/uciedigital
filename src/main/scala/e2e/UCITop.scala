@@ -78,6 +78,7 @@ class UCITop(
     */
   io.sbTxIO.clk := logPhy.io.sbAfe.txClock.asClock
   io.sbTxIO.data := logPhy.io.sbAfe.txData
+  logPhy.io.sbAfe.pllLock := true.B
   logPhy.io.sbAfe.rxClock := io.sbRxIO.clk.asBool
   logPhy.io.sbAfe.rxData := io.sbRxIO.data
 
