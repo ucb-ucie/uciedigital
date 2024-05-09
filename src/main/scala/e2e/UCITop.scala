@@ -84,24 +84,13 @@ class UCITop(
   // io.mbAfe <> dafe.io.stdIo.tx.mainband
   io.sbAfe <> logPhy.io.sbAfe
 
-  dafe.io.clkp := clock
-  dafe.io.clkn := clock
-  dafe.io.clk_800 := clock
   dafe.io.sbAfeIo.fifoParams.clk := clock
-  dafe.io.clk_800 := clock
   dafe.io.sbAfeIo.rxData := 0.U
   dafe.io.mbAfeIo.fifoParams.clk := clock
-  // dafe.io.stdIo.rx.mainband.valid := false.B
-  // dafe.io.stdIo.rx.mainband.clkn := clock
-  // dafe.io.stdIo.rx.mainband.data := 0.U
-  dafe.io.clkp := clock
   dafe.io.stdIo.rx.sideband.clk := clock
   dafe.io.mbAfeIo.fifoParams.reset := false.B
   logPhy.io.mbAfe.fifoParams.clk := clock
   dafe.io.sbAfeIo.rxClock := false.B
-  // dafe.io.stdIo.rx.mainband.clkp := clock
-  // dafe.io.stdIo.rx.mainband.track := false.B
-  dafe.io.clkn := clock
   logPhy.io.mbAfe.pllLock := true.B
   dafe.io.mbAfeIo.pllLock := true.B
   dafe.io.stdIo.rx.sideband.data := 0.U
