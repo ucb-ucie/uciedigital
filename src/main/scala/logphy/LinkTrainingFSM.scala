@@ -72,14 +72,23 @@ class LinkTrainingFSM(
   sbMsgWrapper.io.trainIO.msgReq.noenq()
   sbMsgWrapper.io.trainIO.msgReqStatus.nodeq()
 
-  io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
-  io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
     io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
     sbMsgWrapper.io.laneIO.rxData.noenq()
+    sbMsgWrapper.io.laneIO.txData.nodeq()
+    io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
+    io.sidebandFSMIO.packetTxData.noenq()
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
     patternGenerator.io.sidebandLaneIO.rxData.noenq()
+    patternGenerator.io.sidebandLaneIO.txData.nodeq()
+    when(io.sidebandFSMIO.rxMode === RXTXMode.RAW) {
+      io.sidebandFSMIO.patternTxData <> sbMsgWrapper.io.laneIO.txData
+      io.sidebandFSMIO.packetTxData.noenq()
+    }.otherwise {
+      io.sidebandFSMIO.patternTxData.noenq()
+      io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
+    }
   }
 
   private val currentState = RegInit(LinkTrainingState.reset)

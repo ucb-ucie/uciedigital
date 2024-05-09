@@ -22,7 +22,6 @@ case class UCITLParams (
   val fdiParams: FdiParams,
   val rdiParams: RdiParams,
   val sbParams: SidebandParams, 
-  val myId: BigInt,
   val linkTrainingParams: LinkTrainingParams,
   val afeParams: AfeParams,
   val laneAsyncQueueParams: AsyncQueueParams
@@ -33,15 +32,15 @@ case object UCITLKey extends Field[Option[UCITLParams]](None)
 trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
   val uciTL = p(UCITLKey) match {
     case Some(params) => {
-      val bus = locateTLBusWrapper(OBUS) //TODO: make parameterizable?
-      val ctrlbus = locateTLBusWrapper(SBUS)
+      val bus = locateTLBusWrapper(SBUS) //TODO: make parameterizable?
+      //val ctrlbus = locateTLBusWrapper(SBUS)
       val uciTL = LazyModule(new UCITLFront(
         tlParams    = params.tlParams,
         protoParams = params.protoParams,
         fdiParams   = params.fdiParams,
         rdiParams   = params.rdiParams,
         sbParams    = params.sbParams,
-        myId        = params.myId,
+        //myId        = params.myId,
         linkTrainingParams = params.linkTrainingParams,
         afeParams   = params.afeParams,
         laneAsyncQueueParams = params.laneAsyncQueueParams
@@ -51,7 +50,7 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
           uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLBuffer() := TLSourceShrinker(params.tlParams.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
       } //manager node because SBUS is making request?
       bus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(bus.beatBytes) := TLBuffer() := uciTL.clientNode }
-      ctrlbus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(ctrlbus.beatBytes) := TLFragmenter(ctrlbus.beatBytes, ctrlbus.blockBytes) := _ }
+      bus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(bus.beatBytes) := TLFragmenter(bus.beatBytes, bus.blockBytes) := _ }
       Some(uciTL)
       }
     case None => None

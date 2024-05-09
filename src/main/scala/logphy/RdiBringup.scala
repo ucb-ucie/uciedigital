@@ -122,7 +122,7 @@ class RdiBringup extends Module {
 
           /** TODO: how many timeout cycles here? */
           io.sbTrainIO.msgReq.bits.timeoutCycles := 1_000_000.U
-          when(io.sbTrainIO.msgReqStatus.fire) {
+          when(io.sbTrainIO.msgReq.fire) {
             resetSubstate := ResetSubState.RESP_ACTIVE_WAIT
           }
         }

@@ -7,7 +7,6 @@ import chisel3._
 import freechips.rocketchip.util.AsyncQueueParams
 
 class LogicalPhy(
-    myId: BigInt,
     linkTrainingParams: LinkTrainingParams,
     afeParams: AfeParams,
     rdiParams: RdiParams,
@@ -65,7 +64,7 @@ class LogicalPhy(
   io.rdi.lpLinkError <> trainingModule.io.rdi.rdiBringupIO.lpLinkError
 
   /** TODO: is this correct behavior, look at spec */
-  io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.active
+  io.rdi.plInbandPres := trainingModule.io.currentState === LinkTrainingState.linkInit || trainingModule.io.currentState === LinkTrainingState.active
 
   val rdiDataMapper = Module(new RdiDataMapper(rdiParams, afeParams))
 
@@ -82,7 +81,7 @@ class LogicalPhy(
   io.rdi.plData <> rdiDataMapper.io.rdi.plData
 
   private val sidebandChannel =
-    Module(new PHYSidebandChannel(myId, sbParams, fdiParams))
+    Module(new PHYSidebandChannel(sbParams = sbParams, fdiParams = fdiParams))
   assert(
     afeParams.sbSerializerRatio == 1,
     "connecting sideband module directly to training module, sb serializer ratio must be 1!",
@@ -113,9 +112,12 @@ class LogicalPhy(
     afeParams.sbWidth == 1,
     "AFE SB width must match hardcoded value",
   )
+  // io.txSbAfe.data <> sidebandChannel.io.to_lower_layer.tx.bits
+  // io.txSbAfe.clk <> sidebandChannel.io.to_lower_layer.tx.clock
+  // io.rxSbAfe.data <> sidebandChannel.io.to_lower_layer.rx.bits
+  // io.rxSbAfe.clk <> sidebandChannel.io.to_lower_layer.rx.clock
   io.txSbAfe.data <> sidebandChannel.io.to_lower_layer.tx.bits
   io.txSbAfe.clk <> sidebandChannel.io.to_lower_layer.tx.clock
   io.rxSbAfe.data <> sidebandChannel.io.to_lower_layer.rx.bits
   io.rxSbAfe.clk <> sidebandChannel.io.to_lower_layer.rx.clock
-
 }
