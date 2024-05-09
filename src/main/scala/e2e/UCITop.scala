@@ -88,8 +88,8 @@ class UCITop(
 
   /** Logphy connections to Digital AFE
     */
-  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData
-  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData
+  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.txData
+  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.rxData
 
   /* Connect the protocol IOs to the top for connections to the tilelink
    * interface */
