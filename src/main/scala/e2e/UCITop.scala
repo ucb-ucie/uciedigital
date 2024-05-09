@@ -76,9 +76,9 @@ class UCITop(
 
   /** Sideband AFE connections (ser/des in logphy)
     */
-  io.sbTxIO.clk := logPhy.io.sbAfe.txClock
+  io.sbTxIO.clk := logPhy.io.sbAfe.txClock.asClock
   io.sbTxIO.data := logPhy.io.sbAfe.txData
-  logPhy.io.sbAfe.rxClock := io.sbRxIO.clk
+  logPhy.io.sbAfe.rxClock := io.sbRxIO.clk.asBool
   logPhy.io.sbAfe.rxData := io.sbRxIO.data
 
   /** Mainband AFE connections to toplevel IOs
