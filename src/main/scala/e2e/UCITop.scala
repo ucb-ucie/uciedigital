@@ -76,10 +76,6 @@ class UCITop(
 
   /** Sideband AFE connections (ser/des in logphy)
     */
-  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData
-  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData
-  io.mbAfe_tx <> dafe.io.stdIo.tx.mainband
-  io.mbAfe_rx <> dafe.io.stdIo.rx.mainband
   io.sbTxIO.clk := logPhy.io.sbAfe.txClock
   io.sbTxIO.data := logPhy.io.sbAfe.txData
   logPhy.io.sbAfe.rxClock := io.sbRxIO.clk
@@ -87,22 +83,13 @@ class UCITop(
 
   /** Mainband AFE connections to toplevel IOs
     */
+  io.mbAfe_tx <> dafe.io.mbTxData
+  io.mbAfe_rx <> dafe.io.mbRxData
 
   /** Logphy connections to Digital AFE
-   *  */
-  dafe.io.sbAfeIo.fifoParams.clk := clock
-  dafe.io.sbAfeIo.rxData := 0.U
-  dafe.io.mbAfeIo.fifoParams.clk := clock
-  dafe.io.stdIo.rx.sideband.clk := clock
-  dafe.io.mbAfeIo.fifoParams.reset := false.B
-  logPhy.io.mbAfe.fifoParams.clk := clock
-  dafe.io.sbAfeIo.rxClock := false.B
-  logPhy.io.mbAfe.pllLock := true.B
-  dafe.io.mbAfeIo.pllLock := true.B
-  dafe.io.stdIo.rx.sideband.data := 0.U
-  dafe.io.sbAfeIo.pllLock := false.B
-  dafe.io.sbAfeIo.fifoParams.reset := false.B
-  logPhy.io.mbAfe.fifoParams.reset := false.B
+    */
+  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData
+  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData
 
   /* Connect the protocol IOs to the top for connections to the tilelink
    * interface */
