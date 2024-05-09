@@ -85,7 +85,9 @@ class AfeLoopbackTester(implicit p: Parameters) extends LazyModule {
     // tlUcieDie1.module.io.mbAfe <> AfeLoopback.io.mbAfe
     tlUcieDie1.module.io.mbAfe_tx <> AfeLoopback.io.mbAfe_tx
     tlUcieDie1.module.io.mbAfe_rx <> AfeLoopback.io.mbAfe_rx
-    tlUcieDie1.module.io.sbAfe <> AfeLoopback.io.sbAfe
+    tlUcieDie1.module.io.sbTxIo <> AfeLoopback.io.sbAfe_tx
+    tlUcieDie1.module.io.sbRxIo <> AfeLoopback.io.sbAfe_rx
+
   }
 }
 
