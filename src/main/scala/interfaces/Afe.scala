@@ -62,8 +62,6 @@ class SidebandAfeIo(
     afeParams: AfeParams,
 ) extends Bundle {
 
-  val fifoParams = Input(new FifoParams())
-
   /** Data to transmit on the sideband.
     *
     * Output from the async FIFO.

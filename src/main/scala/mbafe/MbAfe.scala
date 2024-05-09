@@ -81,31 +81,27 @@ class RxMainbandDeserializer(
   io.rxOutData.valid := out_valid
 }
 
-class MbAfe(afeParams: AfeParams, queueParams: AsyncQueueParams)
-    extends Module {
+class MbAfe(afeParams: AfeParams) extends Module {
   val io = IO(new Bundle {
-    val mbAfeIo = new MainbandAfeIo(AfeParams())
-    val sbAfeIo = new SidebandAfeIo(AfeParams())
-    val stdIo = new StandardPackageIo()
+    val mbAfeIo = Flipped(new MainbandAfeIo(AfeParams()))
+    val mbTxData = Output(new MainbandIo(afeParams.mbLanes))
+    val mbRxData = Input(new MainbandIo(afeParams.mbLanes))
   })
 
   val txMainband = Module(new TxMainbandSerializer(afeParams))
   val rxMainband =
-    withClockAndReset(io.stdIo.rx.mainband.clkp, reset.asAsyncReset)(
+    withClockAndReset(io.mbRxData.clkp, reset.asAsyncReset)(
       Module(new RxMainbandDeserializer(afeParams)),
     )
 
-  // txMainband
-  txMainband.io.txInData <> io.mbAfeIo.rxData
-  io.stdIo.tx.mainband := txMainband.io.txMbIo
+  /** Connect to LogPhy AFE IO */
+  io.mbAfeIo.fifoParams.clk := io.mbRxData.clkp
+  io.mbAfeIo.fifoParams.reset := reset.asBool
+  io.mbAfeIo.txData <> txMainband.io.txInData
+  io.mbAfeIo.rxData <> rxMainband.io.rxOutData
+  io.mbAfeIo.pllLock := true.B
 
-  rxMainband.io.rxOutData <> io.mbAfeIo.txData
-  rxMainband.io.rxMbIo := io.stdIo.rx.mainband
-  io.stdIo.tx.sideband.data := 0.U
-  io.sbAfeIo.rxEn := false.B
-  io.mbAfeIo.txFreqSel := SpeedMode.speed16
-  io.sbAfeIo.txData := 0.U
-  io.mbAfeIo.rxEn := false.B
-  io.sbAfeIo.txClock := false.B
-  io.stdIo.tx.sideband.clk := clock
+  /** Connect to Mainband IO */
+  io.mbTxData <> txMainband.io.txMbIo
+  io.mbRxData <> rxMainband.io.rxMbIo
 }

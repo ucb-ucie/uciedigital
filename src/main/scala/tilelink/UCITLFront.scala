@@ -94,8 +94,8 @@ class UCITLFrontImp extends Impl {
 
   topIO.out(0)._1.mbAfe_tx <> ucietop.io.mbAfe_tx
   topIO.out(0)._1.mbAfe_rx <> ucietop.io.mbAfe_rx
-  topIO.out(0)._1.rxSbAfe <> ucietop.io.rxSbAfe
-  topIO.out(0)._1.txSbAfe <> ucietop.io.txSbAfe
+  topIO.out(0)._1.rxSbAfe <> ucietop.io.sbRxIO
+  topIO.out(0)._1.txSbAfe <> ucietop.io.sbTxIO
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(protoParams))
