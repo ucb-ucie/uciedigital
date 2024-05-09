@@ -8,94 +8,65 @@ import interfaces._
 import chisel3.experimental.DataMirror
 import freechips.rocketchip.util.{AsyncQueue, AsyncQueueParams}
 
-// This module receives data from adapter and sends to analog
+// This module receives data from logphy and sends to analog
 class TxMainband(afeParams: AfeParams, BYTE: Int = 8) extends Module {
   val io = IO(new Bundle {
     val rxMbAfe = Flipped(
       Decoupled(Vec(afeParams.mbLanes, Bits(afeParams.mbSerializerRatio.W))),
     )
     val txMbIo = Output(new MainbandIo())
-
-    val clkp = Input(Clock())
-    val clkn = Input(Clock())
-    val track = Input(Bool())
   })
+
   val lanes = afeParams.mbLanes
   val width = afeParams.mbSerializerRatio
-  val dataValidNext = RegNext(io.rxMbAfe.valid)
   val hasData = Wire(Bool())
-  hasData := (io.rxMbAfe.valid) & dataValidNext
+  hasData := io.rxMbAfe.valid
 
   // receive data
-  val rxMbAfeData = io.rxMbAfe.bits
 
-  withClock(io.clkp) {
-    val outValid = Wire(Bool())
-    val outTrack = Wire(Bool())
-    val txMbShiftRegs = Seq.fill(lanes)(RegInit(0.U(width.W)))
-    val txMbUICounter = RegInit(0.U(log2Ceil(width).W))
-    val txMbUICounter_next =
-      RegNext(txMbUICounter, 0.U) // To synchronize mbio valid signal
-    val clockGateCounter = RegInit(0.U(log2Ceil(width).W))
+  val txMbShiftRegs = Seq.fill(lanes)(RegInit(0.U(width.W)))
+  val sending = RegInit(false.B)
+  val clockGated = RegInit(false.B)
+  val (txMbUICounter, uiCountDone) = Counter(sending, width)
+  val (clockGateCounter, clockGateDone) = Counter(!sending, width)
 
-    val shift = RegInit(false.B)
-    when(outValid) {
-      clockGateCounter := 0.U
-    }.elsewhen(~outValid && clockGateCounter < width.U) {
-      clockGateCounter := clockGateCounter + 1.U
-    }
-
-    io.txMbIo.clkn := Mux(
-      (clockGateCounter >= width.U && ~outValid),
-      false.B,
-      io.clkn.asBool,
-    ).asClock
-    io.txMbIo.clkp := Mux(
-      (clockGateCounter >= width.U && ~outValid),
-      false.B,
-      io.clkp.asBool,
-    ).asClock
-
-    // Assign each async fifo individually
-    rxMbAfeData.zipWithIndex.foreach { case (data, i) =>
-      // Valid framing, up for first 4 ui, down for last 4 ui
-      outTrack := false.B
-      when(
-        txMbUICounter_next =/= txMbUICounter && (txMbUICounter_next % BYTE.U) <= (BYTE / 2 - 1).U,
-      ) {
-        outValid := true.B
-      }.otherwise {
-        outValid := false.B
-      }
-      when(hasData) {
-        when(txMbUICounter === 0.U) {
-          txMbShiftRegs(i) := data
-        }.otherwise {
-          txMbShiftRegs(i) := txMbShiftRegs(i) << 1.U
-        }
-        txMbUICounter := txMbUICounter + 1.U
-      }
-      when(txMbUICounter === 0.U && ~hasData) {
-        txMbUICounter := 0.U
-        shift := false.B
-      }.otherwise {
-        txMbUICounter := txMbUICounter + 1.U
-        shift := true.B
-      }
-      when(shift) {
-        when(txMbUICounter === 0.U) {
-          txMbShiftRegs(i) := data
-        }.otherwise {
-          txMbShiftRegs(i) := txMbShiftRegs(i) << 1.U
-        }
-      }
-    }
-    io.txMbIo.data := VecInit(txMbShiftRegs.map(_.head(1))).asUInt
-    io.txMbIo.track := outTrack
-    io.txMbIo.valid := outValid
-
-    io.rxMbAfe.ready := txMbUICounter === 0.U
+  io.rxMbAfe.ready := !sending && !clockGated
+  when(io.rxMbAfe.fire) {
+    sending := true.B
+  }.elsewhen(uiCountDone) {
+    sending := false.B
+    clockGated := true.B
+  }.elsewhen(clockGateDone) {
+    clockGated := false.B
   }
+
+  val shift = RegInit(false.B)
+
+  io.txMbIo.clkn := Mux(
+    !clockGated,
+    false.B,
+    !clock.asBool,
+  ).asClock
+
+  io.txMbIo.clkp := Mux(
+    !clockGated,
+    false.B,
+    clock.asBool,
+  ).asClock
+
+  // Assign each async fifo individually
+  io.rxMbAfe.bits.zipWithIndex.foreach { case (data, i) =>
+    // Valid framing, up for first 4 ui, down for last 4 ui
+    when(io.rxMbAfe.fire) {
+      txMbShiftRegs(i) := data
+    }.otherwise {
+      txMbShiftRegs(i) := txMbShiftRegs(i) << 1.U
+    }
+  }
+
+  io.txMbIo.data := VecInit(txMbShiftRegs.map(_.head(1))).asUInt
+  io.txMbIo.valid := sending
+  io.txMbIo.track := false.B
 }
 
 // This module accepts data from analog and send to adapter
@@ -214,119 +185,6 @@ class RxMainband(
   }
 }
 
-// class RxSideband(depth:Int, width: Int = 1, afeParams: AfeParams = AfeParams()) extends Module {
-//     val io = IO(new Bundle{
-//         // val sbAfeIo = new SidebandAfeIo(AfeParams())
-//         val txSbAfe = Decoupled(Bits(afeParams.sbSerializerRatio.W))
-//         val clk_800 = Input(Clock())
-//         val rxSbIo = Input(new SidebandIo())
-//     })
-//     private val bw = afeParams.sbSerializerRatio
-//     // private val bw = 8
-//     val fifo = Module(new AsyncFifoStefan(depth, bw))
-//     // val txMbFifos = Seq.fill(lanes)(Module (new AsyncFifoStefan(depth, BYTE)))
-//     io.txSbAfe.valid := fifo.io.deq.valid
-//     io.txSbAfe.bits := fifo.io.deq.bits
-//     fifo.io.deq.ready := io.txSbAfe.ready
-//     fifo.io.deq_clock := clock
-//     fifo.io.deq_reset := reset
-
-//     withClock(io.clk_800){
-//         val shiftReg = RegInit(0.U(bw.W))
-//         val shiftReg_pipe_1 = RegNext(shiftReg)
-//         val shiftReg_xor = WireInit(0.U(bw.W))
-
-//         val rxCounter = RegInit(0.U(log2Ceil(bw).W))
-//         val rxCounter_pipe_1 = RegNext(rxCounter)
-//         val rxCounter_pipe_2 = RegNext(rxCounter_pipe_1)
-//         val fifo_enq_valid_pipe_1 = RegNext(rxCounter_pipe_2 === (bw-1).U && rxCounter_pipe_1 === 0.U)
-
-//         val data_pipe_1 = RegNext(io.rxSbIo.data)
-//         val data_pipe_2 = RegNext(data_pipe_1)
-//         val clock_pipe_1 = RegNext(io.rxSbIo.clk)
-//         val clock_pipe_2 = RegNext(clock_pipe_1)
-//         val enable = WireInit(false.B)
-//         val enable_counter = RegInit(0.U(2.W))
-
-//         enable := clock_pipe_1.asBool ^ clock_pipe_2.asBool
-//         shiftReg_xor := shiftReg ^ shiftReg_pipe_1
-
-//         when(enable){
-//             enable_counter := 2.U
-//         }.elsewhen(enable_counter > 0.U){
-//             enable_counter := enable_counter - 1.U
-//         }
-
-//         fifo.io.enq.valid := false.B
-//         fifo.io.enq.bits := 0.U
-//         fifo.io.enq_clock := io.clk_800
-//         fifo.io.enq_reset := reset
-//         when(enable_counter.orR){
-//             when(rxCounter_pipe_2 === (bw-1).U){
-//                 shiftReg := 0.U | (data_pipe_2 << (bw-1).U)
-//                 shiftReg_pipe_1 := shiftReg
-//             }.otherwise{
-//                 shiftReg := (shiftReg >> 1.U) | (data_pipe_2 << (bw-1).U)
-//                 shiftReg_pipe_1 := 0.U
-//             }
-//             rxCounter := rxCounter + 1.U
-//         }
-//         when((rxCounter_pipe_2 === (bw-1).U && rxCounter_pipe_1 === 0.U)
-//         ^ fifo_enq_valid_pipe_1) {
-//                 fifo.io.enq.valid := true.B
-//                 fifo.io.enq.bits := shiftReg_xor
-//         }
-
-//     }
-// }
-
-// class TxSideband(depth:Int, width: Int = 1, afeParams: AfeParams=AfeParams()) extends Module {
-//     val io = IO(new Bundle {
-//         // sbAfeIo bw 64 bit
-//         // val sbAfeIo = new SidebandAfeIo(AfeParams())
-//         val rxSbAfe = Flipped(Decoupled(Bits(afeParams.sbSerializerRatio.W)))
-//         val clk_800 = Input(Clock())
-//         val txSbIo = Output(new SidebandIo())
-//     })
-//     private val bw = afeParams.sbSerializerRatio
-//     val fifo = Module(new AsyncFifoStefan(depth, bw))
-
-//     io.txSbIo.clk := io.clk_800
-
-//     fifo.io.enq.valid := io.rxSbAfe.valid
-//     fifo.io.enq.bits := io.rxSbAfe.bits
-//     io.rxSbAfe.ready := fifo.io.enq.ready
-//     fifo.io.enq_clock := clock
-//     fifo.io.enq_reset := reset
-
-//     withClock(io.clk_800){
-//         val txCounter = RegInit(0.U(log2Ceil(64).W))
-//         val txIng = RegInit(false.B) // 0 is idle for 32 UI, 1 is transmitting 64 UI
-//         val shiftReg = RegInit(0.U(bw.W))
-
-//         fifo.io.deq.ready := false.B // always set to true for io.deq
-//         fifo.io.deq_clock := io.clk_800
-//         fifo.io.deq_reset := reset
-//         // when(fifo.io.deq.ready){
-//         when(txCounter === 31.U && txIng === false.B){
-//             shiftReg := fifo.io.deq.bits
-//             fifo.io.deq.ready := true.B
-//             txIng := true.B
-//             txCounter := 0.U
-//         }.elsewhen(txCounter === 63.U && txIng === true.B){
-//             txIng := false.B
-//             txCounter := 0.U
-//         }.otherwise{
-//             txCounter := txCounter + 1.U
-//         }
-//         when(txIng === true.B){
-//             shiftReg := shiftReg >> 1.U
-//         }
-//         io.txSbIo.data := shiftReg(0)
-//         io.txSbIo.clk := Mux(txIng, io.clk_800.asBool, false.B).asClock
-//     }
-// }
-
 class PhyTest extends Module {
   val io = IO(new Bundle {
     val tx_user = new MainbandAfeIo(AfeParams())
@@ -418,14 +276,6 @@ object RxMainbandVerilog extends App {
 object PhyTestVerilog extends App {
   (new ChiselStage).emitSystemVerilog(new PhyTest())
 }
-
-// object TxSidebandVerilog extends App {
-//     (new ChiselStage).emitSystemVerilog(new TxSideband(16))
-// }
-
-// object RxSidebandVerilog extends App {
-//     (new ChiselStage).emitSystemVerilog(new RxSideband(16))
-// }
 
 object MbAfeVerilog extends App {
   (new ChiselStage).emitSystemVerilog(
