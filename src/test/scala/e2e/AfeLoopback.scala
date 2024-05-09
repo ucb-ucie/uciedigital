@@ -67,6 +67,6 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
   io.sbAfe_rx.clk := Mux(
     delayNegEdge,
     clock.asBool,
-    false.asBool,
-  )
+    false.B,
+  ).asClock
 }
