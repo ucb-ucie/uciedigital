@@ -8,7 +8,7 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config.{Field, Config, Parameters}
 import freechips.rocketchip.subsystem._
-import testchipip.soc.{OBUS}
+//import testchipip.soc.{OBUS}
 //import freechips.rocketchip.subsystem.{BaseSubsystem, CacheBlockBytes}
 import freechips.rocketchip.regmapper.{HasRegMap, RegField}
 import interfaces._

@@ -18,9 +18,7 @@ class LogicalPhy(
   val io = IO(new Bundle {
     val rdi = Flipped(new Rdi(rdiParams))
     val mbAfe = new MainbandAfeIo(afeParams)
-    // val sbAfe = new SidebandAfeIo(afeParams)
-    val rxSbAfe = Input(new SidebandIo())
-    val txSbAfe = Output(new SidebandIo())
+    val sbAfe = new SidebandAfeIo(afeParams)
   })
 
   val trainingModule = {
@@ -30,9 +28,9 @@ class LogicalPhy(
   }
 
   trainingModule.io.mainbandFSMIO.pllLock <> io.mbAfe.pllLock
-  trainingModule.io.sidebandFSMIO.pllLock := true.B  //<> io.sbAfe.pllLock
+  trainingModule.io.sidebandFSMIO.pllLock <> io.sbAfe.pllLock
   trainingModule.io.mainbandFSMIO.rxEn <> io.mbAfe.rxEn
-  //trainingModule.io.sidebandFSMIO.rxEn := true.B //<> io.sbAfe.rxEn
+  trainingModule.io.sidebandFSMIO.rxEn <> io.sbAfe.rxEn
   trainingModule.io.rdi.rdiBringupIO.lpStateReq <> io.rdi.lpStateReq
 
   /** TODO: this is wrong for plError, plError is abut framing error -- when
@@ -112,12 +110,9 @@ class LogicalPhy(
     afeParams.sbWidth == 1,
     "AFE SB width must match hardcoded value",
   )
-  // io.txSbAfe.data <> sidebandChannel.io.to_lower_layer.tx.bits
-  // io.txSbAfe.clk <> sidebandChannel.io.to_lower_layer.tx.clock
-  // io.rxSbAfe.data <> sidebandChannel.io.to_lower_layer.rx.bits
-  // io.rxSbAfe.clk <> sidebandChannel.io.to_lower_layer.rx.clock
-  io.txSbAfe.data <> sidebandChannel.io.to_lower_layer.tx.bits
-  io.txSbAfe.clk <> sidebandChannel.io.to_lower_layer.tx.clock
-  io.rxSbAfe.data <> sidebandChannel.io.to_lower_layer.rx.bits
-  io.rxSbAfe.clk <> sidebandChannel.io.to_lower_layer.rx.clock
+  io.sbAfe.txData <> sidebandChannel.io.to_lower_layer.tx.bits
+  io.sbAfe.txClock <> sidebandChannel.io.to_lower_layer.tx.clock
+  io.sbAfe.rxData <> sidebandChannel.io.to_lower_layer.rx.bits
+  io.sbAfe.rxClock <> sidebandChannel.io.to_lower_layer.rx.clock
+
 }

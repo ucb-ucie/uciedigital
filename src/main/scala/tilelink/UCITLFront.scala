@@ -78,6 +78,16 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
   override lazy val module = new UCITLFrontImp
 
 class UCITLFrontImp extends Impl {
+  // val io = IO(new Bundle {
+  //    // FDI interface for testing purposes only
+  //    //val fdi = new Fdi(fdiParams)
+  //    // IOs for connecting to the AFE
+  //    //val mbAfe = new MainbandAfeIo(afeParams)
+  //    val mbAfe_tx = Output(new MainbandIo(afeParams.mbLanes))
+  //    val mbAfe_rx = Input (new MainbandIo(afeParams.mbLanes))
+  //    val sbTxIo = Output(new SidebandIo)
+  //    val sbRxIo = Input(new SidebandIo)
+  // })
 
   withClockAndReset(clock, reset) {
 
@@ -92,6 +102,10 @@ class UCITLFrontImp extends Impl {
   //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
 
+  // io.mbAfe_tx <> ucietop.io.mbAfe_tx 
+  // io.mbAfe_rx <> ucietop.io.mbAfe_rx
+  // io.sbTxIo <> ucietop.io.sbTxIO
+  // io.sbRxIo <> ucietop.io.sbRxIO
   topIO.out(0)._1.mbAfe_tx <> ucietop.io.mbAfe_tx
   topIO.out(0)._1.mbAfe_rx <> ucietop.io.mbAfe_rx
   topIO.out(0)._1.rxSbAfe <> ucietop.io.sbRxIO
