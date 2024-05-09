@@ -73,9 +73,7 @@ class RxMainbandDeserializer(
 
   rxMbShiftRegs.zipWithIndex.foreach { case (rxMbShiftReg, i) =>
     when(io.rxMbIo.valid) {
-      for (i <- 0 until lanes) {
-        rxMbShiftReg := (rxMbShiftReg << 1.U) | io.rxMbIo.data(i)
-      }
+      rxMbShiftReg := (rxMbShiftReg << 1.U) | io.rxMbIo.data(i)
     }
     io.rxOutData.bits(i) := rxMbShiftReg
   }
