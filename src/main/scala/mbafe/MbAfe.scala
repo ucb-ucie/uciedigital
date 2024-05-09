@@ -46,16 +46,16 @@ class TxMainband(afeParams: AfeParams, BYTE: Int = 8) extends Module {
   io.txMbIo.clkp := clock
 
   // Assign each async fifo individually
-  io.rxMbAfe.bits.zipWithIndex.foreach { case (data, i) =>
+  io.rxMbAfe.bits.zipWithIndex.foreach { case (laneData, i) =>
     // Valid framing, up for first 4 ui, down for last 4 ui
     when(io.rxMbAfe.fire) {
-      txMbShiftRegs(i) := data
+      txMbShiftRegs(i) := laneData
     }.otherwise {
-      txMbShiftRegs(i) := txMbShiftRegs(i) << 1.U
+      txMbShiftRegs(i) := txMbShiftRegs(i) >> 1.U
     }
   }
 
-  io.txMbIo.data := VecInit(txMbShiftRegs.map(_.head(1))).asUInt
+  io.txMbIo.data := VecInit(txMbShiftRegs.map(_(0))).asUInt
   io.txMbIo.valid := sending
   io.txMbIo.track := false.B
 }
