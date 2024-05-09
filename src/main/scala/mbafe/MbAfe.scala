@@ -22,6 +22,9 @@ class TxMainband(afeParams: AfeParams, BYTE: Int = 8) extends Module {
   })
   val lanes = afeParams.mbLanes
   val width = afeParams.mbSerializerRatio
+  val dataValidNext = RegNext(io.rxMbAfe.valid)
+  val hasData = Wire(Bool())
+  hasData := (io.rxMbAfe.valid) & dataValidNext
 
   // receive data
   val rxMbAfeData = io.rxMbAfe.bits
@@ -33,7 +36,6 @@ class TxMainband(afeParams: AfeParams, BYTE: Int = 8) extends Module {
     val txMbUICounter = RegInit(0.U(log2Ceil(width).W))
     val txMbUICounter_next =
       RegNext(txMbUICounter, 0.U) // To synchronize mbio valid signal
-    val hasData = Wire(Bool())
     val clockGateCounter = RegInit(0.U(log2Ceil(width).W))
 
     val shift = RegInit(false.B)
