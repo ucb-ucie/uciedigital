@@ -200,9 +200,6 @@ class PhyTest extends Module {
   val receiver = Module(new RxMainband(AfeParams(), AsyncQueueParams()))
   sender.io.rxMbAfe <> io.tx_user.rxData
   sender.io.txMbIo <> receiver.io.rxMbIo
-  sender.io.clkp := io.clkp
-  sender.io.clkn := io.clkn
-  sender.io.track := 0.U
 
   // sender.io.startDeq := io.startDeq
 
@@ -242,9 +239,6 @@ class MbAfe(afeParams: AfeParams, queueParams: AsyncQueueParams)
   // txMainband
   txMainband.io.rxMbAfe <> io.mbAfeIo.rxData
   io.stdIo.tx.mainband := txMainband.io.txMbIo
-  txMainband.io.clkp := io.clkp
-  txMainband.io.clkn := io.clkn
-  txMainband.io.track := false.B
 
   rxMainband.io.txMbAfe <> io.mbAfeIo.txData
   rxMainband.io.rxMbIo := io.stdIo.rx.mainband
