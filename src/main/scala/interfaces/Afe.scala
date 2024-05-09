@@ -6,7 +6,7 @@ import chisel3.util._
 
 class FifoParams extends Bundle {
   val clk = Clock()
-  val reset = Bool()
+  val reset = AsyncReset()
 }
 
 /** The mainband pins exposed by a standard package UCIe module in one
