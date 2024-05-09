@@ -374,7 +374,7 @@ class MbAfe(afeParams: AfeParams, queueParams: AsyncQueueParams)
 
 // This module accepts data from analog and send to adapter
 // class RxMainband(afeParams: AfeParams, queueParams: AsyncQueueParams, BYTE: Int = 8) extends Module {
-  val txMainband = Module(new TxMainband(afeParams, queueParams))
+  val txMainband = Module(new TxMainband(afeParams))
   val rxMainband = Module(new RxMainband(afeParams, queueParams))
   // val txSideband = Module(new TxSideband(depth))
   // val rxSideband = Module(new RxSideband(depth))
@@ -401,7 +401,7 @@ class MbAfe(afeParams: AfeParams, queueParams: AsyncQueueParams)
 // runMain edu.berkeley.cs.ucie.digital.afe.TxMainbandVerilog
 object TxMainbandVerilog extends App {
   (new ChiselStage).emitSystemVerilog(
-    new TxMainband(AfeParams(), AsyncQueueParams()),
+    new TxMainband(AfeParams()),
   )
 }
 
