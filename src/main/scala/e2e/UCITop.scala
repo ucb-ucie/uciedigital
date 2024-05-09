@@ -83,7 +83,7 @@ class UCITop(
   io.mbAfe_rx <> dafe.io.stdIo.rx.mainband
   // io.mbAfe <> dafe.io.stdIo.tx.mainband
   io.sbAfe <> logPhy.io.sbAfe
-
+  
   dafe.io.sbAfeIo.fifoParams.clk := clock
   dafe.io.sbAfeIo.rxData := 0.U
   dafe.io.mbAfeIo.fifoParams.clk := clock
