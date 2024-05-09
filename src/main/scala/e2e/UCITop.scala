@@ -46,7 +46,8 @@ class UCITop(
     // val mbAfe = new MainbandAfeIo(afeParams)
     val mbAfe_tx = Output(new MainbandIo(afeParams.mbLanes))
     val mbAfe_rx = Input(new MainbandIo(afeParams.mbLanes))
-    val sbAfe = new SidebandAfeIo(afeParams)
+    val sbTxIO = Output(new SidebandIo)
+    val sbRxIO = Input(new SidebandIo)
   })
 
   // Instantiate the agnostic protocol layer
@@ -65,7 +66,7 @@ class UCITop(
     ),
   )
 
-  val dafe = Module(new MbAfe(afeParams, AsyncQueueParams()))
+  val dafe = Module(new MbAfe(afeParams))
 
   // Connect the FDI interface of Protocol layer to D2D adapter
   protocol.io.fdi <> d2dadapter.io.fdi
@@ -73,17 +74,22 @@ class UCITop(
   // Connect the RDI interface of D2D adapter to logPhy
   d2dadapter.io.rdi <> logPhy.io.rdi
 
-  // Connect the AFE interface from logPhy to the top
-  // io.mbAfe <> logPhy.io.mbAfe
-  // logphy.io.mbAfe.
+  /** Sideband AFE connections (ser/des in logphy)
+    */
   logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.rxData
   logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.txData
-  // dafe.io.
   io.mbAfe_tx <> dafe.io.stdIo.tx.mainband
   io.mbAfe_rx <> dafe.io.stdIo.rx.mainband
-  // io.mbAfe <> dafe.io.stdIo.tx.mainband
-  io.sbAfe <> logPhy.io.sbAfe
+  io.sbTxIO.clk := logPhy.io.sbAfe.txClock
+  io.sbTxIO.data := logPhy.io.sbAfe.txData
+  logPhy.io.sbAfe.rxClock := io.sbRxIO.clk
+  logPhy.io.sbAfe.rxData := io.sbRxIO.data
 
+  /** Mainband AFE connections to toplevel IOs
+    */
+
+  /** Logphy connections to Digital AFE
+   *  */
   dafe.io.sbAfeIo.fifoParams.clk := clock
   dafe.io.sbAfeIo.rxData := 0.U
   dafe.io.mbAfeIo.fifoParams.clk := clock
