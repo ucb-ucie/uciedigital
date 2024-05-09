@@ -96,7 +96,7 @@ class MbAfe(afeParams: AfeParams) extends Module {
 
   /** Connect to LogPhy AFE IO */
   io.mbAfeIo.fifoParams.clk := io.mbRxData.clkp
-  io.mbAfeIo.fifoParams.reset := reset.asAsyncReset
+  io.mbAfeIo.fifoParams.reset := reset.asBool
   io.mbAfeIo.txData <> txMainband.io.txInData
   io.mbAfeIo.rxData <> rxMainband.io.rxOutData
 
