@@ -70,7 +70,8 @@ class UCITLFrontImp extends Impl {
      //val mbAfe = new MainbandAfeIo(afeParams)
      val mbAfe_tx = Output(new MainbandIo(afeParams.mbLanes))
      val mbAfe_rx = Input (new MainbandIo(afeParams.mbLanes))
-     val sbAfe = new SidebandAfeIo(afeParams)
+     val sbTxIo = Output(new SidebandIo)
+     val sbRxIo = Input(new SidebandIo)
   })
   withClockAndReset(clock, reset) {
 
@@ -87,7 +88,8 @@ class UCITLFrontImp extends Impl {
   //io.mbAfe <> ucietop.io.mbAfe
   io.mbAfe_tx <> ucietop.io.mbAfe_tx 
   io.mbAfe_rx <> ucietop.io.mbAfe_rx
-  io.sbAfe <> ucietop.io.sbAfe
+  io.sbTxIo <> ucietop.io.sbTxIO
+  io.sbRxIo <> ucietop.io.sbRxIO
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(protoParams))
