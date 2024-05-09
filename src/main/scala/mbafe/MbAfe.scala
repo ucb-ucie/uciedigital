@@ -99,6 +99,7 @@ class MbAfe(afeParams: AfeParams) extends Module {
   io.mbAfeIo.fifoParams.reset := reset.asBool
   io.mbAfeIo.txData <> txMainband.io.txInData
   io.mbAfeIo.rxData <> rxMainband.io.rxOutData
+  io.mbAfeIo.pllLock := true.B
 
   /** Connect to Mainband IO */
   io.mbTxData <> txMainband.io.txMbIo

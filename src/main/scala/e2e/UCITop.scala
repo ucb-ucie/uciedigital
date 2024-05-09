@@ -76,9 +76,10 @@ class UCITop(
 
   /** Sideband AFE connections (ser/des in logphy)
     */
-  io.sbTxIO.clk := logPhy.io.sbAfe.txClock.asClock
+  io.sbTxIO.clk := logPhy.io.sbAfe.txClock
   io.sbTxIO.data := logPhy.io.sbAfe.txData
-  logPhy.io.sbAfe.rxClock := io.sbRxIO.clk.asBool
+  logPhy.io.sbAfe.pllLock := true.B
+  logPhy.io.sbAfe.rxClock := io.sbRxIO.clk
   logPhy.io.sbAfe.rxData := io.sbRxIO.data
 
   /** Mainband AFE connections to toplevel IOs
@@ -88,8 +89,7 @@ class UCITop(
 
   /** Logphy connections to Digital AFE
     */
-  logPhy.io.mbAfe.txData <> dafe.io.mbAfeIo.txData
-  logPhy.io.mbAfe.rxData <> dafe.io.mbAfeIo.rxData
+  logPhy.io.mbAfe <> dafe.io.mbAfeIo
 
   /* Connect the protocol IOs to the top for connections to the tilelink
    * interface */
