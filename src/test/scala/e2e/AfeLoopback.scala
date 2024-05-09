@@ -23,8 +23,8 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
     // val mbAfe = Flipped(new MainbandAfeIo(afeParams))
     val mbAfe_tx = Input(new MainbandIo(afeParams.mbLanes))
     val mbAfe_rx = Output(new MainbandIo(afeParams.mbLanes))
-    val sbAfe_tx = Flipped(new SidebandIo)
-    val sbAfe_rx = Flipped(new SidebandIo)
+    val sbAfe_tx = Input(new SidebandIo)
+    val sbAfe_rx = Output(new SidebandIo)
   })
 
   val latency = 2
