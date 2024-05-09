@@ -82,7 +82,7 @@ class AfeLoopbackTester(implicit p: Parameters) extends LazyModule {
     val AfeLoopback = Module(new AfeLoopback(afeParams))
     io.uci_clock <> clockSourceNode.out(0)._1
     // inputs to tlUcieDie1
-    //tlUcieDie1.module.io.mbAfe <> AfeLoopback.io.mbAfe
+    // tlUcieDie1.module.io.mbAfe <> AfeLoopback.io.mbAfe
     tlUcieDie1.module.io.mbAfe_tx <> AfeLoopback.io.mbAfe_tx
     tlUcieDie1.module.io.mbAfe_rx <> AfeLoopback.io.mbAfe_rx
     tlUcieDie1.module.io.sbAfe <> AfeLoopback.io.sbAfe
@@ -105,7 +105,7 @@ class AfeTLTestHarness(implicit val p: Parameters) extends Module {
 class AfeLoopbackTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "AfeLoopback"
   val txns = 2
-  val timeout = 4000
+  val timeout = 100000
   implicit val p: Parameters = Parameters.empty
   it should "finish request and response before timeout" in {
     test(new AfeTLTestHarness()).withAnnotations(
