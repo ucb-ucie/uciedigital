@@ -70,6 +70,7 @@ class RxMainbandDeserializer(
 
   val rxMbShiftRegs = Seq.fill(lanes)(RegInit(0.U(width.W)))
   val (_, done_sending) = Counter(io.rxMbIo.valid, width)
+  val out_valid = RegNext(done_sending)
 
   rxMbShiftRegs.zipWithIndex.foreach { case (rxMbShiftReg, i) =>
     when(io.rxMbIo.valid) {
@@ -77,7 +78,7 @@ class RxMainbandDeserializer(
     }
     io.rxOutData.bits(i) := Reverse(rxMbShiftReg)
   }
-  io.rxOutData.valid := done_sending
+  io.rxOutData.valid := out_valid
 }
 
 class MbAfe(afeParams: AfeParams, queueParams: AsyncQueueParams)
