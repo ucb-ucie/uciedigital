@@ -68,5 +68,5 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
     delayNegEdge,
     clock.asBool,
     false.B,
-  ).asClock
+  )
 }

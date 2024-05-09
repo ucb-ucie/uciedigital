@@ -25,7 +25,7 @@ class MainbandIo(lanes: Int = 16) extends Bundle {
   */
 class SidebandIo extends Bundle {
   val data = Bool()
-  val clk = Clock()
+  val clk = Bool()
 }
 
 /** The pins (mainband and sideband) exposed by a standard package UCIe module
