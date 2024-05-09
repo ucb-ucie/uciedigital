@@ -75,7 +75,7 @@ class RxMainbandDeserializer(
     when(io.rxMbIo.valid) {
       rxMbShiftReg := (rxMbShiftReg << 1.U) | io.rxMbIo.data(i)
     }
-    io.rxOutData.bits(i) := rxMbShiftReg
+    io.rxOutData.bits(i) := Reverse(rxMbShiftReg)
   }
   io.rxOutData.valid := done_sending
 }
