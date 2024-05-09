@@ -42,17 +42,8 @@ class TxMainband(afeParams: AfeParams, BYTE: Int = 8) extends Module {
 
   val shift = RegInit(false.B)
 
-  io.txMbIo.clkn := Mux(
-    !clockGated,
-    false.B,
-    !clock.asBool,
-  ).asClock
-
-  io.txMbIo.clkp := Mux(
-    !clockGated,
-    false.B,
-    clock.asBool,
-  ).asClock
+  io.txMbIo.clkn := (!clock.asBool).asClock
+  io.txMbIo.clkp := clock
 
   // Assign each async fifo individually
   io.rxMbAfe.bits.zipWithIndex.foreach { case (data, i) =>
