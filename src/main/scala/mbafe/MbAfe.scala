@@ -336,7 +336,7 @@ class PhyTest extends Module {
     val clkn_out = Output(Clock())
   })
 
-  val sender = Module(new TxMainband(AfeParams(), AsyncQueueParams()))
+  val sender = Module(new TxMainband(AfeParams()))
   val receiver = Module(new RxMainband(AfeParams(), AsyncQueueParams()))
   sender.io.rxMbAfe <> io.tx_user.rxData
   sender.io.txMbIo <> receiver.io.rxMbIo
