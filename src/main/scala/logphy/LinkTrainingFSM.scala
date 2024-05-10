@@ -277,6 +277,7 @@ class LinkTrainingFSM(
             true,
             "PHY",
           )
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := true.B
           /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
            * MessageRequestType.MSG_EXCH */
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
@@ -311,9 +312,7 @@ class LinkTrainingFSM(
             true,
             "PHY",
           )
-          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
-           * MessageRequestType.MSG_REQ */
-          // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
             0.008 * sbClockFreq,
@@ -344,8 +343,7 @@ class LinkTrainingFSM(
             remote = true,
             "PHY",
           )
-          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
-           * MessageRequestType.MSG_RESP */
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           msgSource := MsgSource.SB_MSG_WRAPPER
