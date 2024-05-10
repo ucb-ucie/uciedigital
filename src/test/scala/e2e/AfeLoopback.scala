@@ -27,7 +27,7 @@ class AfeLoopback(val afeParams: AfeParams) extends Module {
     val sbAfe_rx = Output(new SidebandIo)
   })
 
-  val latency = 2
+  val latency = 100
   /* val delayerMb = Module(new Pipe(chiselTypeOf(io.mbAfe.txData.bits),
    * latency)) */
   val delayerMbTx = Module(new Pipe(chiselTypeOf(io.mbAfe_tx.data), latency))
