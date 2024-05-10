@@ -52,7 +52,6 @@ class MBInitFSM(
   state := nextState
 
   io.sbTrainIO.msgReq.noenq()
-  io.sbTrainIO.msgReq.bits.repeat := false.B
   io.sbTrainIO.msgReqStatus.nodeq()
   io.patternGeneratorIO.transmitReq.noenq()
   io.patternGeneratorIO.transmitPatternStatus.nodeq()
@@ -114,6 +113,7 @@ class MBInitFSM(
           "PHY",
           data,
         )
+        msgReq.repeat := false.B
 
         // msgReq.msgTypeHasData := true.B
         msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
