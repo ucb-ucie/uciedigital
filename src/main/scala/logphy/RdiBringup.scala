@@ -52,6 +52,7 @@ class RdiBringup extends Module {
   private val nextState = WireInit(state)
   io.active := state === PhyState.active
   io.sbTrainIO.msgReq.noenq()
+  io.sbTrainIO.msgReq.bits.repeat := false.B
   io.sbTrainIO.msgReqStatus.nodeq()
   state := nextState
   when(io.internalError || io.rdiIO.lpLinkError) {

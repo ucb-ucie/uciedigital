@@ -52,6 +52,7 @@ class MBInitFSM(
   state := nextState
 
   io.sbTrainIO.msgReq.noenq()
+  io.sbTrainIO.msgReq.bits.repeat := false.B
   io.sbTrainIO.msgReqStatus.nodeq()
   io.patternGeneratorIO.transmitReq.noenq()
   io.patternGeneratorIO.transmitPatternStatus.nodeq()
