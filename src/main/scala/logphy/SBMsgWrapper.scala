@@ -48,6 +48,7 @@ class SBMsgWrapper(
   // private val currentReqHasData = RegInit(false.B)
   private val currentReqTimeoutMax = RegInit(0.U(64.W))
   private val currentStatus = RegInit(MessageRequestStatusType.ERR)
+  private val repeat = RegInit(false.B)
 
   private val dataOut = RegInit(0.U(64.W))
   io.trainIO.msgReqStatus.bits.data := dataOut
@@ -62,20 +63,9 @@ class SBMsgWrapper(
       io.trainIO.msgReq.ready := true.B
       when(io.trainIO.msgReq.fire) {
         currentReq := io.trainIO.msgReq.bits.msg
-        // currentReqHasData := io.trainIO.msgReq.bits.msgTypeHasData
         currentReqTimeoutMax := io.trainIO.msgReq.bits.timeoutCycles
+        repeat := io.trainIO.msgReq.bits.repeat
         nextState := State.EXCHANGE
-        // switch(io.trainIO.msgReq.bits.reqType) {
-        //   is(MessageRequestType.MSG_REQ) {
-        //     nextState := State.EXCHANGE
-        //   }
-        //   is(MessageRequestType.MSG_RESP) {
-        //     nextState := State.EXCHANGE
-        //   }
-        //   is(MessageRequestType.MSG_EXCH) {
-        //     nextState := State.EXCHANGE
-        //   }
-        // }
       }
     }
     is(State.EXCHANGE) {
@@ -95,7 +85,7 @@ class SBMsgWrapper(
       }
 
       /** send message over sideband */
-      io.laneIO.txData.valid := true.B
+      io.laneIO.txData.valid := !sentMsg || repeat
       io.laneIO.txData.bits := currentReq
       val hasSentMsg = WireInit(io.laneIO.txData.fire || sentMsg)
       val justReceivedMsg = Wire(Bool())
