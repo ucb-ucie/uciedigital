@@ -28,7 +28,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
                  val sbParams: SidebandParams,
                  val linkTrainingParams: LinkTrainingParams,
                  val afeParams: AfeParams,
-                 val laneAsyncQueueParams: AsyncQueueParams)
+                 val laneAsyncQueueParams: AsyncQueueParams, blockBytes: Int)
                 (implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
 
   val device = new SimpleDevice("ucie-front", Seq("ucie,ucie0"))
@@ -43,13 +43,17 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
     Seq(TLSlaveParameters.v1(
       address = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
       resources = device.reg,
-      regionType = RegionType.UNCACHED, // Should be changed to CACHED eventually
+      regionType = RegionType.TRACKED, // Should be changed to CACHED eventually
       executable = true,
-      supportsGet = TransferSizes(1, beatBytes),
-      supportsPutFull = TransferSizes(1, beatBytes),
-      supportsPutPartial = TransferSizes(1, beatBytes),
+      supportsAcquireT = TransferSizes(1, blockBytes),
+      supportsAcquireB = TransferSizes(1, blockBytes),
+      supportsGet = TransferSizes(1, blockBytes),
+      supportsPutFull = TransferSizes(1, blockBytes),
+      supportsPutPartial = TransferSizes(1, blockBytes),
       fifoId = Some(0))),
-    beatBytes = beatBytes)))
+    beatBytes = beatBytes,
+    endSinkId = 1 << 8,
+    minLatency = 1)))
 
   // Client node to reply to send and acquire traffic from partner die
   val clientNode: TLClientNode = TLClientNode(Seq(TLMasterPortParameters.v1(
@@ -131,7 +135,7 @@ class UCITLFrontImp extends Impl {
                                             echoFields = Nil,
                                             requestFields = Nil,
                                             responseFields = Nil,
-                                            hasBCE = false)
+                                            hasBCE = true)
 
   val client_tl = clientNode.out(0)._1
   val client_edge = clientNode.out(0)._2
@@ -147,9 +151,15 @@ class UCITLFrontImp extends Impl {
   require(mergedParams == tlBundleParams, s"UCIe is misconfigured, the combined inwards/outwards parameters cannot be serialized using the provided bundle params\n$mergedParams > $tlBundleParams")
 
   val inwardA = Module(new Queue((new TLBundleA(mergedParams)), 16, pipe=true, flow=true))
+  val inwardB = Module(new Queue((new TLBundleB(mergedParams)), 16, pipe=true, flow=true))
+  val inwardC = Module(new Queue((new TLBundleC(mergedParams)), 16, pipe=true, flow=true))
   val inwardD = Module(new Queue((new TLBundleD(mergedParams)), 16, pipe=true, flow=true))
+  val inwardE = Module(new Queue((new TLBundleE(mergedParams)), 16, pipe=true, flow=true))
 
   val outwardA = Module(new CreditedToDecoupledMsg(new TLBundleA(mergedParams), 4, 16))
+  val outwardB = Module(new CreditedToDecoupledMsg(new TLBundleB(mergedParams), 4, 16))
+  val outwardC = Module(new CreditedToDecoupledMsg(new TLBundleC(mergedParams), 4, 16))
+  val outwardE = Module(new CreditedToDecoupledMsg(new TLBundleE(mergedParams), 4, 16))
   val outwardD = Module(new CreditedToDecoupledMsg(new TLBundleD(mergedParams), 4, 16))
 
   // =======================
@@ -157,8 +167,11 @@ class UCITLFrontImp extends Impl {
   // The TX packets can be A request from manager node or D response from
   // the client node. This needs to be arbitrated to be sent to partner die.
   // =======================
-  val txArbiter = Module(new Arbiter(new TLBundleAUnionD(tlParams), 2))
+  val txArbiter = Module(new Arbiter(new TLBundleAUnionD(tlParams), 5))
   val txATLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val txBTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val txCTLPayload = Wire(new TLBundleAUnionD(tlParams))
+  val txETLPayload = Wire(new TLBundleAUnionD(tlParams))
   val txDTLPayload = Wire(new TLBundleAUnionD(tlParams))
   //val txTLPayload = Wire(new TLBundleAUnionD(tlParams))
 
@@ -171,6 +184,9 @@ class UCITLFrontImp extends Impl {
   uciRxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(tlParams, protoParams))
   uciTxPayload := 0.U.asTypeOf(new UCIRawPayloadFormat(tlParams, protoParams))
   txATLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
+  txBTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
+  txCTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
+  txETLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
   txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
 
   /*
@@ -193,6 +209,34 @@ class UCITLFrontImp extends Impl {
   creditedMsgA.io.credit.valid := rx_fire
   creditedMsgA.io.credit.bits := uciRxPayload.cmd.tlACredit
 
+  // B request to partner die logic
+  // enqueue on the B channel queue
+  manager_tl.b.ready := (inwardB.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
+                (ucietop.io.TLplStateStatus === PhyState.active))
+  inwardB.io.enq.valid := manager_tl.b.fire
+  inwardB.io.enq.bits <> manager_tl.b.bits
+
+  val creditedMsgB = Module(new DecoupledtoCreditedMsg(new TLBundleB(mergedParams), 4, 16))
+  inwardB.io.deq.ready := creditedMsgB.io.in.ready
+  creditedMsgB.io.in.valid := inwardB.io.deq.fire
+  creditedMsgB.io.in.bits := inwardB.io.deq.bits
+  creditedMsgB.io.credit.valid := rx_fire
+  creditedMsgB.io.credit.bits := uciRxPayload.cmd.tlBCredit
+
+  // C request to partner die logic
+  // enqueue on the C channel queue
+  manager_tl.c.ready := (inwardC.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
+                (ucietop.io.TLplStateStatus === PhyState.active))
+  inwardC.io.enq.valid := manager_tl.c.fire
+  inwardC.io.enq.bits <> manager_tl.c.bits
+
+  val creditedMsgC = Module(new DecoupledtoCreditedMsg(new TLBundleC(mergedParams), 4, 16))
+  inwardC.io.deq.ready := creditedMsgC.io.in.ready
+  creditedMsgC.io.in.valid := inwardC.io.deq.fire
+  creditedMsgC.io.in.bits := inwardC.io.deq.bits
+  creditedMsgC.io.credit.valid := rx_fire
+  creditedMsgC.io.credit.bits := uciRxPayload.cmd.tlCCredit
+
   // D response to partner die's A request logic
   client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
                 (ucietop.io.TLplStateStatus === PhyState.active))
@@ -205,6 +249,19 @@ class UCITLFrontImp extends Impl {
   creditedMsgD.io.in.bits := inwardD.io.deq.bits
   creditedMsgD.io.credit.valid := rx_fire
   creditedMsgD.io.credit.bits := uciRxPayload.cmd.tlDCredit
+
+  // E response to partner die's A request logic
+  client_tl.e.ready := (inwardE.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
+                (ucietop.io.TLplStateStatus === PhyState.active))
+  inwardE.io.enq.valid := client_tl.e.fire
+  inwardE.io.enq.bits <> client_tl.e.bits
+
+  val creditedMsgE = Module(new DecoupledtoCreditedMsg(new TLBundleE(mergedParams), 4, 16))
+  inwardE.io.deq.ready := creditedMsgE.io.in.ready
+  creditedMsgE.io.in.valid := inwardE.io.deq.fire
+  creditedMsgE.io.in.bits := inwardE.io.deq.bits
+  creditedMsgE.io.credit.valid := rx_fire
+  creditedMsgE.io.credit.bits := uciRxPayload.cmd.tlECredit
 
   // Arbitrate the A and D channels from the credited msgs
   creditedMsgA.io.out.ready := txArbiter.io.in(0).ready
@@ -220,18 +277,61 @@ class UCITLFrontImp extends Impl {
   txArbiter.io.in(0).bits.data    := creditedMsgA.io.out.bits.data
   txArbiter.io.in(0).bits.msgType := UCIProtoMsgTypes.TLA
 
-  creditedMsgD.io.out.ready := txArbiter.io.in(1).ready
-  txArbiter.io.in(1).valid := creditedMsgD.io.out.fire
+  // B channel
+  creditedMsgB.io.out.ready := txArbiter.io.in(1).ready
+  txArbiter.io.in(1).valid := creditedMsgB.io.out.fire
+  //txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
+  txArbiter.io.in(1).bits.opcode  := creditedMsgB.io.out.bits.opcode
+  txArbiter.io.in(1).bits.param   := creditedMsgB.io.out.bits.param
+  txArbiter.io.in(1).bits.size    := creditedMsgB.io.out.bits.size
+  txArbiter.io.in(1).bits.source  := creditedMsgB.io.out.bits.source
+  txArbiter.io.in(1).bits.sink    := 0.U
+  txArbiter.io.in(1).bits.address := creditedMsgB.io.out.bits.address
+  txArbiter.io.in(1).bits.mask    := creditedMsgB.io.out.bits.mask
+  txArbiter.io.in(1).bits.data    := creditedMsgB.io.out.bits.data
+  txArbiter.io.in(1).bits.msgType := UCIProtoMsgTypes.TLB
+
+  // C channel
+  creditedMsgC.io.out.ready := txArbiter.io.in(2).ready
+  txArbiter.io.in(2).valid := creditedMsgC.io.out.fire
+  //txArbiter.io.in(0).bits <> creditedMsgA.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
+  txArbiter.io.in(2).bits.opcode  := creditedMsgC.io.out.bits.opcode
+  txArbiter.io.in(2).bits.param   := creditedMsgC.io.out.bits.param
+  txArbiter.io.in(2).bits.size    := creditedMsgC.io.out.bits.size
+  txArbiter.io.in(2).bits.source  := creditedMsgC.io.out.bits.source
+  txArbiter.io.in(2).bits.sink    := 0.U
+  txArbiter.io.in(2).bits.address := creditedMsgC.io.out.bits.address
+  txArbiter.io.in(2).bits.mask    := 0.U
+  txArbiter.io.in(2).bits.data    := creditedMsgC.io.out.bits.data
+  txArbiter.io.in(2).bits.msgType := UCIProtoMsgTypes.TLC
+
+  // D channel
+  creditedMsgD.io.out.ready := txArbiter.io.in(3).ready
+  txArbiter.io.in(3).valid := creditedMsgD.io.out.fire
   //txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
-  txArbiter.io.in(1).bits.opcode  := creditedMsgD.io.out.bits.opcode
-  txArbiter.io.in(1).bits.param   := creditedMsgD.io.out.bits.param
-  txArbiter.io.in(1).bits.size    := creditedMsgD.io.out.bits.size
-  txArbiter.io.in(1).bits.source  := creditedMsgD.io.out.bits.source
-  txArbiter.io.in(1).bits.sink    := creditedMsgD.io.out.bits.sink
-  txArbiter.io.in(1).bits.address := 0.U
-  txArbiter.io.in(1).bits.mask    := 0.U
-  txArbiter.io.in(1).bits.data    := creditedMsgD.io.out.bits.data
-  txArbiter.io.in(1).bits.msgType := UCIProtoMsgTypes.TLD
+  txArbiter.io.in(3).bits.opcode  := creditedMsgD.io.out.bits.opcode
+  txArbiter.io.in(3).bits.param   := creditedMsgD.io.out.bits.param
+  txArbiter.io.in(3).bits.size    := creditedMsgD.io.out.bits.size
+  txArbiter.io.in(3).bits.source  := creditedMsgD.io.out.bits.source
+  txArbiter.io.in(3).bits.sink    := creditedMsgD.io.out.bits.sink
+  txArbiter.io.in(3).bits.address := 0.U
+  txArbiter.io.in(3).bits.mask    := 0.U
+  txArbiter.io.in(3).bits.data    := creditedMsgD.io.out.bits.data
+  txArbiter.io.in(3).bits.msgType := UCIProtoMsgTypes.TLD
+
+  // E channel
+  creditedMsgE.io.out.ready := txArbiter.io.in(4).ready
+  txArbiter.io.in(4).valid := creditedMsgE.io.out.fire
+  //txArbiter.io.in(1).bits <> creditedMsgD.io.out.bits.asTypeOf(new TLBundleAUnionD(tlParams))
+  txArbiter.io.in(4).bits.opcode  := 0.U
+  txArbiter.io.in(4).bits.param   := 0.U
+  txArbiter.io.in(4).bits.size    := 0.U
+  txArbiter.io.in(4).bits.source  := 0.U
+  txArbiter.io.in(4).bits.sink    := creditedMsgE.io.out.bits.sink
+  txArbiter.io.in(4).bits.address := 0.U
+  txArbiter.io.in(4).bits.mask    := 0.U
+  txArbiter.io.in(4).bits.data    := 0.U
+  txArbiter.io.in(4).bits.msgType := UCIProtoMsgTypes.TLE
 
   // ============== Translated TL packet coming out of the outward queue to the system ========
   // dequeue the rx TL packets and orchestrate on the client/manager node
@@ -239,13 +339,25 @@ class UCITLFrontImp extends Impl {
   //val isResponse = outwardD.io.deq.bits.msgType
 
   outwardA.io.out.ready := client_tl.a.ready // if A request send to client node
+  outwardB.io.out.ready := client_tl.b.ready // if B request send to client node
+  outwardC.io.out.ready := client_tl.c.ready // if C request send to client node
+  outwardE.io.out.ready := manager_tl.e.ready // if E response send to manager node
   outwardD.io.out.ready := manager_tl.d.ready // if D response send to manager node
 
   client_tl.a.bits <> outwardA.io.out.bits
   client_tl.a.valid := outwardA.io.out.fire
 
+  client_tl.b.bits <> outwardB.io.out.bits
+  client_tl.b.valid := outwardB.io.out.fire
+
+  client_tl.c.bits <> outwardC.io.out.bits
+  client_tl.c.valid := outwardC.io.out.fire
+
   manager_tl.d.bits <> outwardD.io.out.bits
   manager_tl.d.valid := outwardD.io.out.fire
+
+  manager_tl.e.bits <> outwardE.io.out.bits
+  manager_tl.e.valid := outwardE.io.out.fire
 
   // ============ Below code should run on the UCIe clock? ==============
   val checksum_reg = RegInit(0.U(64.W))
@@ -269,15 +381,27 @@ class UCITLFrontImp extends Impl {
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
   outwardA.io.credit.ready := tx_pipe.io.deq.fire && creditA
+  outwardB.io.credit.ready := tx_pipe.io.deq.fire && creditB
+  outwardC.io.credit.ready := tx_pipe.io.deq.fire && creditC
   outwardD.io.credit.ready := tx_pipe.io.deq.fire && creditD
+  outwardE.io.credit.ready := tx_pipe.io.deq.fire && creditE
 
   val txACredit = WireDefault(0.U(protoParams.creditWidth.W))
+  val txBCredit = WireDefault(0.U(protoParams.creditWidth.W))
+  val txCCredit = WireDefault(0.U(protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(protoParams.creditWidth.W))
+  val txECredit = WireDefault(0.U(protoParams.creditWidth.W))
 
   when(outwardA.io.credit.valid){
     txACredit := outwardA.io.credit.bits
+  }.elsewhen(outwardB.io.credit.valid){
+    txBCredit := outwardB.io.credit.bits
+  }.elsewhen(outwardC.io.credit.valid){
+    txCCredit := outwardC.io.credit.bits
   }.elsewhen(outwardD.io.credit.valid){
     txDCredit := outwardD.io.credit.bits
+  }.elsewhen(outwardE.io.credit.valid){
+    txECredit := outwardE.io.credit.bits
   }
 
   // Translation based on the uciPayload formatting from outgoing TL packet
@@ -287,10 +411,10 @@ class UCITLFrontImp extends Impl {
     uciTxPayload.cmd.hostID := 0.U
     uciTxPayload.cmd.partnerID := 0.U
     uciTxPayload.cmd.tlACredit := txACredit
-    uciTxPayload.cmd.tlBCredit := 0.U //& outwardB.io.credit.valid & creditB
-    uciTxPayload.cmd.tlCCredit := 0.U //& outwardC.io.credit.valid & creditC
+    uciTxPayload.cmd.tlBCredit := txBCredit //0.U //& outwardB.io.credit.valid & creditB
+    uciTxPayload.cmd.tlCCredit := txCCredit //0.U //& outwardC.io.credit.valid & creditC
     uciTxPayload.cmd.tlDCredit := txDCredit
-    uciTxPayload.cmd.tlECredit := 0.U //& outwardE.io.credit.valid & creditE
+    uciTxPayload.cmd.tlECredit := txECredit //0.U //& outwardE.io.credit.valid & creditE
     uciTxPayload.cmd.reservedCmd := 0.U
     // header 1
     uciTxPayload.header1.address := txArbiter.io.out.bits.address
@@ -366,6 +490,25 @@ class UCITLFrontImp extends Impl {
   outwardA.io.in.bits.corrupt := false.B
   outwardA.io.in.valid        := false.B
 
+  outwardB.io.in.bits.address := rxTLPayload.address
+  outwardB.io.in.bits.opcode  := rxTLPayload.opcode
+  outwardB.io.in.bits.param   := rxTLPayload.param
+  outwardB.io.in.bits.size    := rxTLPayload.size
+  outwardB.io.in.bits.source  := rxTLPayload.source
+  outwardB.io.in.bits.mask    := rxTLPayload.mask
+  outwardB.io.in.bits.data    := rxTLPayload.data
+  outwardB.io.in.bits.corrupt := false.B
+  outwardB.io.in.valid        := false.B
+
+  outwardC.io.in.bits.address := rxTLPayload.address
+  outwardC.io.in.bits.opcode  := rxTLPayload.opcode
+  outwardC.io.in.bits.param   := rxTLPayload.param
+  outwardC.io.in.bits.size    := rxTLPayload.size
+  outwardC.io.in.bits.source  := rxTLPayload.source
+  outwardC.io.in.bits.data    := rxTLPayload.data
+  outwardC.io.in.bits.corrupt := false.B
+  outwardC.io.in.valid        := false.B
+
   outwardD.io.in.bits.opcode  := rxTLPayload.opcode
   outwardD.io.in.bits.param   := rxTLPayload.param
   outwardD.io.in.bits.size    := rxTLPayload.size
@@ -376,16 +519,26 @@ class UCITLFrontImp extends Impl {
   outwardD.io.in.bits.corrupt := false.B
   outwardD.io.in.valid        := false.B
 
+  outwardE.io.in.bits.sink    := rxTLPayload.sink
+  outwardE.io.in.valid        := false.B
+
   // Queue the translated RX TL packet to send to the system
   when(rx_fire) {
     when(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLA && outwardA.io.in.ready) {
       outwardA.io.in.valid        := true.B
+    }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLB && outwardB.io.in.ready ) {
+      outwardB.io.in.valid        := true.B
+    }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLC && outwardC.io.in.ready ) {
+      outwardC.io.in.valid        := true.B
     }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLD && outwardD.io.in.ready ) {
       outwardD.io.in.valid        := true.B
+    }.elsewhen(uciRxPayload.cmd.msgType === UCIProtoMsgTypes.TLE && outwardE.io.in.ready ) {
+      outwardE.io.in.valid        := true.B
     }
   }
   // when the RX queues are ready to get data
-  val TLready_to_rcv = outwardA.io.in.ready || outwardD.io.in.ready
+  val TLready_to_rcv = (outwardA.io.in.ready || outwardB.io.in.ready || outwardC.io.in.ready ||
+                        outwardD.io.in.ready || outwardE.io.in.ready)
   ucietop.io.TLready_to_rcv := TLready_to_rcv
 
   // soft resets: can be reset or flush and reset, in flush and reset, the packets are
