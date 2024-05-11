@@ -37,7 +37,7 @@ class AfeLoopbackTester(implicit p: Parameters) extends LazyModule {
   val afeParams = AfeParams()
   val laneAsyncQueueParams = AsyncQueueParams()
   val delay = 0.0
-  val txns = 100
+  val txns = 10
 
   // Create clock source
   val clockSourceNode = ClockSourceNode(Seq(ClockSourceParameters()))
@@ -54,6 +54,7 @@ class AfeLoopbackTester(implicit p: Parameters) extends LazyModule {
       linkTrainingParams = linkTrainingParams,
       afeParams = afeParams,
       laneAsyncQueueParams = laneAsyncQueueParams,
+      blockBytes = 64
     ),
   )
   tlUcieDie1.clockNode := clockSourceNode

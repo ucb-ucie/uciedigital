@@ -61,7 +61,8 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
       name = "ucie-client",
       sourceId = IdRange(0, 1 << tlParams.sourceIDWidth),
       requestFifo = true,
-      visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE))
+      visibility = Seq(AddressSet(tlParams.ADDRESS, tlParams.ADDR_RANGE)),
+      supportsProbe = TransferSizes.none
     )))))
 
   override lazy val module = new UCITLFrontImp
