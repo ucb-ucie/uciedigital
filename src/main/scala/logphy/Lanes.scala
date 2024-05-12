@@ -55,12 +55,12 @@ class Lanes(
   )
   for (i <- 0 until afeParams.mbLanes) {
     for (j <- 0 until ratioBytes) {
-      txDataVec(afeParams.mbLanes - 1 - i)(j) := io.mainbandLaneIO.txData
+      txDataVec(i)(ratioBytes - 1 - j) := io.mainbandLaneIO.txData
         .bits(
           afeParams.mbLanes * 8 * j + (i * 8) + 7,
           afeParams.mbLanes * 8 * j + (i * 8),
         )
-      rxDataVec(j)(afeParams.mbLanes - 1 - i) := rxMBFifo.io.deq
+      rxDataVec(ratioBytes - 1 - j)(i) := rxMBFifo.io.deq
         .bits(i)((j + 1) * 8 - 1, j * 8)
     }
     txMBFifo.io.enq.bits(i) := txDataVec(i).asUInt
@@ -121,12 +121,12 @@ class SimLanes(
   )
   for (i <- 0 until afeParams.mbLanes) {
     for (j <- 0 until ratioBytes) {
-      txDataVec(afeParams.mbLanes - 1 - i)(j) := io.mainbandLaneIO.txData
+      txDataVec(i)(ratioBytes - 1 - j) := io.mainbandLaneIO.txData
         .bits(
           afeParams.mbLanes * 8 * j + (i * 8) + 7,
           afeParams.mbLanes * 8 * j + (i * 8),
         )
-      rxDataVec(j)(afeParams.mbLanes - 1 - i) := rxMBFifo.io.deq
+      rxDataVec(ratioBytes - 1 - j)(i) := rxMBFifo.io.deq
         .bits(i)((j + 1) * 8 - 1, j * 8)
     }
     txMBFifo.io.enq.bits(i) := txDataVec(i).asUInt

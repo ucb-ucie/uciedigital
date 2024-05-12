@@ -72,14 +72,23 @@ class LinkTrainingFSM(
   sbMsgWrapper.io.trainIO.msgReq.noenq()
   sbMsgWrapper.io.trainIO.msgReqStatus.nodeq()
 
-  io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
-  io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
   when(msgSource === MsgSource.PATTERN_GENERATOR) {
     io.sidebandFSMIO.rxData <> patternGenerator.io.sidebandLaneIO.rxData
     sbMsgWrapper.io.laneIO.rxData.noenq()
+    sbMsgWrapper.io.laneIO.txData.nodeq()
+    io.sidebandFSMIO.patternTxData <> patternGenerator.io.sidebandLaneIO.txData
+    io.sidebandFSMIO.packetTxData.noenq()
   }.otherwise {
     io.sidebandFSMIO.rxData <> sbMsgWrapper.io.laneIO.rxData
     patternGenerator.io.sidebandLaneIO.rxData.noenq()
+    patternGenerator.io.sidebandLaneIO.txData.nodeq()
+    when(io.sidebandFSMIO.rxMode === RXTXMode.RAW) {
+      io.sidebandFSMIO.patternTxData <> sbMsgWrapper.io.laneIO.txData
+      io.sidebandFSMIO.packetTxData.noenq()
+    }.otherwise {
+      io.sidebandFSMIO.patternTxData.noenq()
+      io.sidebandFSMIO.packetTxData <> sbMsgWrapper.io.laneIO.txData
+    }
   }
 
   private val currentState = RegInit(LinkTrainingState.reset)
@@ -268,6 +277,7 @@ class LinkTrainingFSM(
             true,
             "PHY",
           )
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := true.B
           /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
            * MessageRequestType.MSG_EXCH */
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
@@ -302,9 +312,7 @@ class LinkTrainingFSM(
             true,
             "PHY",
           )
-          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
-           * MessageRequestType.MSG_REQ */
-          // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           sbMsgWrapper.io.trainIO.msgReq.bits.timeoutCycles := (
             0.008 * sbClockFreq,
@@ -335,8 +343,7 @@ class LinkTrainingFSM(
             remote = true,
             "PHY",
           )
-          /* sbMsgWrapper.io.trainIO.msgReq.bits.reqType :=
-           * MessageRequestType.MSG_RESP */
+          sbMsgWrapper.io.trainIO.msgReq.bits.repeat := false.B
           sbMsgWrapper.io.trainIO.msgReq.valid := true.B
           // sbMsgWrapper.io.trainIO.msgReq.bits.msgTypeHasData := false.B
           msgSource := MsgSource.SB_MSG_WRAPPER

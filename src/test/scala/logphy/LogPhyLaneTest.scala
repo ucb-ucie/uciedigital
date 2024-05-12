@@ -25,6 +25,41 @@ class LogPhyLaneTest extends AnyFlatSpec with ChiselScalatestTester {
       c.io.mainbandIo.txData
         .expectDequeueNow(
           Vec.Lit(
+            "h8821".U,
+            "h8843".U,
+            "h7765".U,
+            "h7787".U,
+            "h66a9".U,
+            "h66cb".U,
+            "h55ed".U,
+            "h550f".U,
+            "h44f0".U,
+            "h44de".U,
+            "h33bc".U,
+            "h339a".U,
+            "h2278".U,
+            "h2256".U,
+            "h1134".U,
+            "h1112".U,
+          ),
+        )
+    }
+  }
+
+  behavior of "log phy TX lanes"
+  ignore should "correctly map TX bytes to their lanes - test 2" in {
+    test(new SimLanes(afeParams, queueParams)) { c =>
+      c.io.mainbandLaneIO.txData.initSource()
+      c.io.mainbandLaneIO.txData.setSourceClock(c.clock)
+      c.io.mainbandIo.txData.initSink()
+      c.io.mainbandIo.txData.setSinkClock(c.clock)
+
+      c.io.mainbandLaneIO.txData.enqueueNow(
+        "h7840_80a0_001f_ffff_ffe0_0000_0000_0000_0000".U,
+      )
+      c.io.mainbandIo.txData
+        .expectDequeueNow(
+          Vec.Lit(
             "h1211".U,
             "h3411".U,
             "h5622".U,
@@ -83,4 +118,5 @@ class LogPhyLaneTest extends AnyFlatSpec with ChiselScalatestTester {
     }
 
   }
+
 }

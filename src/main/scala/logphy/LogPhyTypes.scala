@@ -31,7 +31,7 @@ class SBReqMsg extends Bundle {
 class MessageRequest extends Bundle {
   val msg = UInt(128.W)
   val timeoutCycles = UInt(64.W)
-  // val msgTypeHasData = Bool()
+  val repeat = Bool()
 }
 
 class MessageRequestStatus extends Bundle {

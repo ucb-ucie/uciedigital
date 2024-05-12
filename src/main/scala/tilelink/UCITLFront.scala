@@ -19,15 +19,15 @@ import logphy.{LinkTrainingParams}
 
 // TODO: Sideband messaging
 /** Main class to generate manager, client and register nodes on the tilelink diplomacy.
-  * These needs to get connected to the chipyard system. The class converts tilelink 
-  * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as 
+  * These needs to get connected to the chipyard system. The class converts tilelink
+  * packets to UCIe Raw 64B flit. It also instantiates the protocol layer which acts as
   * an agnostic interface to generate FDI signalling.
   */
 class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerParams,
                  val fdiParams: FdiParams, val rdiParams: RdiParams,
-                 val sbParams: SidebandParams, val myId: BigInt,
+                 val sbParams: SidebandParams,
                  val linkTrainingParams: LinkTrainingParams,
-                 val afeParams: AfeParams, 
+                 val afeParams: AfeParams,
                  val laneAsyncQueueParams: AsyncQueueParams)
                 (implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
 
@@ -37,7 +37,7 @@ class UCITLFront(val tlParams: TileLinkParams, val protoParams: ProtocolLayerPar
 
   // MMIO registers controlled by the sideband module
   val regNode = LazyModule(new UCIConfigRF(beatBytes = tlParams.CONFIG_BEAT_BYTES, address = tlParams.CONFIG_ADDRESS))
-  
+
   // Manager node to send and acquire traffic to partner die
   val managerNode: TLManagerNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
     Seq(TLSlaveParameters.v1(
@@ -67,11 +67,12 @@ class UCITLFrontImp extends Impl {
      // FDI interface for testing purposes only
      //val fdi = new Fdi(fdiParams)
      // IOs for connecting to the AFE
-     val mbAfe = new MainbandAfeIo(afeParams)
-     val sbAfe = new SidebandAfeIo(afeParams)
+     //val mbAfe = new MainbandAfeIo(afeParams)
+     val mbAfe_tx = Output(new MainbandIo(afeParams.mbLanes))
+     val mbAfe_rx = Input (new MainbandIo(afeParams.mbLanes))
+     val sbTxIo = Output(new SidebandIo)
+     val sbRxIo = Input(new SidebandIo)
   })
-  withClockAndReset(clock, reset) {
-
   withClockAndReset(clock, reset) {
 
   val fault = RegInit(false.B) // if fault in ecc code
@@ -79,13 +80,16 @@ class UCITLFrontImp extends Impl {
   // Instantiate the agnostic protocol layer
   //val protocol = Module(new ProtocolLayer(fdiParams))
   val ucietop = Module(new UCITop(fdiParams, rdiParams,
-                                  sbParams, myId,
+                                  sbParams,
                                   linkTrainingParams,
                                   afeParams, laneAsyncQueueParams))
   //io.fdi <> ucietop.io.fdi
   ucietop.io.fault := fault
-  io.mbAfe <> ucietop.io.mbAfe
-  io.sbAfe <> ucietop.io.sbAfe
+  //io.mbAfe <> ucietop.io.mbAfe
+  io.mbAfe_tx <> ucietop.io.mbAfe_tx 
+  io.mbAfe_rx <> ucietop.io.mbAfe_rx
+  io.sbTxIo <> ucietop.io.sbTxIO
+  io.sbRxIo <> ucietop.io.sbRxIO
 
   // Hamming encode and decode
   val hammingEncoder = Module(new HammingEncode(protoParams))
@@ -106,12 +110,12 @@ class UCITLFrontImp extends Impl {
   ucietop.io.fdi_plConfig.valid      := protocol_sb_node.io.outer.tx.valid
   protocol_sb_node.io.outer.tx.credit := ucietop.io.fdi_plConfigCredit
 
-  protocol_sb_node.io.inner.layer_to_node.bits := Cat(regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high, 
+  protocol_sb_node.io.inner.layer_to_node.bits := Cat(regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_high,
                                                       regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_data_low,
                                                       regNode.module.io.sb_csrs.sidebank_mailbox_sw_to_node_index_high,
                                                       regNode.module.io.sb_csrs.sideband_mailbox_sw_to_node_index_low)
   protocol_sb_node.io.inner.layer_to_node.valid := regNode.module.io.sb_csrs.sideband_mailbox_sw_valid
-                                                  
+
   regNode.module.io.sb_csrs.sideband_mailbox_index_low := protocol_sb_node.io.inner.node_to_layer.bits(31, 0)
   regNode.module.io.sb_csrs.sideband_mailbox_index_high := protocol_sb_node.io.inner.node_to_layer.bits(63, 32)
   regNode.module.io.sb_csrs.sideband_mailbox_data_low := protocol_sb_node.io.inner.node_to_layer.bits(95, 64)
@@ -123,8 +127,8 @@ class UCITLFrontImp extends Impl {
                                             dataBits = tlParams.dataWidth,
                                             sourceBits = tlParams.sourceIDWidth,
                                             sinkBits = tlParams.sinkIDWidth,
-                                            sizeBits = tlParams.sizeWidth, 
-                                            echoFields = Nil, 
+                                            sizeBits = tlParams.sizeWidth,
+                                            echoFields = Nil,
                                             requestFields = Nil,
                                             responseFields = Nil,
                                             hasBCE = false)
@@ -170,14 +174,14 @@ class UCITLFrontImp extends Impl {
   txDTLPayload := 0.U.asTypeOf(new TLBundleAUnionD(tlParams))
 
   /*
-  manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+  manager_tl.a.ready = (inward.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
                 (ucietop.io.TLplStateStatus === PhyState.active))
   inward.io.enq.valid := manager_tl.a.fire
   */
 
   // A request to partner die logic
   // enqueue on the A channel queue
-  manager_tl.a.ready := (inwardA.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+  manager_tl.a.ready := (inwardA.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
                 (ucietop.io.TLplStateStatus === PhyState.active))
   inwardA.io.enq.valid := manager_tl.a.fire
   inwardA.io.enq.bits <> manager_tl.a.bits
@@ -190,7 +194,7 @@ class UCITLFrontImp extends Impl {
   creditedMsgA.io.credit.bits := uciRxPayload.cmd.tlACredit
 
   // D response to partner die's A request logic
-  client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi_lpStallAck & 
+  client_tl.d.ready := (inwardD.io.enq.ready & ~ucietop.io.fdi_lpStallAck &
                 (ucietop.io.TLplStateStatus === PhyState.active))
   inwardD.io.enq.valid := client_tl.d.fire
   inwardD.io.enq.bits <> client_tl.d.bits
@@ -246,15 +250,16 @@ class UCITLFrontImp extends Impl {
   // ============ Below code should run on the UCIe clock? ==============
   val checksum_reg = RegInit(0.U(64.W))
   checksum_reg := hammingEncoder.io.checksum
-  
-  val tx_pipe = Module(new Pipe(new UCIRawPayloadFormat(tlParams, protoParams), 1))
+
+   val tx_pipe = Module(new Queue(new UCIRawPayloadFormat(tlParams, protoParams), 1))
   tx_pipe.io.enq.bits := uciTxPayload
   tx_pipe.io.enq.valid := txArbiter.io.out.fire
   // Dequeue the TX TL packets and translate to UCIe flit
-  txArbiter.io.out.ready := ucietop.io.TLlpData_ready // if pl_trdy is asserted
+  txArbiter.io.out.ready := tx_pipe.io.enq.ready
+  tx_pipe.io.deq.ready := ucietop.io.TLlpData_ready // if pl_trdy is asserted
   // specs implies that these needs to be asserted at the same time
-  ucietop.io.TLlpData_valid := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
-  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.valid & (~ucietop.io.fdi_lpStallAck)
+  ucietop.io.TLlpData_valid := tx_pipe.io.deq.fire & (~ucietop.io.fdi_lpStallAck)
+  ucietop.io.TLlpData_irdy := tx_pipe.io.deq.fire & (~ucietop.io.fdi_lpStallAck)
   ucietop.io.TLlpData_bits := Cat(tx_pipe.io.deq.bits.asUInt(511,64), checksum_reg.asUInt) // assign uciTXPayload to the FDI lp data signa
 
   val creditA = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLA)
@@ -263,12 +268,12 @@ class UCITLFrontImp extends Impl {
   val creditD = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLD)
   val creditE = (txArbiter.io.out.bits.msgType === UCIProtoMsgTypes.TLE)
 
-  outwardA.io.credit.ready := tx_pipe.io.deq.valid && creditA
-  outwardD.io.credit.ready := tx_pipe.io.deq.valid && creditD
+  outwardA.io.credit.ready := tx_pipe.io.deq.fire && creditA
+  outwardD.io.credit.ready := tx_pipe.io.deq.fire && creditD
 
   val txACredit = WireDefault(0.U(protoParams.creditWidth.W))
   val txDCredit = WireDefault(0.U(protoParams.creditWidth.W))
-  
+
   when(outwardA.io.credit.valid){
     txACredit := outwardA.io.credit.bits
   }.elsewhen(outwardD.io.credit.valid){
@@ -284,7 +289,7 @@ class UCITLFrontImp extends Impl {
     uciTxPayload.cmd.tlACredit := txACredit
     uciTxPayload.cmd.tlBCredit := 0.U //& outwardB.io.credit.valid & creditB
     uciTxPayload.cmd.tlCCredit := 0.U //& outwardC.io.credit.valid & creditC
-    uciTxPayload.cmd.tlDCredit := txDCredit 
+    uciTxPayload.cmd.tlDCredit := txDCredit
     uciTxPayload.cmd.tlECredit := 0.U //& outwardE.io.credit.valid & creditE
     uciTxPayload.cmd.reservedCmd := 0.U
     // header 1
@@ -335,7 +340,7 @@ class UCITLFrontImp extends Impl {
     uciRxPayload.ecc := ucietop.io.TLplData_bits(63,0)
     hammingDecoder.io.data := ucietop.io.TLplData_bits(511,64)
     hammingDecoder.io.checksum := ucietop.io.TLplData_bits(63,0)
-    
+
     // map the uciRxPayload to the rxTLPayload
     rxTLPayload.address := uciRxPayload.header1.address
     rxTLPayload.opcode  := uciRxPayload.header2.opcode
@@ -385,6 +390,6 @@ class UCITLFrontImp extends Impl {
 
   // soft resets: can be reset or flush and reset, in flush and reset, the packets are
   // sent out before triggering reset
-  ucietop.io.soft_reset := (regNode.module.io.d2d_csrs.d2d_state_can_reset | 
+  ucietop.io.soft_reset := (regNode.module.io.d2d_csrs.d2d_state_can_reset |
                             regNode.module.io.d2d_csrs.d2d_flush_and_reset)
-}}}}
+}}}

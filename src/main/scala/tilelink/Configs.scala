@@ -21,7 +21,6 @@ case class UCITLParams (
   val fdiParams: FdiParams,
   val rdiParams: RdiParams,
   val sbParams: SidebandParams, 
-  val myId: BigInt,
   val linkTrainingParams: LinkTrainingParams,
   val afeParams: AfeParams,
   val laneAsyncQueueParams: AsyncQueueParams
@@ -38,7 +37,6 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
       fdiParams   = params.fdiParams,
       rdiParams   = params.rdiParams,
       sbParams    = params.sbParams,
-      myId        = params.myId,
       linkTrainingParams = params.linkTrainingParams,
       afeParams   = params.afeParams,
       laneAsyncQueueParams = params.laneAsyncQueueParams

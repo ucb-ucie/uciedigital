@@ -113,6 +113,7 @@ class MBInitFSM(
           "PHY",
           data,
         )
+        msgReq.repeat := false.B
 
         // msgReq.msgTypeHasData := true.B
         msgReq.timeoutCycles := (0.008 * sbClockFreq).toInt.U
