@@ -8,7 +8,7 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config.{Field, Config, Parameters}
 import freechips.rocketchip.subsystem._
-//import testchipip.soc.{OBUS}
+import testchipip.soc.{OBUS}
 //import freechips.rocketchip.subsystem.{BaseSubsystem, CacheBlockBytes}
 import freechips.rocketchip.regmapper.{HasRegMap, RegField}
 import interfaces._
@@ -32,8 +32,8 @@ case object UCITLKey extends Field[Option[UCITLParams]](None)
 trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
   val uciTL = p(UCITLKey) match {
     case Some(params) => {
-      val bus = locateTLBusWrapper(SBUS) //TODO: make parameterizable?
-      //val ctrlbus = locateTLBusWrapper(SBUS)
+      val obus = locateTLBusWrapper(OBUS) //TODO: make parameterizable?
+      val sbus = locateTLBusWrapper(SBUS)
       val uciTL = LazyModule(new UCITLFront(
         tlParams    = params.tlParams,
         protoParams = params.protoParams,
@@ -45,12 +45,12 @@ trait CanHaveTLUCIAdapter { this: BaseSubsystem =>
         afeParams   = params.afeParams,
         laneAsyncQueueParams = params.laneAsyncQueueParams
       ))
-      uciTL.clockNode := bus.fixedClockNode
-      bus.coupleTo(s"ucie_tl_man_port") { 
-          uciTL.managerNode := TLWidthWidget(bus.beatBytes) := TLBuffer() := TLSourceShrinker(params.tlParams.sourceIDWidth) := TLFragmenter(bus.beatBytes, p(CacheBlockBytes)) := _ 
+      uciTL.clockNode := sbus.fixedClockNode
+      obus.coupleTo(s"ucie_tl_man_port") { 
+          uciTL.managerNode := TLWidthWidget(obus.beatBytes) := TLBuffer() := TLSourceShrinker(params.tlParams.sourceIDWidth) := TLFragmenter(obus.beatBytes, p(CacheBlockBytes)) := _ 
       } //manager node because SBUS is making request?
-      bus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(bus.beatBytes) := TLBuffer() := uciTL.clientNode }
-      bus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(bus.beatBytes) := TLFragmenter(bus.beatBytes, bus.blockBytes) := _ }
+      sbus.coupleFrom(s"ucie_tl_cl_port") { _ := TLWidthWidget(sbus.beatBytes) := TLBuffer() := uciTL.clientNode }
+      sbus.coupleTo(s"ucie_tl_ctrl_port") { uciTL.regNode.node := TLWidthWidget(sbus.beatBytes) := TLFragmenter(sbus.beatBytes, sbus.blockBytes) := _ }
       Some(uciTL)
       }
     case None => None
